@@ -99,22 +99,31 @@ Deno.serve(async (req: Request) => {
 
       if (articleError || !insertedArticle) continue;
 
-      const matchedCountry = countries?.find(c => 
-        article.location?.country?.toLowerCase().includes(c.name.toLowerCase())
-      );
+      // Only create outbreak signals if we have a valid location
+      // Articles without location are still stored in news_articles for the news feed
+      const hasLocation = article.location?.country && article.location?.lat && article.location?.lng;
+      
+      if (hasLocation) {
+        const matchedCountry = countries?.find(c => 
+          article.location?.country?.toLowerCase().includes(c.name.toLowerCase())
+        );
 
-      for (const diseaseId of detectedDiseases) {
-        await supabase.from('outbreak_signals').insert({
-          article_id: insertedArticle.id,
-          disease_id: diseaseId,
-          country_id: matchedCountry?.id || null,
-          latitude: article.location?.lat || null,
-          longitude: article.location?.lng || null,
-          confidence_score: 0.85,
-          case_count_mentioned: 0,
-          severity_assessment: 'medium',
-          is_new_outbreak: true,
-        });
+        // Only create signals if we have a country match
+        if (matchedCountry) {
+          for (const diseaseId of detectedDiseases) {
+            await supabase.from('outbreak_signals').insert({
+              article_id: insertedArticle.id,
+              disease_id: diseaseId,
+              country_id: matchedCountry.id,
+              latitude: article.location.lat!,
+              longitude: article.location.lng!,
+              confidence_score: 0.85,
+              case_count_mentioned: 0,
+              severity_assessment: 'medium',
+              is_new_outbreak: true,
+            });
+          }
+        }
       }
 
       processedArticles.push({
