@@ -57,7 +57,69 @@ Deno.serve(async (req: Request) => {
       .from('countries')
       .select('id, name, code');
 
+    const opencageKey = Deno.env.get('OPENCAGE_API_KEY');
     const processedArticles = [];
+
+    // Function to extract city from article text
+    function extractCity(text: string, country?: string): string | null {
+      // Common city extraction patterns
+      const cityPatterns = [
+        // "outbreak in [City]" or "cases in [City]"
+        /(?:outbreak|cases|reported|detected|confirmed|spread)\s+(?:in|at|near)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+        // "[City], [Country]" format
+        /([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*),\s*[A-Z][a-z]+(?:\s+[A-Z][a-z]+)*/i,
+        // "in [City]" standalone
+        /(?:in|at|near)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+      ];
+
+      for (const pattern of cityPatterns) {
+        const match = text.match(pattern);
+        if (match && match[1]) {
+          const potentialCity = match[1].trim();
+          // Filter out common non-city words
+          const nonCityWords = ['the', 'a', 'an', 'outbreak', 'cases', 'reported', 'detected', 'confirmed', 'spread'];
+          if (potentialCity.length > 2 && !nonCityWords.includes(potentialCity.toLowerCase())) {
+            // If country is known, filter out country names
+            if (country && potentialCity.toLowerCase() === country.toLowerCase()) {
+              continue;
+            }
+            return potentialCity;
+          }
+        }
+      }
+      return null;
+    }
+
+    // Function to geocode city
+    async function geocodeCity(cityName: string, countryName?: string): Promise<[number, number] | null> {
+      if (!opencageKey) return null;
+      
+      try {
+        // Build query: city only or city + country
+        const query = countryName 
+          ? `${cityName}, ${countryName}`
+          : cityName;
+        
+        // Rate limiting: wait 1 second between requests
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        const geocodeUrl = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(query)}&key=${opencageKey}&limit=1`;
+        const geocodeRes = await fetch(geocodeUrl);
+        
+        if (geocodeRes.ok) {
+          const geocodeData = await geocodeRes.json();
+          const result = geocodeData.results?.[0];
+          
+          if (result?.geometry) {
+            return [result.geometry.lat, result.geometry.lng];
+          }
+        }
+      } catch (e) {
+        console.error(`Geocoding failed for ${cityName}:`, e);
+      }
+      
+      return null;
+    }
 
     for (const article of articles) {
       const source = sources?.find(s => s.name.toLowerCase().includes(article.source.toLowerCase()));
@@ -65,6 +127,7 @@ Deno.serve(async (req: Request) => {
 
       const detectedDiseases = [];
       const content = (article.title + ' ' + article.content).toLowerCase();
+      const fullText = article.title + ' ' + article.content;
 
       for (const kw of keywords || []) {
         if (content.includes(kw.keyword.toLowerCase())) {
@@ -81,6 +144,61 @@ Deno.serve(async (req: Request) => {
         return kw?.keyword || 'unknown';
       });
 
+      // Extract location information
+      let locationData = article.location || null;
+      let extractedCity: string | null = null;
+      let cityCoords: [number, number] | null = null;
+
+      // If location is provided but city is missing, try to extract it
+      if (locationData?.country && !locationData.city) {
+        extractedCity = extractCity(fullText, locationData.country);
+        if (extractedCity && opencageKey) {
+          cityCoords = await geocodeCity(extractedCity, locationData.country);
+          if (cityCoords) {
+            locationData = {
+              ...locationData,
+              city: extractedCity,
+              lat: cityCoords[0],
+              lng: cityCoords[1],
+            };
+          }
+        }
+      } else if (locationData?.city) {
+        extractedCity = locationData.city;
+      } else if (!locationData) {
+        // Try to extract both city and country from text
+        extractedCity = extractCity(fullText);
+        if (extractedCity && opencageKey) {
+          cityCoords = await geocodeCity(extractedCity);
+          if (cityCoords) {
+            // Try to get country from geocoding result
+            try {
+              const geocodeUrl = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(extractedCity)}&key=${opencageKey}&limit=1`;
+              const geocodeRes = await fetch(geocodeUrl);
+              if (geocodeRes.ok) {
+                const geocodeData = await geocodeRes.json();
+                const result = geocodeData.results?.[0];
+                if (result?.components?.country) {
+                  locationData = {
+                    country: result.components.country,
+                    city: extractedCity,
+                    lat: cityCoords[0],
+                    lng: cityCoords[1],
+                  };
+                }
+              }
+            } catch (e) {
+              // Use coordinates without country
+              locationData = {
+                city: extractedCity,
+                lat: cityCoords[0],
+                lng: cityCoords[1],
+              };
+            }
+          }
+        }
+      }
+
       const { data: insertedArticle, error: articleError } = await supabase
         .from('news_articles')
         .insert({
@@ -89,7 +207,7 @@ Deno.serve(async (req: Request) => {
           content: article.content,
           url: article.url,
           published_at: article.publishedAt,
-          location_extracted: article.location || null,
+          location_extracted: locationData,
           diseases_mentioned: diseaseKeywords,
           sentiment_score: -0.5,
           is_verified: false,
@@ -99,37 +217,44 @@ Deno.serve(async (req: Request) => {
 
       if (articleError || !insertedArticle) continue;
 
-      // Only create outbreak signals if we have a valid location
-      // Articles without location are still stored in news_articles for the news feed
-      const hasLocation = article.location?.country && article.location?.lat && article.location?.lng;
+      // Create outbreak signals if we have valid coordinates
+      // Prioritize city-level coordinates over country-level
+      const hasCityLocation = locationData?.city && locationData?.lat && locationData?.lng;
+      const hasCountryLocation = locationData?.country && locationData?.lat && locationData?.lng;
       
-      if (hasLocation) {
-        const matchedCountry = countries?.find(c => 
-          article.location?.country?.toLowerCase().includes(c.name.toLowerCase())
-        );
+      if (hasCityLocation || hasCountryLocation) {
+        const matchedCountry = locationData?.country 
+          ? countries?.find(c => 
+              locationData.country?.toLowerCase().includes(c.name.toLowerCase()) ||
+              c.name.toLowerCase().includes(locationData.country?.toLowerCase() || '')
+            )
+          : null;
 
-        // Only create signals if we have a country match
-        if (matchedCountry) {
-          for (const diseaseId of detectedDiseases) {
-            await supabase.from('outbreak_signals').insert({
-              article_id: insertedArticle.id,
-              disease_id: diseaseId,
-              country_id: matchedCountry.id,
-              latitude: article.location.lat!,
-              longitude: article.location.lng!,
-              confidence_score: 0.85,
-              case_count_mentioned: 0,
-              severity_assessment: 'medium',
-              is_new_outbreak: true,
-            });
-          }
+        // Create signals even if country not matched, using city coordinates
+        const countryId = matchedCountry?.id || null;
+        const cityName = locationData?.city || null;
+
+        for (const diseaseId of detectedDiseases) {
+          await supabase.from('outbreak_signals').insert({
+            article_id: insertedArticle.id,
+            disease_id: diseaseId,
+            country_id: countryId,
+            city: cityName,
+            latitude: locationData!.lat!,
+            longitude: locationData!.lng!,
+            confidence_score: hasCityLocation ? 0.90 : 0.85, // Higher confidence for city-level
+            case_count_mentioned: 0,
+            severity_assessment: 'medium',
+            is_new_outbreak: true,
+          });
         }
       }
 
       processedArticles.push({
         article_id: insertedArticle.id,
         diseases: diseaseKeywords,
-        location: article.location,
+        location: locationData || article.location,
+        city: extractedCity || locationData?.city || null,
       });
     }
 

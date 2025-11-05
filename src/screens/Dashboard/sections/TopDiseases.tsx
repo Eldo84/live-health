@@ -1,23 +1,13 @@
 import React from "react";
 import { Card, CardContent, CardHeader } from "../../../components/ui/card";
 import { Badge } from "../../../components/ui/badge";
+import { Loader2 } from "lucide-react";
+import { useDashboardDiseases } from "../../../lib/useDashboardDiseases";
 
-interface Disease {
-  name: string;
-  cases: number;
-  growth: string;
-  severity: "critical" | "high" | "medium" | "low";
-  color: string;
+interface TopDiseasesProps {
+  timeRange: string;
+  searchQuery?: string;
 }
-
-const diseases: Disease[] = [
-  { name: "Ebola", cases: 15420, growth: "+18.2%", severity: "critical", color: "#f87171" },
-  { name: "Malaria", cases: 12350, growth: "+12.4%", severity: "high", color: "#fbbf24" },
-  { name: "COVID-19", cases: 8970, growth: "-8.1%", severity: "medium", color: "#66dbe1" },
-  { name: "Cholera", cases: 6540, growth: "+9.7%", severity: "high", color: "#a78bfa" },
-  { name: "Dengue", cases: 4230, growth: "+15.3%", severity: "medium", color: "#fb923c" },
-  { name: "Measles", cases: 2180, growth: "+5.6%", severity: "low", color: "#60a5fa" },
-];
 
 const severityConfig = {
   critical: { label: "Critical", bg: "bg-[#f8717133]", text: "text-[#f87171]" },
@@ -26,7 +16,31 @@ const severityConfig = {
   low: { label: "Low", bg: "bg-[#4ade8033]", text: "text-[#4ade80]" },
 };
 
-export const TopDiseases = (): JSX.Element => {
+export const TopDiseases = ({ timeRange, searchQuery = "" }: TopDiseasesProps): JSX.Element => {
+  const { diseases, loading, error } = useDashboardDiseases(timeRange);
+
+  // Filter diseases based on search query
+  const filteredDiseases = React.useMemo(() => {
+    if (!searchQuery.trim()) return diseases;
+    
+    const query = searchQuery.toLowerCase().trim();
+    return diseases.filter(disease => 
+      disease.name.toLowerCase().includes(query)
+    );
+  }, [diseases, searchQuery]);
+
+  if (error) {
+    return (
+      <Card className="bg-[#ffffff14] border-[#eaebf024]">
+        <CardContent className="p-6">
+          <p className="[font-family:'Roboto',Helvetica] font-medium text-[#f87171] text-sm">
+            Error loading diseases: {error}
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="bg-[#ffffff14] border-[#eaebf024]">
       <CardHeader className="pb-4">
@@ -38,31 +52,43 @@ export const TopDiseases = (): JSX.Element => {
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        {diseases.map((disease, index) => (
-          <div key={index} className="flex items-center justify-between pb-4 border-b border-[#ffffff1a] last:border-0 last:pb-0">
-            <div className="flex items-center gap-3 flex-1">
-              <div className="w-2 h-12 rounded-full" style={{ backgroundColor: disease.color }} />
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-sm">
-                    {disease.name}
-                  </span>
-                  <Badge className={`${severityConfig[disease.severity].bg} ${severityConfig[disease.severity].text} border-0 text-xs`}>
-                    {severityConfig[disease.severity].label}
-                  </Badge>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="[font-family:'Roboto',Helvetica] font-medium text-[#ebebeb99] text-xs">
-                    {disease.cases.toLocaleString()} cases
-                  </span>
-                  <span className={`[font-family:'Roboto',Helvetica] font-medium text-xs ${disease.growth.startsWith('+') ? 'text-[#f87171]' : 'text-[#4ade80]'}`}>
-                    {disease.growth}
-                  </span>
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 text-[#66dbe1] animate-spin" />
+          </div>
+        ) : filteredDiseases.length === 0 ? (
+          <div className="flex items-center justify-center py-8">
+            <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm">
+              {searchQuery ? `No diseases found for "${searchQuery}"` : "No disease data available"}
+            </p>
+          </div>
+        ) : (
+          filteredDiseases.map((disease, index) => (
+            <div key={index} className="flex items-center justify-between pb-4 border-b border-[#ffffff1a] last:border-0 last:pb-0">
+              <div className="flex items-center gap-3 flex-1">
+                <div className="w-2 h-12 rounded-full" style={{ backgroundColor: disease.color }} />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-sm">
+                      {disease.name}
+                    </span>
+                    <Badge className={`${severityConfig[disease.severity].bg} ${severityConfig[disease.severity].text} border-0 text-xs`}>
+                      {severityConfig[disease.severity].label}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="[font-family:'Roboto',Helvetica] font-medium text-[#ebebeb99] text-xs">
+                      {disease.cases.toLocaleString()} cases
+                    </span>
+                    <span className={`[font-family:'Roboto',Helvetica] font-medium text-xs ${disease.growth.startsWith('+') ? 'text-[#f87171]' : 'text-[#4ade80]'}`}>
+                      {disease.growth}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </CardContent>
     </Card>
   );

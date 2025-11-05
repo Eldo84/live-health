@@ -4,6 +4,7 @@ export interface OutbreakSignal {
   id: string;
   disease: string;
   location: string;
+  city?: string;
   category: string;
   pathogen?: string;
   keywords: string;
@@ -75,7 +76,8 @@ export function useSupabaseOutbreakSignals(categoryFilter?: string | null) {
         queryParams.set('latitude', 'not.is.null');
         queryParams.set('longitude', 'not.is.null');
         queryParams.set('order', 'detected_at.desc');
-        queryParams.set('limit', '500');
+        // Remove limit to get all outbreak signals, or use a very high limit if needed
+        queryParams.set('limit', '10000');
         
         let query = `${supabaseUrl}/rest/v1/outbreak_signals?${queryParams.toString()}`;
 
@@ -211,10 +213,17 @@ export function useSupabaseOutbreakSignals(categoryFilter?: string | null) {
               ? diseasePathogenMap[diseaseId] 
               : "";
 
+            // Build location string: city, country or just country
+            let locationString = country?.name || "Unknown";
+            if (signal.city) {
+              locationString = `${signal.city}, ${locationString}`;
+            }
+
             return {
               id: signal.id,
               disease: disease?.name || "Unknown Disease",
-              location: country?.name || "Unknown",
+              location: locationString,
+              city: signal.city || undefined,
               category: category.name,
               pathogen: pathogen,
               keywords: disease?.name || "", // Simplified

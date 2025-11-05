@@ -201,26 +201,57 @@ export const InteractiveMap = ({ selectedCategory: externalCategory }: Interacti
     "Emerging Infectious Diseases": "#f59e0b",
     "Other": "#4eb7bd"
   };
+
+  // Normalize category name to match legend colors (case-insensitive, trim whitespace)
+  const normalizeCategoryName = (category: string | null | undefined): string => {
+    if (!category) return "Other";
+    const normalized = category.trim();
+    // Try exact match first
+    if (CATEGORY_COLORS[normalized]) return normalized;
+    // Try case-insensitive match
+    const lower = normalized.toLowerCase();
+    for (const key in CATEGORY_COLORS) {
+      if (key.toLowerCase() === lower) return key;
+    }
+    // Return original if no match found
+    return normalized;
+  };
+
+  // Get color for a category, with fallback
+  const getCategoryColor = (category: string | null | undefined): string => {
+    const normalized = normalizeCategoryName(category);
+    const color = CATEGORY_COLORS[normalized] || CATEGORY_COLORS["Other"];
+    // Debug: log if using fallback color
+    if (!CATEGORY_COLORS[normalized] && category && category !== "Other") {
+      console.warn(`Category "${category}" (normalized: "${normalized}") not found in legend colors, using fallback color`);
+    }
+    return color;
+  };
+
+  // Get severity color based on outbreak count
+  // Low: < 20 (green), Medium: 20-99 (yellow), High: >= 100 (red)
+  const getSeverityColor = (outbreakCount: number): string => {
+    if (outbreakCount >= 100) {
+      return "#ef4444"; // High severity - red
+    } else if (outbreakCount >= 20) {
+      return "#fbbf24"; // Medium severity - yellow
+    } else {
+      return "#10b981"; // Low severity - green
+    }
+  };
   
   const filteredPoints = selectedCategory ? points.filter(o => o.category === selectedCategory) : points;
 
   const createCustomIcon = (color: string, size: number) => new Icon({
     iconUrl: `data:image/svg+xml;base64,${btoa(
       `<svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="${size/2}" cy="${size/2}" r="${size/2-2}"
-          fill="${color}" stroke="white" stroke-width="2" opacity="0.8"/>
+        <circle cx="${size/2}" cy="${size/2}" r="${size/2-1}"
+          fill="${color}" stroke="rgba(255,255,255,0.3)" stroke-width="1"/>
       </svg>`
     )}`,
     iconSize: [size, size],
     iconAnchor: [size/2, size/2],
     popupAnchor: [0, -size/2],
-  });
-
-  const createMarkerIcon = (size: number) => new Icon({
-    iconUrl: '/markericon.jpeg',
-    iconSize: [size, size],
-    iconAnchor: [size/2, size],
-    popupAnchor: [0, -size],
     className: 'smooth-marker-icon',
   });
 
@@ -578,7 +609,7 @@ export const InteractiveMap = ({ selectedCategory: externalCategory }: Interacti
       const x2 = cx + sliceRadius * Math.cos(endAngle);
       const y2 = cy + sliceRadius * Math.sin(endAngle);
       const largeArcFlag = endAngle - startAngle > Math.PI ? 1 : 0;
-      const color = CATEGORY_COLORS[category] || "#4eb7bd";
+      const color = getCategoryColor(category);
       const isHovered = hoveredCategory === category;
       
       // Create hoverable path with unique ID
@@ -708,12 +739,13 @@ export const InteractiveMap = ({ selectedCategory: externalCategory }: Interacti
               {/* Render single-point cells as colored markers */}
               {aggregated.filter(cell => cell.totalCount === 1).map((cell) => {
                 const outbreak = cell.points[0];
-                const color = CATEGORY_COLORS[outbreak.category] || "#4eb7bd";
+                // Use severity color based on count (1 outbreak = low severity)
+                const color = getSeverityColor(cell.totalCount);
                 return (
                   <Marker
                     key={`single-${outbreak.id}`}
                     position={outbreak.position}
-                    icon={createCustomIcon(color, 24)}
+                    icon={createCustomIcon(color, 16)}
                   >
                     <Tooltip 
                       permanent={false}
@@ -722,14 +754,28 @@ export const InteractiveMap = ({ selectedCategory: externalCategory }: Interacti
                     >
                       <div className="p-2 min-w-[200px]">
                         <div className="mb-1 font-semibold">{outbreak.disease}</div>
-                        <div className="text-xs"><strong>Location:</strong> {outbreak.location}</div>
+                        <div className="text-xs">
+                          <strong>Location:</strong> {outbreak.location}
+                          {outbreak.city && (
+                            <span className="ml-1 px-1.5 py-0.5 bg-[#67DBE2]/20 text-[#67DBE2] rounded text-[10px] font-medium">
+                              City
+                            </span>
+                          )}
+                        </div>
                         <div className="text-xs"><strong>Category:</strong> {outbreak.category}</div>
                       </div>
                     </Tooltip>
                     <Popup>
                       <div className="p-2 min-w-[200px]">
                         <div className="mb-1 font-semibold">{outbreak.disease}</div>
-                        <div className="text-xs"><strong>Location:</strong> {outbreak.location}</div>
+                        <div className="text-xs">
+                          <strong>Location:</strong> {outbreak.location}
+                          {outbreak.city && (
+                            <span className="ml-1 px-1.5 py-0.5 bg-[#67DBE2]/20 text-[#67DBE2] rounded text-[10px] font-medium">
+                              City-Level
+                            </span>
+                          )}
+                        </div>
                         <div className="text-xs"><strong>Category:</strong> {outbreak.category}</div>
                         <div className="text-xs"><strong>Keywords:</strong> {outbreak.keywords}</div>
                         <div className="text-xs"><strong>Pathogen:</strong> {outbreak.pathogen}</div>
@@ -840,7 +886,7 @@ export const InteractiveMap = ({ selectedCategory: externalCategory }: Interacti
                       <div className="mb-2 font-semibold">Outbreak categories</div>
                       {Object.entries(cell.totals).sort((a,b)=>b[1]-a[1]).map(([cat, n]) => (
                         <div key={cat} className="text-xs flex items-center gap-2">
-                          <span className="inline-block w-3 h-3 rounded" style={{ background: CATEGORY_COLORS[cat] || "#4eb7bd" }} />
+                          <span className="inline-block w-3 h-3 rounded" style={{ background: getCategoryColor(cat) }} />
                           <span>{cat}</span>
                           <span className="ml-auto font-semibold">{n}</span>
                         </div>
@@ -864,38 +910,49 @@ export const InteractiveMap = ({ selectedCategory: externalCategory }: Interacti
               })}
             </>
           ) : (
-            // High zoom: Show ONE pin per country - aggregate all outbreaks by country
+            // High zoom: Show pins grouped by city or country for better precision
             <>
               {(() => {
-                // Group all outbreaks by country (location field contains country name)
-                const countryGroups: Map<string, typeof filteredPoints> = new Map();
+                // Group all outbreaks by location (city, country format) to preserve city-level detail
+                const locationGroups: Map<string, typeof filteredPoints> = new Map();
                 
                 filteredPoints.forEach((outbreak: any) => {
-                  const country = outbreak.location || 'Unknown';
-                  if (!countryGroups.has(country)) {
-                    countryGroups.set(country, []);
+                  // Use full location string (e.g., "City, Country" or just "Country")
+                  const location = outbreak.location || 'Unknown';
+                  if (!locationGroups.has(location)) {
+                    locationGroups.set(location, []);
                   }
-                  countryGroups.get(country)!.push(outbreak);
+                  locationGroups.get(location)!.push(outbreak);
                 });
                 
-                // Create one marker per country
-                return Array.from(countryGroups.entries()).map(([countryName, countryOutbreaks]) => {
-                  // Use the first outbreak's position as the representative location for the country
-                  const representativePosition = countryOutbreaks[0].position;
-                  const totalCount = countryOutbreaks.length;
+                // Create one marker per location (city or country)
+                return Array.from(locationGroups.entries()).map(([locationName, locationOutbreaks]) => {
+                  // Use the first outbreak's position as the representative location
+                  const representativePosition = locationOutbreaks[0].position;
+                  const totalCount = locationOutbreaks.length;
+                  
+                  // Check if this is a city-level outbreak
+                  const isCityLevel = locationOutbreaks.some((o: any) => o.city);
                   
                   // Get unique diseases and categories
-                  const uniqueDiseases = [...new Set(countryOutbreaks.map((o: any) => o.disease))];
-                  const uniqueCategories = [...new Set(countryOutbreaks.map((o: any) => o.category))];
+                  const uniqueDiseases = [...new Set(locationOutbreaks.map((o: any) => o.disease))];
+                  const uniqueCategories = [...new Set(locationOutbreaks.map((o: any) => o.category))];
                   
-                  // Determine marker size based on zoom level
-                  const markerSize = zoom > 7 ? 60 : 48;
+                  // Determine color based on outbreak count (severity-based)
+                  // Low: < 20 (green), Medium: 20-99 (yellow), High: >= 100 (red)
+                  const color = getSeverityColor(totalCount);
+                  
+                  // Determine marker size based on zoom level and city-level status
+                  // City-level outbreaks get slightly larger markers for visibility
+                  const markerSize = isCityLevel 
+                    ? (zoom > 7 ? 20 : 18)
+                    : (zoom > 7 ? 18 : 16);
                   
                   return (
                     <Marker
-                      key={countryName}
+                      key={locationName}
                       position={representativePosition}
-                      icon={createMarkerIcon(markerSize)}
+                      icon={createCustomIcon(color, markerSize)}
                     >
                       <Tooltip 
                         permanent={false}
@@ -904,7 +961,12 @@ export const InteractiveMap = ({ selectedCategory: externalCategory }: Interacti
                       >
                         <div className="p-2 min-w-[200px]">
                           <div className="mb-1 font-semibold">
-                            {totalCount} Outbreak{totalCount !== 1 ? 's' : ''} - {countryName}
+                            {totalCount} Outbreak{totalCount !== 1 ? 's' : ''} - {locationName}
+                            {isCityLevel && (
+                              <span className="ml-1 px-1.5 py-0.5 bg-[#67DBE2]/20 text-[#67DBE2] rounded text-[10px] font-medium">
+                                City
+                              </span>
+                            )}
                           </div>
                           <div className="text-xs mt-1">
                             <strong>Diseases:</strong> {uniqueDiseases.slice(0, 5).join(', ')}{uniqueDiseases.length > 5 ? '...' : ''}
@@ -914,17 +976,25 @@ export const InteractiveMap = ({ selectedCategory: externalCategory }: Interacti
                       </Tooltip>
                       <Popup>
                         <div className="p-2 min-w-[200px] max-h-[400px] overflow-y-auto">
-                          <div className="mb-2 font-semibold text-base">{countryName}</div>
+                          <div className="mb-2 font-semibold text-base">
+                            {locationName}
+                            {isCityLevel && (
+                              <span className="ml-2 px-2 py-1 bg-[#67DBE2]/20 text-[#67DBE2] rounded text-xs font-medium">
+                                City-Level Outbreak
+                              </span>
+                            )}
+                          </div>
                           <div className="text-xs text-yellow-400 mb-3">
-                            <strong>⚠ {totalCount} total outbreaks in this country</strong>
+                            <strong>⚠ {totalCount} total outbreak{totalCount !== 1 ? 's' : ''} at this location</strong>
                           </div>
                           <div className="text-xs mb-2">
                             <strong>Diseases ({uniqueDiseases.length}):</strong> {uniqueDiseases.join(', ')}
                           </div>
                           <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                            {countryOutbreaks.map((o: any, idx: number) => (
+                            {locationOutbreaks.map((o: any, idx: number) => (
                               <div key={idx} className="border-b border-gray-200 pb-2 last:border-0">
                                 <div className="text-xs font-semibold">{o.disease}</div>
+                                <div className="text-xs"><strong>Location:</strong> {o.location}</div>
                                 <div className="text-xs"><strong>Category:</strong> {o.category}</div>
                                 {o.pathogen && (
                                   <div className="text-xs"><strong>Pathogen:</strong> {o.pathogen}</div>

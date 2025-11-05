@@ -11,7 +11,7 @@ interface NormalizedArticle {
   content: string;
   url: string;
   publishedAt: string;
-  source: 'CDC' | 'WHO' | 'Google News';
+  source: 'CDC' | 'WHO' | 'Google News' | 'BBC Health' | 'Reuters Health' | 'ProMED-mail';
   location?: {
     country?: string;
     city?: string;
@@ -239,49 +239,174 @@ Deno.serve(async (req: Request) => {
     console.log('Step 2: Fetching news articles...');
     const articles: NormalizedArticle[] = [];
 
-    // Fetch WHO RSS - use the correct feed URL
-    try {
-      const whoRss = await fetch('https://www.who.int/rss-feeds/news-english.xml');
-      const whoText = await whoRss.text();
-      
-      // Parse RSS XML manually (DOMParser not available in Deno Edge Runtime)
-      // Simple regex-based parsing for RSS <item> elements
-      const itemRegex = /<item[^>]*>([\s\S]*?)<\/item>/gi;
-      const items: Array<{ title: string; description: string; link: string; pubDate: string }> = [];
-      
-      let match;
-      while ((match = itemRegex.exec(whoText)) !== null && items.length < 20) {
-        const itemContent = match[1];
-        
-        // Extract fields using regex
-        const titleMatch = itemContent.match(/<title[^>]*><!\[CDATA\[(.*?)\]\]><\/title>|<title[^>]*>(.*?)<\/title>/i);
-        const descriptionMatch = itemContent.match(/<description[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/description>|<description[^>]*>([\s\S]*?)<\/description>/i);
-        const linkMatch = itemContent.match(/<link[^>]*>(.*?)<\/link>/i);
-        const pubDateMatch = itemContent.match(/<pubDate[^>]*>(.*?)<\/pubDate>/i);
-        
-        const title = (titleMatch?.[1] || titleMatch?.[2] || '').trim().replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"');
-        const description = (descriptionMatch?.[1] || descriptionMatch?.[2] || '').trim().replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"');
-        const link = (linkMatch?.[1] || '').trim();
-        const pubDate = (pubDateMatch?.[1] || new Date().toISOString()).trim();
-        
-        if (title && link) {
-          items.push({ title, description, link, pubDate });
+    // Helper function to parse RSS feed
+    async function parseRSSFeed(url: string, sourceName: string, maxItems = 20): Promise<NormalizedArticle[]> {
+      const feedArticles: NormalizedArticle[] = [];
+      try {
+        let response = await fetch(url);
+        // If direct fetch fails, try with CORS proxy
+        if (!response.ok) {
+          const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+          response = await fetch(proxyUrl);
         }
-      }
-      
-      console.log(`WHO RSS: Found ${items.length} items`);
-      items.forEach(item => {
-        articles.push({
-          title: item.title,
-          content: item.description,
-          url: item.link,
-          publishedAt: item.pubDate,
-          source: 'WHO',
+        
+        if (!response.ok) {
+          const proxyUrl2 = `https://cors.isomorphic-git.org/${url}`;
+          response = await fetch(proxyUrl2);
+        }
+        
+        if (!response.ok) {
+          console.warn(`${sourceName}: Failed to fetch RSS feed (${response.status})`);
+          return feedArticles;
+        }
+        
+        const feedText = await response.text();
+        
+        // Parse RSS XML manually (DOMParser not available in Deno Edge Runtime)
+        const itemRegex = /<item[^>]*>([\s\S]*?)<\/item>/gi;
+        const items: Array<{ title: string; description: string; link: string; pubDate: string }> = [];
+        
+        let match;
+        while ((match = itemRegex.exec(feedText)) !== null && items.length < maxItems) {
+          const itemContent = match[1];
+          
+          // Extract fields using regex
+          const titleMatch = itemContent.match(/<title[^>]*><!\[CDATA\[(.*?)\]\]><\/title>|<title[^>]*>(.*?)<\/title>/i);
+          const descriptionMatch = itemContent.match(/<description[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/description>|<description[^>]*>([\s\S]*?)<\/description>/i);
+          const linkMatch = itemContent.match(/<link[^>]*>(.*?)<\/link>/i);
+          const pubDateMatch = itemContent.match(/<pubDate[^>]*>(.*?)<\/pubDate>/i);
+          
+          const title = (titleMatch?.[1] || titleMatch?.[2] || '').trim().replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&apos;/g, "'");
+          const description = (descriptionMatch?.[1] || descriptionMatch?.[2] || '').trim().replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/&quot;/g, '"').replace(/&apos;/g, "'");
+          const link = (linkMatch?.[1] || '').trim();
+          const pubDate = (pubDateMatch?.[1] || new Date().toISOString()).trim();
+          
+          if (title && link) {
+            items.push({ title, description, link, pubDate });
+          }
+        }
+        
+        items.forEach(item => {
+          feedArticles.push({
+            title: item.title,
+            content: item.description,
+            url: item.link,
+            publishedAt: item.pubDate,
+            source: sourceName as any,
+          });
         });
-      });
-      console.log(`WHO: Added ${items.length} articles from WHO RSS`);
+        
+        console.log(`${sourceName}: Added ${items.length} articles from RSS feed`);
+      } catch (e) {
+        console.warn(`${sourceName} RSS fetch failed:`, e);
+      }
+      return feedArticles;
+    }
+
+    // Fetch WHO Disease Outbreak News (DON) RSS - use the correct feed URL
+    try {
+      const whoArticles = await parseRSSFeed('https://www.who.int/feeds/entity/csr/don/en/rss.xml', 'WHO', 20);
+      articles.push(...whoArticles);
     } catch (e) {
       console.warn('WHO fetch failed:', e);
+    }
+
+    // Fetch CDC outbreak data
+    try {
+      const cdcUrl = 'https://data.cdc.gov/resource/9mfq-cb36.json?$limit=100&$order=submission_date DESC';
+      const cdcResponse = await fetch(cdcUrl);
+      
+      if (cdcResponse.ok) {
+        const cdcData = await cdcResponse.json() as Array<{
+          submission_date?: string;
+          state?: string;
+          new_case?: string;
+          tot_cases?: string;
+          new_death?: string;
+          tot_death?: string;
+          [key: string]: any;
+        }>;
+        
+        // Convert CDC data to articles format
+        // Only include recent records (last 30 days)
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        cdcData.forEach(record => {
+          if (record.submission_date) {
+            const recordDate = new Date(record.submission_date);
+            if (recordDate >= thirtyDaysAgo) {
+              const title = `CDC Update: ${record.state || 'Unknown State'} - ${record.new_case || 0} new cases`;
+              const content = `State: ${record.state || 'Unknown'}, New Cases: ${record.new_case || '0'}, Total Cases: ${record.tot_cases || '0'}, New Deaths: ${record.new_death || '0'}, Total Deaths: ${record.tot_death || '0'}`;
+              articles.push({
+                title,
+                content,
+                url: `https://data.cdc.gov/resource/9mfq-cb36.json?submission_date=${record.submission_date}&state=${record.state || ''}`,
+                publishedAt: record.submission_date,
+                source: 'CDC',
+              });
+            }
+          }
+        });
+        console.log(`CDC: Added ${cdcData.filter(r => r.submission_date && new Date(r.submission_date) >= thirtyDaysAgo).length} articles from CDC data`);
+      } else {
+        console.warn('CDC fetch failed:', cdcResponse.status);
+      }
+    } catch (e) {
+      console.warn('CDC fetch failed:', e);
+    }
+
+    // Fetch BBC Health RSS
+    try {
+      const bbcArticles = await parseRSSFeed('https://feeds.bbci.co.uk/news/health/rss.xml', 'BBC Health', 20);
+      articles.push(...bbcArticles);
+    } catch (e) {
+      console.warn('BBC Health fetch failed:', e);
+    }
+
+    // Fetch Reuters Health RSS
+    try {
+      const reutersArticles = await parseRSSFeed('https://www.reutersagency.com/feed/?best-topics=health&post_type=best', 'Reuters Health', 20);
+      articles.push(...reutersArticles);
+    } catch (e) {
+      // Try alternative Reuters health RSS feed
+      try {
+        const reutersArticles2 = await parseRSSFeed('https://www.reuters.com/rssFeed/health', 'Reuters Health', 20);
+        articles.push(...reutersArticles2);
+      } catch (e2) {
+        console.warn('Reuters Health fetch failed:', e2);
+      }
+    }
+
+    // Fetch ProMED-mail RSS
+    try {
+      const promadArticles = await parseRSSFeed('https://promedmail.org/wp-json/promed/v1/posts', 'ProMED-mail', 20);
+      // ProMED might use JSON API instead of RSS, handle both
+      if (promadArticles.length === 0) {
+        // Try JSON API format
+        const promadResponse = await fetch('https://promedmail.org/wp-json/promed/v1/posts?per_page=20');
+        if (promadResponse.ok) {
+          const promadData = await promadResponse.json();
+          if (Array.isArray(promadData)) {
+            promadData.forEach((post: any) => {
+              if (post.title && post.link) {
+                articles.push({
+                  title: post.title.rendered || post.title,
+                  content: post.content?.rendered || post.excerpt?.rendered || '',
+                  url: post.link || post.url,
+                  publishedAt: post.date || new Date().toISOString(),
+                  source: 'ProMED-mail',
+                });
+              }
+            });
+            console.log(`ProMED-mail: Added ${promadData.length} articles from JSON API`);
+          }
+        }
+      } else {
+        articles.push(...promadArticles);
+      }
+    } catch (e) {
+      console.warn('ProMED-mail fetch failed:', e);
     }
 
     // Fetch Google News for top keywords (limit to avoid rate limits)
@@ -1372,8 +1497,16 @@ Deno.serve(async (req: Request) => {
       // Find or create source
       const sourceName = article.source === 'WHO' ? 'WHO - World Health Organization' :
                         article.source === 'CDC' ? 'CDC - Centers for Disease Control' :
+                        article.source === 'BBC Health' ? 'BBC Health' :
+                        article.source === 'Reuters Health' ? 'Reuters Health' :
+                        article.source === 'ProMED-mail' ? 'ProMED-mail' :
                         'Google News';
-      const source = sources?.find(s => s.name.includes(article.source));
+      const source = sources?.find(s => {
+        // Match source name more flexibly
+        const sourceLower = article.source.toLowerCase();
+        const dbNameLower = s.name.toLowerCase();
+        return dbNameLower.includes(sourceLower) || sourceLower.includes(dbNameLower.split(' ')[0]);
+      });
       if (!source) {
         console.warn(`Skipping article - source not found for: ${article.source}`);
         skippedNoSource++;

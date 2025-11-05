@@ -26,20 +26,20 @@ export const NewsSection = (): JSX.Element => {
         throw new Error("Missing Supabase configuration");
       }
 
-      // Calculate one month ago date (used for filtering)
-      const oneMonthAgo = new Date();
-      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
-      const oneMonthAgoISO = oneMonthAgo.toISOString();
+      // Calculate three months ago date (used for filtering) - more flexible than 1 month
+      const threeMonthsAgo = new Date();
+      threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+      const threeMonthsAgoISO = threeMonthsAgo.toISOString();
       
       // Fetch news articles with source information
-      // Filter to only show articles published within the last month
+      // Filter to show articles published within the last 3 months
       // Order by published_at desc to show newest articles first
       const queryParams = new URLSearchParams();
       queryParams.set('select', '*,news_sources!source_id(name)');
-      // Filter: only articles published in the last month (PostgREST syntax: column.gte.value)
-      queryParams.set('published_at', `gte.${oneMonthAgoISO}`);
+      // Filter: only articles published in the last 3 months (PostgREST syntax: column.gte.value)
+      queryParams.set('published_at', `gte.${threeMonthsAgoISO}`);
       queryParams.set('order', 'published_at.desc'); // Newest first
-      queryParams.set('limit', '20');
+      queryParams.set('limit', '50'); // Increased from 20 to show more articles
       
       const query = `${supabaseUrl}/rest/v1/news_articles?${queryParams.toString()}`;
 
@@ -60,7 +60,7 @@ export const NewsSection = (): JSX.Element => {
 
       const data: any[] = await response.json();
       console.log('Fetched news articles:', data.length, 'items');
-      console.log('Date filter:', oneMonthAgoISO);
+      console.log('Date filter:', threeMonthsAgoISO);
       if (data.length > 0) {
         console.log('Sample article dates:', data.slice(0, 3).map((a: any) => ({
           title: a.title?.substring(0, 50),
@@ -101,14 +101,14 @@ export const NewsSection = (): JSX.Element => {
         };
       });
       
-      // Additional client-side filter to ensure we only show articles published within the last month
+      // Additional client-side filter to ensure we only show articles published within the last 3 months
       transformed = transformed.filter(article => {
         if (!article.published_at) return false;
         const publishedDate = new Date(article.published_at);
-        return publishedDate >= oneMonthAgo;
+        return publishedDate >= threeMonthsAgo;
       });
       
-      console.log('Transformed news articles (within last month):', transformed.length);
+      console.log('Transformed news articles (within last 3 months):', transformed.length);
       return transformed;
     } catch (e: any) {
       console.error('Error fetching news:', e);
