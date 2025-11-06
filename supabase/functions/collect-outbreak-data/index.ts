@@ -22,9 +22,11 @@ interface NormalizedArticle {
 
 interface KeywordMatch {
   keyword: string;
-  diseaseId: string;
+  diseaseId?: string; // Will be populated lazily when disease is created/found in DB
   diseaseName: string;
+  pathogen?: string;
   category?: string;
+  pathogenType?: string;
   confidence: number;
 }
 
@@ -41,14 +43,25 @@ Deno.serve(async (req: Request) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
     const opencageKey = Deno.env.get('OPENCAGE_API_KEY');
+    const deepseekKey = Deno.env.get('DEEPSEEK_API_KEY');
+    const deepseekEnabled = Deno.env.get('DEEPSEEK_ENABLED') !== 'false'; // Default to enabled if not set
 
     console.log('Starting outbreak data collection...');
 
-    // STEP 1: Load disease data from spreadsheet (including pathogen, category, and keywords)
-    console.log('Step 1: Fetching spreadsheet data...');
+    // STEP 1: Load disease data DIRECTLY from spreadsheet (no DB dependency)
+    console.log('Step 1: Fetching spreadsheet data (direct source)...');
     const csvResponse = await fetch(SPREADSHEET_URL);
     const csvText = await csvResponse.text();
-    const keywordMap = new Map<string, Array<{ diseaseId: string; diseaseName: string; category?: string }>>();
+    
+    // Build keyword map directly from spreadsheet - no diseaseId needed yet
+    // Structure: keyword -> array of disease data from spreadsheet
+    const keywordMap = new Map<string, Array<{
+      diseaseName: string;
+      pathogen?: string;
+      category?: string;
+      pathogenType?: string;
+      keywords: string;
+    }>>();
 
     // Parse CSV with all columns: Disease, Pathogen, Outbreak Category, Pathogen Type, Keywords
     const lines = csvText.split(/\r?\n/).filter(l => l.trim());
@@ -69,171 +82,30 @@ Deno.serve(async (req: Request) => {
         const keywords = values[keywordIdx]?.split(/[,;]/).map(k => k.trim()).filter(Boolean) || [];
 
         if (disease && keywords.length > 0) {
-          // Find or create disease in DB
-          let { data: existingDisease } = await supabase
-            .from('diseases')
-            .select('id, name')
-            .eq('name', disease)
-            .maybeSingle();
+          // Store full disease data from spreadsheet (no DB interaction needed)
+          const diseaseData = {
+            diseaseName: disease,
+            pathogen,
+            category: outbreakCategory,
+            pathogenType,
+            keywords: values[keywordIdx] || '',
+          };
 
-          if (!existingDisease) {
-            // Determine severity based on category
-            const severityMap: Record<string, string> = {
-              'Emerging Infectious Diseases': 'critical',
-              'Healthcare-Associated Infections': 'high',
-              'Foodborne Outbreaks': 'medium',
-              'Waterborne Outbreaks': 'high',
-              'Vector-Borne Outbreaks': 'high',
-              'Airborne Outbreaks': 'high',
-            };
-            const severity = severityMap[outbreakCategory] || 'medium';
-            const colorMap: Record<string, string> = {
-              'critical': '#f87171',
-              'high': '#fbbf24',
-              'medium': '#66dbe1',
-              'low': '#4ade80',
-            };
-
-            const { data: newDisease } = await supabase
-              .from('diseases')
-              .insert({
-                name: disease,
-                description: pathogen ? `${disease} caused by ${pathogen}` : disease,
-                severity_level: severity,
-                color_code: colorMap[severity],
-                clinical_manifestation: disease,
-                spreadsheet_source: true,
-              })
-              .select()
-              .single();
-            existingDisease = newDisease;
-          } else {
-            // Update existing disease with clinical manifestation if needed
-            await supabase
-              .from('diseases')
-              .update({
-                clinical_manifestation: disease,
-                spreadsheet_source: true,
-              })
-              .eq('id', existingDisease.id);
-          }
-
-          if (existingDisease) {
-            // Save pathogen if provided
-            if (pathogen) {
-              const pathogenTypeMap: Record<string, string> = {
-                'Bacteria': 'Bacteria',
-                'Virus': 'Virus',
-                'Fungus': 'Fungus',
-                'other(parasite/protozoan or Helminth)': 'Protozoan',
-                'Parasite': 'Parasite',
-                'Helminth': 'Helminth',
-              };
-              const normalizedPathogenType = pathogenTypeMap[pathogenType] || pathogenType || 'Other';
-
-              // Find or create pathogen
-              let { data: existingPathogen } = await supabase
-                .from('pathogens')
-                .select('id')
-                .eq('name', pathogen)
-                .maybeSingle();
-
-              if (!existingPathogen) {
-                const { data: newPathogen } = await supabase
-                  .from('pathogens')
-                  .insert({
-                    name: pathogen,
-                    type: normalizedPathogenType,
-                    description: `Causative agent of ${disease}`,
-                  })
-                  .select()
-                  .maybeSingle();
-                existingPathogen = newPathogen;
-              }
-
-              // Link disease to pathogen
-              if (existingPathogen) {
-                await supabase
-                  .from('disease_pathogens')
-                  .upsert({
-                    disease_id: existingDisease.id,
-                    pathogen_id: existingPathogen.id,
-                    is_primary: true,
-                  }, { onConflict: 'disease_id,pathogen_id' });
-              }
+          // Add all keywords to map pointing to this disease data
+          for (const keyword of keywords) {
+            const key = keyword.toLowerCase().trim();
+            if (!key) continue;
+            
+            if (!keywordMap.has(key)) {
+              keywordMap.set(key, []);
             }
-
-            // Link disease to outbreak category
-            if (outbreakCategory) {
-              const { data: category } = await supabase
-                .from('outbreak_categories')
-                .select('id')
-                .eq('name', outbreakCategory)
-                .maybeSingle();
-
-              if (category) {
-                await supabase
-                  .from('disease_categories')
-                  .upsert({
-                    disease_id: existingDisease.id,
-                    category_id: category.id,
-                  }, { onConflict: 'disease_id,category_id' });
-              }
-            }
-
-            // Use keywords for matching (only store in memory for article matching)
-            for (const keyword of keywords) {
-              const key = keyword.toLowerCase().trim();
-              if (!key) continue;
-              
-              // Add to in-memory map for matching articles
-              if (!keywordMap.has(key)) {
-                keywordMap.set(key, []);
-              }
-              keywordMap.get(key)!.push({
-                diseaseId: existingDisease.id,
-                diseaseName: disease,
-                category: outbreakCategory,
-              });
-            }
+            keywordMap.get(key)!.push(diseaseData);
           }
         }
       }
     }
 
-    // Also load existing keywords from database (for diseases already imported)
-    const { data: dbKeywords } = await supabase
-      .from('disease_keywords')
-      .select('keyword, disease_id, diseases!inner(name, id)');
-    
-    // Get category info for each disease
-    const diseaseIds = [...new Set(dbKeywords?.map(kw => kw.disease_id) || [])];
-    const { data: diseaseCategories } = await supabase
-      .from('disease_categories')
-      .select('disease_id, outbreak_categories!inner(name)')
-      .in('disease_id', diseaseIds);
-    
-    const categoryMap = new Map<string, string>();
-    diseaseCategories?.forEach(dc => {
-      const catName = (dc.outbreak_categories as any)?.name;
-      if (catName) {
-        categoryMap.set(dc.disease_id, catName);
-      }
-    });
-    
-    dbKeywords?.forEach(kw => {
-      const key = kw.keyword.toLowerCase();
-      if (!keywordMap.has(key)) {
-        keywordMap.set(key, []);
-      }
-      keywordMap.get(key)!.push({
-        diseaseId: kw.disease_id,
-        diseaseName: (kw.diseases as any).name,
-        category: categoryMap.get(kw.disease_id),
-      });
-    });
-
-    console.log(`Loaded ${keywordMap.size} unique keywords`);
+    console.log(`Loaded ${keywordMap.size} unique keywords from spreadsheet (${lines.length - 1} diseases)`);
 
     // STEP 2: Fetch news from multiple sources
     console.log('Step 2: Fetching news articles...');
@@ -313,10 +185,67 @@ Deno.serve(async (req: Request) => {
 
     // Fetch CDC outbreak data
     try {
-      const cdcUrl = 'https://data.cdc.gov/resource/9mfq-cb36.json?$limit=100&$order=submission_date DESC';
-      const cdcResponse = await fetch(cdcUrl);
+      // Try direct fetch first, then fallback to proxies if needed
+      const cdcBaseUrl = 'https://data.cdc.gov/resource/9mfq-cb36.json';
+      // URL encode the order parameter properly
+      const cdcUrl = `${cdcBaseUrl}?$limit=100&$order=${encodeURIComponent('submission_date DESC')}`;
       
-      if (cdcResponse.ok) {
+      let cdcResponse: Response | null = null;
+      let lastError: string | null = null;
+      
+      // Try direct fetch first
+      try {
+        cdcResponse = await fetch(cdcUrl);
+        if (cdcResponse.ok) {
+          console.log('CDC: Direct fetch successful');
+        } else {
+          console.warn(`CDC: Direct fetch failed with status ${cdcResponse.status}, trying proxy...`);
+          lastError = `Direct fetch: ${cdcResponse.status}`;
+          cdcResponse = null;
+        }
+      } catch (directError: any) {
+        console.warn(`CDC: Direct fetch error: ${directError.message}, trying proxy...`);
+        lastError = `Direct fetch error: ${directError.message}`;
+      }
+      
+      // Try proxy fallback 1: allorigins
+      if (!cdcResponse || !cdcResponse.ok) {
+        try {
+          const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(cdcUrl)}`;
+          cdcResponse = await fetch(proxyUrl);
+          if (cdcResponse.ok) {
+            console.log('CDC: Proxy (allorigins) fetch successful');
+          } else {
+            console.warn(`CDC: Proxy (allorigins) failed with status ${cdcResponse.status}, trying second proxy...`);
+            lastError = `Proxy allorigins: ${cdcResponse.status}`;
+            cdcResponse = null;
+          }
+        } catch (proxyError: any) {
+          console.warn(`CDC: Proxy (allorigins) error: ${proxyError.message}, trying second proxy...`);
+          lastError = `Proxy allorigins error: ${proxyError.message}`;
+        }
+      }
+      
+      // Try proxy fallback 2: isomorphic-git
+      if (!cdcResponse || !cdcResponse.ok) {
+        try {
+          const proxyUrl2 = `https://cors.isomorphic-git.org/${cdcUrl}`;
+          cdcResponse = await fetch(proxyUrl2);
+          if (cdcResponse.ok) {
+            console.log('CDC: Proxy (isomorphic-git) fetch successful');
+          } else {
+            console.warn(`CDC: Proxy (isomorphic-git) failed with status ${cdcResponse.status}`);
+            lastError = `Proxy isomorphic-git: ${cdcResponse.status}`;
+            cdcResponse = null;
+          }
+        } catch (proxyError2: any) {
+          console.warn(`CDC: Proxy (isomorphic-git) error: ${proxyError2.message}`);
+          lastError = `Proxy isomorphic-git error: ${proxyError2.message}`;
+        }
+      }
+      
+      // Process response if we got one
+      if (cdcResponse && cdcResponse.ok) {
         const cdcData = await cdcResponse.json() as Array<{
           submission_date?: string;
           state?: string;
@@ -350,10 +279,12 @@ Deno.serve(async (req: Request) => {
         });
         console.log(`CDC: Added ${cdcData.filter(r => r.submission_date && new Date(r.submission_date) >= thirtyDaysAgo).length} articles from CDC data`);
       } else {
-        console.warn('CDC fetch failed:', cdcResponse.status);
+        // All attempts failed - log detailed error but continue processing
+        console.warn(`CDC fetch failed: All attempts failed. Last error: ${lastError || 'Unknown error'}. Continuing without CDC data.`);
       }
-    } catch (e) {
-      console.warn('CDC fetch failed:', e);
+    } catch (e: any) {
+      // Catch any unexpected errors and log them, but continue processing
+      console.warn(`CDC fetch failed with unexpected error: ${e?.message || String(e)}. Continuing without CDC data.`);
     }
 
     // Fetch BBC Health RSS
@@ -547,9 +478,11 @@ Deno.serve(async (req: Request) => {
           diseases.forEach(disease => {
             matches.push({
               keyword,
-              diseaseId: disease.diseaseId,
+              // diseaseId will be populated lazily when we create/find disease in DB
               diseaseName: disease.diseaseName,
+              pathogen: disease.pathogen,
               category: disease.category,
+              pathogenType: disease.pathogenType,
               confidence,
             });
           });
@@ -650,9 +583,10 @@ Deno.serve(async (req: Request) => {
       }
     });
 
-    async function extractAndGeocode(article: NormalizedArticle): Promise<{ country?: string; lat?: number; lng?: number; countryCode?: string }> {
+    async function extractAndGeocode(article: NormalizedArticle): Promise<{ country?: string; city?: string; lat?: number; lng?: number; countryCode?: string }> {
       const text = article.title + ' ' + article.content;
       let country: string | undefined;
+      let city: string | undefined;
       let countryCode: string | undefined;
       let lat: number | undefined;
       let lng: number | undefined;
@@ -730,9 +664,10 @@ Deno.serve(async (req: Request) => {
                   const geocodeData = await geocodeRes.json();
                   const result = geocodeData.results?.[0];
                   if (result?.geometry && result.components?.country_code?.toUpperCase() === 'US') {
+                    city = potentialCity; // Store extracted city
                     lat = result.geometry.lat;
                     lng = result.geometry.lng;
-                    console.log(`Geocoded "${locationQuery}" to ${lat}, ${lng}`);
+                    console.log(`Geocoded "${locationQuery}" to ${lat}, ${lng} (city: ${city})`);
                     break;
                   }
                 }
@@ -852,6 +787,7 @@ Deno.serve(async (req: Request) => {
             if (match[2] && match[1]) {
               // Pattern matched "in [City], [Country]" format
               extractedCity = match[1].trim();
+              city = extractedCity; // Store extracted city
               location = `${extractedCity}, ${match[2].trim()}`;
               const possibleCountry = match[2].trim();
               
@@ -966,6 +902,7 @@ Deno.serve(async (req: Request) => {
               } else {
                 // Just a city name - store it for later geocoding
                 extractedCity = location;
+                city = extractedCity; // Store extracted city
               }
             }
             break;
@@ -1092,10 +1029,16 @@ Deno.serve(async (req: Request) => {
                     // (it will be created in the database later if needed)
                     country = matchingCountry?.name || detectedCountry;
                     countryCode = matchingCountry?.code || detectedCountryCode;
+                    // Extract city from geocoding result if available
+                    if (!city && result.components?.city) {
+                      city = result.components.city;
+                    } else if (!city && extractedCity) {
+                      city = extractedCity;
+                    }
                     lat = result.geometry.lat;
                     lng = result.geometry.lng;
                     
-                    console.log(`Geocoded location "${location}" to ${country} (${countryCode}) at ${lat}, ${lng}`);
+                    console.log(`Geocoded location "${location}" to ${country} (${countryCode}) at ${lat}, ${lng}${city ? ` - city: ${city}` : ''}`);
                   } else if (detectedCountryCode) {
                     // If we have country code but not name, try to find country by code
                     const matchingCountry = allCountriesArray.find(
@@ -1166,9 +1109,17 @@ Deno.serve(async (req: Request) => {
                     
                     country = matchingCountry?.name || detectedCountry;
                     countryCode = matchingCountry?.code || detectedCountryCode;
+                    // Extract city from geocoding result if available
+                    if (!city && result.components?.city) {
+                      city = result.components.city;
+                    } else if (!city && result.components?.town) {
+                      city = result.components.town;
+                    } else if (!city && result.components?.village) {
+                      city = result.components.village;
+                    }
                     lat = result.geometry.lat;
                     lng = result.geometry.lng;
-                    console.log(`Geocoded location "${potentialLocation}" to ${country} (${countryCode}) at ${lat}, ${lng}`);
+                    console.log(`Geocoded location "${potentialLocation}" to ${country} (${countryCode}) at ${lat}, ${lng}${city ? ` - city: ${city}` : ''}`);
                     break;
                   } else if (detectedCountryCode && confidence >= 5) {
                     // Try to find country by code if we have it
@@ -1178,9 +1129,15 @@ Deno.serve(async (req: Request) => {
                     if (matchingCountry) {
                       country = matchingCountry.name;
                       countryCode = matchingCountry.code;
+                      // Extract city from geocoding result if available
+                      if (!city && result.components?.city) {
+                        city = result.components.city;
+                      } else if (!city && result.components?.town) {
+                        city = result.components.town;
+                      }
                       lat = result.geometry.lat;
                       lng = result.geometry.lng;
-                      console.log(`Geocoded location "${potentialLocation}" to ${country} (${countryCode}) at ${lat}, ${lng}`);
+                      console.log(`Geocoded location "${potentialLocation}" to ${country} (${countryCode}) at ${lat}, ${lng}${city ? ` - city: ${city}` : ''}`);
                       break;
                     }
                   }
@@ -1466,10 +1423,294 @@ Deno.serve(async (req: Request) => {
           console.log(`Article stored without coordinates: "${article.title.substring(0, 80)}" - Country: ${country} but no lat/lng (will still be stored)`);
         }
         // Return partial location data - we'll still use this to store the article
-        return { country: country || undefined, lat, lng, countryCode };
+        return { country: country || undefined, city: city || undefined, lat, lng, countryCode };
       }
 
-      return { country, lat, lng, countryCode };
+      // Helper function to detect if city looks like a false positive
+      const isLikelyFalsePositive = (cityName: string | undefined): boolean => {
+        if (!cityName) return false;
+        const cityLower = cityName.toLowerCase();
+        return cityLower.includes('threaten') ||
+               cityLower.includes('respond') ||
+               cityLower.includes('rare enterovirus') ||
+               cityLower.includes('took months') ||
+               cityLower.includes('increase over') ||
+               cityLower.includes('officials waited') ||
+               cityName === 'China' ||
+               cityName.length > 50; // Very long "cities" are likely false positives
+      };
+
+      // Check for false positives BEFORE returning
+      const hasFalsePositive = isLikelyFalsePositive(city);
+      
+      // If regex extraction failed, OR if we detected a false positive, try DeepSeek AI
+      if (deepseekEnabled && deepseekKey && (!country || !city || hasFalsePositive)) {
+        if (hasFalsePositive) {
+          console.log(`Detected potential false positive city: "${city}" - Will try DeepSeek`);
+        }
+        try {
+          console.log(`Attempting DeepSeek extraction for: "${article.title.substring(0, 60)}"`);
+          const deepseekResult = await extractLocationWithDeepSeek(article, deepseekKey);
+          
+          if (deepseekResult.success) {
+            // Use DeepSeek results if they're better than regex
+            // Always prefer DeepSeek if we detected a false positive
+            if ((!country || hasFalsePositive) && deepseekResult.country) {
+              country = deepseekResult.country;
+              console.log(`DeepSeek extracted country: ${country}`);
+            }
+            // Replace city if: missing, or if we detected a false positive, or if DeepSeek found a valid city
+            if ((!city || hasFalsePositive) && deepseekResult.city) {
+              const oldCity = city;
+              city = deepseekResult.city;
+              console.log(`DeepSeek extracted city: ${city}${oldCity ? ` (replaced "${oldCity}")` : ''}`);
+            } else if (hasFalsePositive) {
+              // If we detected a false positive and DeepSeek didn't find a valid city, remove it
+              const oldCity = city;
+              city = undefined;
+              console.log(`DeepSeek found no valid city (returned: ${deepseekResult.city || 'undefined'}), removing false positive: "${oldCity}"`);
+            } else if (!city && deepseekResult.city) {
+              // If we had no city and DeepSeek found one, use it
+              city = deepseekResult.city;
+              console.log(`DeepSeek extracted city: ${city}`);
+            }
+            // DeepSeek state can help with US locations
+            if (deepseekResult.state && !city && country === 'United States') {
+              // Try to geocode state for better coordinates
+              const stateForGeocode = deepseekResult.state;
+              if (opencageKey) {
+                try {
+                  await new Promise(resolve => setTimeout(resolve, 1000));
+                  const stateQuery = `${stateForGeocode}, USA`;
+                  const geocodeUrl = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(stateQuery)}&key=${opencageKey}&limit=1`;
+                  const geocodeRes = await fetch(geocodeUrl);
+                  if (geocodeRes.ok) {
+                    const geocodeData = await geocodeRes.json();
+                    const result = geocodeData.results?.[0];
+                    if (result?.geometry && result.components?.country_code?.toUpperCase() === 'US') {
+                      if (!lat || !lng) {
+                        lat = result.geometry.lat;
+                        lng = result.geometry.lng;
+                        console.log(`DeepSeek + Geocoding: ${stateForGeocode} at ${lat}, ${lng}`);
+                      }
+                    }
+                  }
+                } catch (e) {
+                  console.warn('Geocoding DeepSeek state failed:', e);
+                }
+              }
+            }
+            
+            // If we got a country from DeepSeek but no coordinates, try geocoding
+            if (country && (!lat || !lng) && opencageKey) {
+              try {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                const locationQuery = city ? `${city}, ${country}` : country;
+                const geocodeUrl = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(locationQuery)}&key=${opencageKey}&limit=1`;
+                const geocodeRes = await fetch(geocodeUrl);
+                if (geocodeRes.ok) {
+                  const geocodeData = await geocodeRes.json();
+                  const result = geocodeData.results?.[0];
+                  if (result?.geometry) {
+                    lat = result.geometry.lat;
+                    lng = result.geometry.lng;
+                    // Update country from geocoding result if we got a valid country code
+                    if (result.components?.country_code) {
+                      const geocodedCountryCode = result.components.country_code.toUpperCase();
+                      // Find matching country
+                      const matchingCountry = allCountriesArray.find(c => c.code?.toUpperCase() === geocodedCountryCode);
+                      if (matchingCountry && !country) {
+                        country = matchingCountry.name;
+                        countryCode = matchingCountry.code;
+                      }
+                    }
+                    console.log(`DeepSeek + Geocoding: ${locationQuery} at ${lat}, ${lng}`);
+                  }
+                }
+              } catch (e) {
+                console.warn('Geocoding DeepSeek location failed:', e);
+              }
+            }
+          }
+        } catch (error) {
+          console.warn('DeepSeek extraction failed, using regex results:', error);
+          // Continue with regex results
+        }
+      }
+
+      return { country, city: city || undefined, lat, lng, countryCode };
+    }
+
+    // DeepSeek AI location extraction function
+    async function extractLocationWithDeepSeek(
+      article: NormalizedArticle,
+      apiKey: string
+    ): Promise<{
+      country?: string;
+      city?: string;
+      state?: string;
+      confidence?: string;
+      success: boolean;
+    }> {
+      try {
+        // Truncate content if too long (max 3000 chars to avoid token limits)
+        const maxContentLength = 3000;
+        const content = article.content.length > maxContentLength 
+          ? article.content.substring(0, maxContentLength) + '...'
+          : article.content;
+
+        // Build system prompt
+        const systemPrompt = `You are a location extraction expert for health outbreak news. Your task is to extract ONLY actual geographical locations (countries, cities, states/provinces) mentioned in the article.
+
+Rules:
+1. Extract ONLY real geographical locations, not descriptive phrases or title fragments
+2. Return JSON with: country, city (if mentioned), state/province (if mentioned), confidence, reasoning
+3. If location is ambiguous or unclear, return null for that field
+4. Prioritize locations where the outbreak is occurring, not just mentioned
+5. For US states, extract the state name only (e.g., "Texas", not "Texas Increase" or "Texas Increase Over")
+6. For cities, extract only proper city names (e.g., "Jalisco", not "Rare enterovirus strain")
+7. Do NOT extract phrases from article titles that are not actual locations
+8. Confidence should be "high" if location is clear, "medium" if somewhat clear, "low" if uncertain`;
+
+        // Build user prompt
+        const userPrompt = `Extract location information from this health outbreak news article.
+
+Title: ${article.title}
+Content: ${content}
+
+Return JSON with this exact structure:
+{
+  "country": "string or null",
+  "city": "string or null",
+  "state": "string or null",
+  "confidence": "high|medium|low",
+  "reasoning": "brief explanation of why these locations were extracted"
+}`;
+
+        // Make API call
+        const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'deepseek-chat',
+            messages: [
+              {
+                role: 'system',
+                content: systemPrompt,
+              },
+              {
+                role: 'user',
+                content: userPrompt,
+              },
+            ],
+            temperature: 0.1,
+            max_tokens: 300,
+            response_format: { type: 'json_object' },
+          }),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`DeepSeek API error (${response.status}):`, errorText);
+          return { success: false };
+        }
+
+        const data = await response.json();
+        const contentText = data.choices?.[0]?.message?.content;
+        
+        if (!contentText) {
+          console.error('DeepSeek API returned no content');
+          return { success: false };
+        }
+
+        // Parse JSON response
+        let parsed: any;
+        try {
+          parsed = JSON.parse(contentText);
+        } catch (parseError) {
+          console.error('Failed to parse DeepSeek JSON response:', contentText);
+          return { success: false };
+        }
+
+        // Validate and clean extracted locations
+        const result: {
+          country?: string;
+          city?: string;
+          state?: string;
+          confidence?: string;
+          success: boolean;
+        } = {
+          success: true,
+        };
+
+        // Validate country
+        if (parsed.country && typeof parsed.country === 'string' && parsed.country !== 'null') {
+          const countryName = parsed.country.trim();
+          // Check if it matches a known country
+          const matchingCountry = allCountriesArray.find(
+            c => c.name.toLowerCase() === countryName.toLowerCase() ||
+                 c.code?.toLowerCase() === countryName.toLowerCase()
+          );
+          if (matchingCountry) {
+            result.country = matchingCountry.name;
+          } else if (countryName.length > 2 && countryName.length < 100) {
+            // Accept if it looks reasonable (not a title fragment)
+            result.country = countryName;
+          }
+        }
+
+        // Validate city (must be reasonable length and not look like a sentence)
+        if (parsed.city && typeof parsed.city === 'string' && parsed.city !== 'null' && parsed.city !== 'undefined') {
+          const cityName = parsed.city.trim();
+          // More aggressive filtering of false positives
+          const cityLower = cityName.toLowerCase();
+          const isFalsePositive = cityLower.includes('threaten') ||
+                                 cityLower.includes('respond') ||
+                                 cityLower.includes('rare enterovirus') ||
+                                 cityLower.includes('took months') ||
+                                 cityLower.includes('increase over') ||
+                                 cityLower.includes('officials waited') ||
+                                 cityLower.includes('neighbors') ||
+                                 cityLower.includes('amid virus') ||
+                                 cityName === 'China' ||
+                                 cityName.length > 50 ||
+                                 cityName.split(' ').length > 5; // More than 5 words is likely a sentence
+          
+          if (!isFalsePositive && cityName.length > 2 && cityName.length < 50) {
+            result.city = cityName;
+          } else {
+            console.log(`DeepSeek returned city that looks like false positive, rejecting: "${cityName}"`);
+          }
+        }
+
+        // Validate state
+        if (parsed.state && typeof parsed.state === 'string' && parsed.state !== 'null') {
+          const stateName = parsed.state.trim();
+          // US states should be short, single or two words
+          if (stateName.length > 2 && stateName.length < 30 && !stateName.includes(' ')) {
+            result.state = stateName;
+          }
+        }
+
+        result.confidence = parsed.confidence || 'medium';
+
+        console.log(`DeepSeek extraction result:`, {
+          country: result.country,
+          city: result.city,
+          state: result.state,
+          confidence: result.confidence,
+          reasoning: parsed.reasoning?.substring(0, 100),
+        });
+
+        return result;
+
+      } catch (error) {
+        console.error('DeepSeek extraction error:', error);
+        return { success: false };
+      }
     }
 
     // STEP 5: Store in database
@@ -1483,6 +1724,145 @@ Deno.serve(async (req: Request) => {
     // Get news sources
     const { data: sources } = await supabase.from('news_sources').select('id, name');
     console.log(`Found ${sources?.length || 0} news sources in database`);
+
+    // Lazy disease creation function - creates disease in DB only when needed (when article matches)
+    // This allows us to use spreadsheet as primary source without requiring pre-import
+    async function getOrCreateDisease(match: KeywordMatch): Promise<string | null> {
+      // If diseaseId already populated, return it
+      if (match.diseaseId) {
+        return match.diseaseId;
+      }
+
+      try {
+        // Try to find existing disease
+        let { data: existingDisease } = await supabase
+          .from('diseases')
+          .select('id, name')
+          .eq('name', match.diseaseName)
+          .maybeSingle();
+
+        if (!existingDisease) {
+          // Create disease from spreadsheet data
+          const severityMap: Record<string, string> = {
+            'Emerging Infectious Diseases': 'critical',
+            'Healthcare-Associated Infections': 'high',
+            'Foodborne Outbreaks': 'medium',
+            'Waterborne Outbreaks': 'high',
+            'Vector-Borne Outbreaks': 'high',
+            'Airborne Outbreaks': 'high',
+          };
+          const severity = severityMap[match.category || ''] || 'medium';
+          const colorMap: Record<string, string> = {
+            'critical': '#f87171',
+            'high': '#fbbf24',
+            'medium': '#66dbe1',
+            'low': '#4ade80',
+          };
+
+          const { data: newDisease, error: diseaseError } = await supabase
+            .from('diseases')
+            .insert({
+              name: match.diseaseName,
+              description: match.pathogen ? `${match.diseaseName} caused by ${match.pathogen}` : match.diseaseName,
+              severity_level: severity,
+              color_code: colorMap[severity],
+              clinical_manifestation: match.diseaseName,
+              spreadsheet_source: true,
+            })
+            .select()
+            .single();
+
+          if (diseaseError || !newDisease) {
+            console.error(`Error creating disease ${match.diseaseName}:`, diseaseError);
+            return null;
+          }
+
+          existingDisease = newDisease;
+          console.log(`Created new disease from spreadsheet: ${match.diseaseName}`);
+
+          // Create pathogen if provided
+          if (match.pathogen) {
+            const pathogenTypeMap: Record<string, string> = {
+              'Bacteria': 'Bacteria',
+              'Virus': 'Virus',
+              'Fungus': 'Fungus',
+              'other(parasite/protozoan or Helminth)': 'Protozoan',
+              'Parasite': 'Parasite',
+              'Helminth': 'Helminth',
+            };
+            const normalizedPathogenType = pathogenTypeMap[match.pathogenType || ''] || match.pathogenType || 'Other';
+
+            // Find or create pathogen
+            let { data: existingPathogen } = await supabase
+              .from('pathogens')
+              .select('id')
+              .eq('name', match.pathogen)
+              .maybeSingle();
+
+            if (!existingPathogen) {
+              const { data: newPathogen } = await supabase
+                .from('pathogens')
+                .insert({
+                  name: match.pathogen,
+                  type: normalizedPathogenType,
+                  description: `Causative agent of ${match.diseaseName}`,
+                })
+                .select()
+                .maybeSingle();
+              existingPathogen = newPathogen;
+            }
+
+            // Link disease to pathogen
+            if (existingPathogen) {
+              await supabase
+                .from('disease_pathogens')
+                .upsert({
+                  disease_id: existingDisease.id,
+                  pathogen_id: existingPathogen.id,
+                  is_primary: true,
+                }, { onConflict: 'disease_id,pathogen_id' });
+            }
+          }
+
+          // Link disease to outbreak category
+          if (match.category) {
+            const { data: category } = await supabase
+              .from('outbreak_categories')
+              .select('id')
+              .eq('name', match.category)
+              .maybeSingle();
+
+            if (category) {
+              await supabase
+                .from('disease_categories')
+                .upsert({
+                  disease_id: existingDisease.id,
+                  category_id: category.id,
+                }, { onConflict: 'disease_id,category_id' });
+            }
+          }
+
+          // Store keywords in database for future reference
+          if (match.keyword) {
+            await supabase
+              .from('disease_keywords')
+              .upsert({
+                disease_id: existingDisease.id,
+                keyword: match.keyword.toLowerCase(),
+                keyword_type: 'primary',
+                confidence_weight: 1.0,
+              }, { onConflict: 'disease_id,keyword' });
+          }
+        }
+
+        // Cache diseaseId in match object for future use
+        match.diseaseId = existingDisease.id;
+        return existingDisease.id;
+      } catch (error) {
+        console.error(`Error in getOrCreateDisease for ${match.diseaseName}:`, error);
+        return null;
+      }
+    }
 
     for (const article of matchedArticles) {
       const location = await extractAndGeocode(article);
@@ -1586,7 +1966,12 @@ Deno.serve(async (req: Request) => {
           content: article.content,
           url: article.url,
           published_at: article.publishedAt,
-          location_extracted: hasLocation ? location : null,
+          location_extracted: hasLocation ? {
+            country: location.country,
+            city: location.city,
+            lat: location.lat,
+            lng: location.lng
+          } : null,
           diseases_mentioned: article.matches.map(m => m.diseaseName),
           sentiment_score: -0.5,
           is_verified: false,
@@ -1604,11 +1989,18 @@ Deno.serve(async (req: Request) => {
       if (hasLocation && country) {
         // Create outbreak signals for each match
         for (const match of article.matches) {
+          // Lazy create disease in DB if it doesn't exist (uses spreadsheet data)
+          const diseaseId = await getOrCreateDisease(match);
+          if (!diseaseId) {
+            console.warn(`Skipping signal creation - could not create/find disease: ${match.diseaseName}`);
+            continue;
+          }
+
           // Check for duplicate (same disease + country + within 24h)
           const { data: existing } = await supabase
             .from('outbreak_signals')
             .select('id')
-            .eq('disease_id', match.diseaseId)
+            .eq('disease_id', diseaseId)
             .eq('country_id', country.id)
             .gte('detected_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
             .maybeSingle();
@@ -1629,8 +2021,9 @@ Deno.serve(async (req: Request) => {
 
           await supabase.from('outbreak_signals').insert({
             article_id: newsArticle.id,
-            disease_id: match.diseaseId,
+            disease_id: diseaseId,
             country_id: country.id,
+            city: location.city || null, // Store city if extracted
             latitude: location.lat,
             longitude: location.lng,
             confidence_score: match.confidence,

@@ -180,6 +180,7 @@ export const InteractiveMap = ({ selectedCategory: externalCategory }: Interacti
     id: s.id,
     disease: s.disease,
     location: s.location,
+    city: s.city, // Include city field for city-level display
     category: s.category,
     pathogen: s.pathogen || "",
     keywords: s.keywords || "",

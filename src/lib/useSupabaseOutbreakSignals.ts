@@ -68,7 +68,8 @@ export function useSupabaseOutbreakSignals(categoryFilter?: string | null) {
 
         // Build query using PostgREST syntax
         // For foreign key joins, use: table!foreign_key_column(fields)
-        const selectClause = `*,diseases!disease_id(name,color_code),countries!country_id(name,code),news_articles!article_id(title,url,published_at)`;
+        // Explicitly include city field to ensure it's returned
+        const selectClause = `*,city,diseases!disease_id(name,color_code),countries!country_id(name,code),news_articles!article_id(title,url,published_at)`;
         
         // Build query string - URLSearchParams handles encoding properly
         const queryParams = new URLSearchParams();
@@ -238,6 +239,8 @@ export function useSupabaseOutbreakSignals(categoryFilter?: string | null) {
         
         console.log('Transformed signals:', transformed.length);
         console.log('Categories found:', [...new Set(transformed.map(s => s.category))]);
+        console.log('Signals with cities:', transformed.filter(s => s.city).length);
+        console.log('Sample signals with cities:', transformed.filter(s => s.city).slice(0, 3).map(s => ({ city: s.city, location: s.location })));
 
         // Filter by category if provided
         const filtered = categoryFilter
