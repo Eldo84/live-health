@@ -29,6 +29,11 @@ export async function matchDiseaseFromSpreadsheet(
     return false;
   });
 
+  if (!row) {
+    console.warn(`Disease or Keyword "${disease}" not found in spreadsheet`);
+    return null;
+  }
+
   return {
     diseaseName: row["Disease"],
     pathogen: row["Pathogen"],
@@ -86,7 +91,14 @@ export async function getOrCreateDisease({
         })
         .select()
         .single();
-      if (diseaseError || !newDisease) return null;
+      if (diseaseError || !newDisease) {
+        console.error(
+          `Error creating disease: ${diseaseInfo.diseaseName}`,
+          diseaseError
+        );
+        return null;
+      }
+
       existingDisease = newDisease;
 
       if (diseaseInfo.pathogen) {
@@ -161,7 +173,8 @@ export async function getOrCreateDisease({
     }
 
     return existingDisease?.id ?? null;
-  } catch {
+  } catch (error) {
+    console.error(`Error getting or creating disease: ${disease}`, error);
     return null;
   }
 }
@@ -287,7 +300,10 @@ export async function storeArticlesAndSignals({
     if (dbCountry && article.diseases && article.diseases.length > 0) {
       for (const disease of article.diseases) {
         const diseaseId = await getOrCreateDisease({ supabase, disease });
-        if (!diseaseId) continue;
+        if (!diseaseId) {
+          console.error(`Failed to get disease ID for: ${disease}`);
+          continue;
+        }
         const { data: existing } = await supabase
           .from("outbreak_signals")
           .select("id")
