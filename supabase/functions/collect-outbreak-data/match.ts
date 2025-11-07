@@ -107,13 +107,24 @@ export async function deepseekMatchArticles(opts: {
       );
       if (!article) return null;
 
+      // cleanup diseases array from AI response
+      const diseasesArray = (diseases?.split("|") ?? [])
+        .map((d) => d.trim())
+        .filter(
+          (d) =>
+            typeof d === "string" &&
+            d.trim() !== "" &&
+            d !== "null" &&
+            d !== "undefined"
+        );
+
       return {
         ...article,
         location: {
           country: getNormalizedCountryName(country ?? ""),
           city: city ?? undefined,
         },
-        diseases: (diseases?.split("|") ?? []).map((d) => d.trim()),
+        diseases: diseasesArray,
         case_count_mentioned: case_count_mentioned
           ? parseInt(case_count_mentioned)
           : undefined,

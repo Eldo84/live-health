@@ -300,10 +300,7 @@ export async function storeArticlesAndSignals({
     if (dbCountry && article.diseases && article.diseases.length > 0) {
       for (const disease of article.diseases) {
         const diseaseId = await getOrCreateDisease({ supabase, disease });
-        if (!diseaseId) {
-          console.error(`Failed to get disease ID for: ${disease}`);
-          continue;
-        }
+        if (!diseaseId) continue;
         const { data: existing } = await supabase
           .from("outbreak_signals")
           .select("id")
