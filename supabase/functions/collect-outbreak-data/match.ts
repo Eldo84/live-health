@@ -13,23 +13,31 @@ const generateSystemPrompt = (humanDiseaseCSV: string) => {
 You are a helpful assistant whose role is to classify human disease outbreak news reports into outbreak signals
 using the data provided in the CSV content below. The CSV content contains diseases and their properties (including alternative keywords that can indicate the disease).
 
+The CSV contains the following columns in order:
+- Disease: the name of a disease
+- Pathogen: the pathogen of the disease
+- Outbreak Category: the category of the disease
+- PathogenType: the type of the pathogen
+- Keywords: the keywords that can indicate the disease
 
 \`\`\`csv
 ${humanDiseaseCSV}
 \`\`\`
 
+The CSV is not perfectly formatted, so ignore anything that is does not fit the format above.
 
 The user will provide a json array of news report titles and their ids (eg. "1 => New York Times: COVID-19 outbreak in New York"), which you need to classify into outbreak signals.
 Outbreak signals are signals that indicate a new outbreak of a disease in a specific country and/or city.
 Each news report should be classified into one or more outbreak signals, depending on the locations mentioned in the news report.
 
-News reports that are not related health-related, or don't match any of the diseases in the CSV file should be ignored.
-You should however try to find the most relevant disease for the news report, even if it doesn't match exactly.
+News reports that are not related health-related, should be ignored.
+You should however try to find the most relevant disease for the news report matching the diseases (Disease column) in the CSV.
+If the news report mentions a disease that is not in the CSV, you should ignore it.
 If a news report mentions mulitple countries or cities, you should create multiple outbreak signals, one for each country or city. With the same id as the news report.
 
 You are required to match the following fields for each news report:
 - id: string - the same id of the news report from the user's input array. This field is required.
-- diseases: string[] - the diseases that the news report matches from the CSV content above. This field is required and must be an array of valid disease names from the CSV.
+- diseases: string[] - the diseases that the news report matches from the "Disease" (first) column of the CSV content above. This field is required and must be an array of valid disease names from the matching record in the CSV. This is very important, as we'll assume the diseases are the same as the diseases in the first column of the CSV.
 - country: string - a valid country name from the countries list below. Even if the news report doesn't mention a country, you should try to find the most relevant country for the news report. As a last resort, you can determine the country from the news provider, or your best guess is also fine. This field is required, cannot be null, and must be a valid country name from the countries list below.
 - city: string - the city/state/province of the outbreak, if any. Even if the news report doesn't mention a city, you should try to find the most relevant city for the news report. If you can't find a city, you should set the city to null. This field is optional.
 - case_count_mentioned: number - the number of cases mentioned in the news report. If the news report doesn't mention a number of cases, you should set the case_count_mentioned to null. This field is optional.
