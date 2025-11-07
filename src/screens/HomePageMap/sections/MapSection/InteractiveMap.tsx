@@ -1089,6 +1089,7 @@ export const InteractiveMap = ({ selectedCategory: externalCategory }: Interacti
                 {/* Table Header */}
                 <div className="grid grid-cols-4 gap-4 pt-4 border-t border-[#67DBE2]/20">
                   <div className="text-xs font-semibold text-[#67DBE2]">Date</div>
+                  <div className="text-xs font-semibold text-[#67DBE2]">Location</div>
                   <div className="text-xs font-semibold text-[#67DBE2]">Report</div>
                   <div className="text-xs font-semibold text-[#67DBE2]">Diseases</div>
                   <div className="text-xs font-semibold text-[#67DBE2]">Syndromes</div>
@@ -1100,6 +1101,9 @@ export const InteractiveMap = ({ selectedCategory: externalCategory }: Interacti
                     <div key={idx} className="grid grid-cols-4 gap-4 py-2 border-b border-[#67DBE2]/10">
                       <div className="text-xs text-white/80">
                         {formatDate(point.date)}
+                      </div>
+                      <div className="text-xs text-white/90">
+                        {point.location}
                       </div>
                       <div className="text-xs text-white/90">
                         {point.url ? (
