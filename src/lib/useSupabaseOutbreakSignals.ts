@@ -76,6 +76,7 @@ export function useSupabaseOutbreakSignals(categoryFilter?: string | null) {
         queryParams.set('select', selectClause);
         queryParams.set('latitude', 'not.is.null');
         queryParams.set('longitude', 'not.is.null');
+        queryParams.set('detected_at', `gte.${new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()}`);
         queryParams.set('order', 'detected_at.desc');
         // Remove limit to get all outbreak signals, or use a very high limit if needed
         queryParams.set('limit', '10000');
