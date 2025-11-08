@@ -5,12 +5,15 @@ import { InteractiveMap } from "./sections/MapSection/InteractiveMap";
 import { NewsSection } from "./sections/NewsSection";
 import { SponsoredSection } from "./sections/SponsoredSection";
 import { useSupabaseOutbreakSignals } from "../../lib/useSupabaseOutbreakSignals";
+import { Maximize2, Minimize2 } from "lucide-react";
+import { useFullscreen } from "../../contexts/FullscreenContext";
 
 // Removed demo outbreaks; using data-driven InteractiveMap
 
 export const HomePageMap = (): JSX.Element => {
   const [selectedCategory, setSelectedCategory] = React.useState<string | null>(null);
   const [hoveredCategory, setHoveredCategory] = React.useState<string | null>(null);
+  const { isFullscreen: isMapFullscreen, setIsFullscreen: setIsMapFullscreen } = useFullscreen();
   
   // Fetch signals to calculate category stats
   const { signals } = useSupabaseOutbreakSignals(null);
@@ -66,11 +69,16 @@ export const HomePageMap = (): JSX.Element => {
     setHoveredCategory(null);
   };
 
+  // Toggle fullscreen mode
+  const toggleFullscreen = () => {
+    setIsMapFullscreen(!isMapFullscreen);
+  };
+
   return (
-    <div className="flex min-h-screen bg-[#2a4149] relative">
-      <div className="flex-1 relative w-full">
+    <div className={`bg-[#2a4149] relative ${isMapFullscreen ? 'absolute inset-0 w-full h-full overflow-hidden' : 'min-h-screen overflow-x-hidden'}`}>
+      <div className="relative w-full h-full">
         {/* Header Title - Top Left */}
-        <div className="absolute top-[32px] left-[120px] z-[1000]">
+        <div className={`absolute top-[32px] left-[120px] z-[1000] transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
           <h1 className="[font-family:'Roboto',Helvetica] font-bold text-[#67DBE2] text-[38px] tracking-[-0.5px] leading-[48px]">
             Global Outbreak & Disease
             <br />
@@ -79,7 +87,7 @@ export const HomePageMap = (): JSX.Element => {
         </div>
 
         {/* Search and Navigation - Top Right */}
-        <div className="absolute top-[32px] right-[20px] z-[1000] flex flex-col gap-3">
+        <div className={`absolute top-[32px] right-[20px] z-[1000] flex flex-col gap-3 transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
           <input
             type="text"
             placeholder="Search here..."
@@ -89,22 +97,44 @@ export const HomePageMap = (): JSX.Element => {
         </div>
 
         {/* Map - Main Content Area */}
-        <div className="absolute top-[160px] left-[120px] w-[calc(100vw-680px)] h-[calc(100vh-320px)] min-w-[900px] min-h-[650px] rounded-[12px] z-[1000] overflow-hidden shadow-2xl border border-[#67DBE2]/20">
-          <InteractiveMap selectedCategory={selectedCategory} />
+        <div 
+          className={`absolute rounded-[12px] z-[1000] overflow-hidden shadow-2xl border border-[#67DBE2]/20 transition-all duration-500 ease-in-out ${
+            isMapFullscreen 
+              ? 'top-0 left-0 right-0 bottom-0 w-full h-full rounded-none' 
+              : 'top-[160px] left-[120px] w-[calc(100vw-680px)] h-[calc(100vh-320px)] min-w-[900px] min-h-[650px]'
+          }`}
+        >
+          {/* Fullscreen Toggle Button */}
+          <button
+            onClick={toggleFullscreen}
+            className={`absolute top-4 right-4 z-[1300] bg-[#2a4149] hover:bg-[#305961] text-[#67DBE2] p-2 rounded-lg shadow-lg border border-[#67DBE2]/30 transition-all duration-200 hover:scale-110 hover:border-[#67DBE2]/60 flex items-center justify-center group`}
+            title={isMapFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+            aria-label={isMapFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+          >
+            {isMapFullscreen ? (
+              <Minimize2 className="w-5 h-5 group-hover:text-white transition-colors" />
+            ) : (
+              <Maximize2 className="w-5 h-5 group-hover:text-white transition-colors" />
+            )}
+          </button>
+          <InteractiveMap selectedCategory={selectedCategory} isFullscreen={isMapFullscreen} />
         </div>
 
         {/* News Section - Right Sidebar */}
-        <div className="absolute top-[160px] right-[20px] z-[1000]">
+        <div className={`absolute top-[160px] right-[20px] z-[1000] transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
           <NewsSection />
         </div>
 
         {/* Sponsored Section - Right Sidebar, Below News */}
-        <div className="absolute top-[560px] right-[20px] z-[1000]">
+        <div className={`absolute top-[560px] right-[20px] z-[1000] transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
           <SponsoredSection />
         </div>
 
         {/* Disease Category Icons - Bottom Left, Under Map */}
-        <div className="absolute z-[1000]" style={{ top: '820px', left: '120px', width: '790px', height: '52px' }}>
+        <div 
+          className={`absolute z-[1000] transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+          style={{ top: '820px', left: '120px', width: '790px', height: '52px' }}
+        >
           <div className="flex items-center h-full gap-[30px]">
             {diseaseCategories.map((category) => {
               const stats = categoryStats[category.name] || { cases: 0, severity: 'Low' };

@@ -17,6 +17,50 @@ const ZoomHandler = ({ onZoomChange }: { onZoomChange: (zoom: number) => void })
   return null;
 };
 
+// Component to handle map resize when container size changes
+const MapResizeHandler = () => {
+  const map = useMap();
+  
+  React.useEffect(() => {
+    // Invalidate map size function with debouncing
+    let resizeTimeout: NodeJS.Timeout;
+    const invalidateSize = () => {
+      clearTimeout(resizeTimeout);
+      // Wait for CSS transitions to complete (500ms) plus a small buffer
+      resizeTimeout = setTimeout(() => {
+        map.invalidateSize();
+      }, 550);
+    };
+    
+    // Initial invalidation on mount
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
+    
+    // Watch for resize events using ResizeObserver
+    // This will catch size changes from CSS transitions and other layout changes
+    const resizeObserver = new ResizeObserver(() => {
+      invalidateSize();
+    });
+    
+    const mapContainer = map.getContainer();
+    if (mapContainer) {
+      resizeObserver.observe(mapContainer);
+    }
+    
+    // Also listen to window resize events
+    window.addEventListener('resize', invalidateSize);
+    
+    return () => {
+      clearTimeout(resizeTimeout);
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', invalidateSize);
+    };
+  }, [map]);
+  
+  return null;
+};
+
 const FitBounds = ({ points, initialFit }: { points: Array<{ position: [number, number] }>; initialFit: boolean }) => {
   const map = useMap();
   const hasFittedRef = React.useRef(false);
@@ -66,7 +110,11 @@ const MapControls = ({ mapType, onMapTypeChange, isOpen, onOpenChange }: { mapTy
   ];
 
   return (
-    <Collapsible open={isOpen} onOpenChange={onOpenChange} className="absolute bottom-4 right-4 z-[1200] rounded-lg border border-[#EAEBF024] bg-[#FFFFFF14] shadow-lg backdrop-blur-sm overflow-hidden">
+    <Collapsible 
+      open={isOpen} 
+      onOpenChange={onOpenChange} 
+      className="absolute bottom-4 right-4 z-[1200] rounded-lg border border-[#EAEBF024] bg-[#FFFFFF14] shadow-lg backdrop-blur-sm overflow-hidden transition-all duration-300"
+    >
       <CollapsibleTrigger className="w-full hover:bg-[#305961]/50 transition-colors">
         <div className="px-3 py-2 border-b border-[#EAEBF024]/20 flex items-center justify-between gap-2">
           <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-white text-xs tracking-[-0.10px] leading-4">
@@ -142,9 +190,10 @@ const MapTileLayer = ({ mapType }: { mapType: MapType }) => {
 
 interface InteractiveMapProps {
   selectedCategory?: string | null;
+  isFullscreen?: boolean;
 }
 
-export const InteractiveMap = ({ selectedCategory: externalCategory }: InteractiveMapProps): JSX.Element => {
+export const InteractiveMap = ({ selectedCategory: externalCategory, isFullscreen = false }: InteractiveMapProps): JSX.Element => {
   // Use Supabase data instead of external APIs
   const { signals, loading, error } = useSupabaseOutbreakSignals(externalCategory || null);
   const [zoom, setZoom] = useState(2);
@@ -680,9 +729,11 @@ export const InteractiveMap = ({ selectedCategory: externalCategory }: Interacti
         <Collapsible 
           open={isLegendOpen} 
           onOpenChange={setIsLegendOpen} 
-          className="absolute top-0 right-0 z-[1200] overflow-hidden"
+          className={`absolute z-[1200] overflow-hidden transition-all duration-300 ${
+            isFullscreen ? 'top-14 right-4' : 'top-0 right-0'
+          }`}
           style={{
-            borderTopRightRadius: '10px',
+            borderTopRightRadius: isFullscreen ? '8px' : '10px',
             borderBottomLeftRadius: '10px',
             background: '#315C64B2',
             border: '1px solid #EAEBF024',
@@ -732,6 +783,7 @@ export const InteractiveMap = ({ selectedCategory: externalCategory }: Interacti
         <MapTileLayer mapType={mapType} />
         <ZoomHandler onZoomChange={setZoom} />
         <FitBounds points={filteredPoints} initialFit={shouldFitBounds && filteredPoints.length > 0} />
+        <MapResizeHandler />
         <MapControls mapType={mapType} onMapTypeChange={setMapType} isOpen={isMapControlsOpen} onOpenChange={setIsMapControlsOpen} />
         {
           // Low zoom: show aggregated pies grouped by category (skip single-point cells, show them as pins)
@@ -911,49 +963,98 @@ export const InteractiveMap = ({ selectedCategory: externalCategory }: Interacti
               })}
             </>
           ) : (
-            // High zoom: Show pins grouped by city or country for better precision
+            // High zoom: Show individual pins for each outbreak, grouped by coordinates with slight offset
             <>
               {(() => {
-                // Group all outbreaks by location (city, country format) to preserve city-level detail
-                const locationGroups: Map<string, typeof filteredPoints> = new Map();
+                // Group by coordinates first, then show each signal separately
+                // This allows multiple signals at same location to be visible
+                const coordinateGroups: Map<string, typeof filteredPoints> = new Map();
                 
                 filteredPoints.forEach((outbreak: any) => {
-                  // Use full location string (e.g., "City, Country" or just "Country")
-                  const location = outbreak.location || 'Unknown';
-                  if (!locationGroups.has(location)) {
-                    locationGroups.set(location, []);
+                  // Create a key from coordinates (rounded to 4 decimal places for grouping nearby points)
+                  const lat = typeof outbreak.position[0] === 'number' ? outbreak.position[0] : parseFloat(outbreak.position[0]);
+                  const lng = typeof outbreak.position[1] === 'number' ? outbreak.position[1] : parseFloat(outbreak.position[1]);
+                  const coordKey = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+                  
+                  if (!coordinateGroups.has(coordKey)) {
+                    coordinateGroups.set(coordKey, []);
                   }
-                  locationGroups.get(location)!.push(outbreak);
+                  coordinateGroups.get(coordKey)!.push(outbreak);
                 });
                 
-                // Create one marker per location (city or country)
-                return Array.from(locationGroups.entries()).map(([locationName, locationOutbreaks]) => {
-                  // Use the first outbreak's position as the representative location
-                  const representativePosition = locationOutbreaks[0].position;
-                  const totalCount = locationOutbreaks.length;
+                // Create markers - if multiple signals at same coordinates, show them with slight offset
+                const markers: JSX.Element[] = [];
+                coordinateGroups.forEach((outbreaks, coordKey) => {
+                  // const [lat, lng] = coordKey.split(',').map(Number); // Not used, but kept for reference
                   
-                  // Check if this is a city-level outbreak
-                  const isCityLevel = locationOutbreaks.some((o: any) => o.city);
-                  
-                  // Get unique diseases and categories
-                  const uniqueDiseases = [...new Set(locationOutbreaks.map((o: any) => o.disease))];
-                  const uniqueCategories = [...new Set(locationOutbreaks.map((o: any) => o.category))];
-                  
-                  // Determine color based on outbreak count (severity-based)
-                  // Low: < 20 (green), Medium: 20-99 (yellow), High: >= 100 (red)
-                  const color = getSeverityColor(totalCount);
-                  
-                  // Determine marker size based on zoom level and city-level status
-                  // City-level outbreaks get slightly larger markers for visibility
-                  const markerSize = isCityLevel 
-                    ? (zoom > 7 ? 20 : 18)
-                    : (zoom > 7 ? 18 : 16);
-                  
-                  return (
+                  if (outbreaks.length === 1) {
+                    // Single outbreak - show as individual pin
+                    const outbreak = outbreaks[0];
+                    const locationName = outbreak.location || 'Unknown';
+                    const isCityLevel = !!outbreak.city; // City exists and is not null/undefined
+                    
+                    markers.push(
+                      <Marker
+                        key={`outbreak-${outbreak.id}`}
+                        position={outbreak.position}
+                        icon={createCustomIcon(getSeverityColor(1), isCityLevel ? 18 : 16)}
+                      >
+                        <Tooltip 
+                          permanent={false}
+                          direction="top"
+                          offset={[0, -10]}
+                        >
+                          <div className="p-2 min-w-[200px]">
+                            <div className="mb-1 font-semibold">{outbreak.disease}</div>
+                            <div className="text-xs">
+                              <strong>Location:</strong> {locationName}
+                              {isCityLevel && (
+                                <span className="ml-1 px-1.5 py-0.5 bg-[#67DBE2]/20 text-[#67DBE2] rounded text-[10px] font-medium">
+                                  City
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs"><strong>Category:</strong> {outbreak.category}</div>
+                          </div>
+                        </Tooltip>
+                        <Popup>
+                          <div className="p-2 min-w-[200px]">
+                            <div className="mb-1 font-semibold">{outbreak.disease}</div>
+                            <div className="text-xs">
+                              <strong>Location:</strong> {locationName}
+                              {isCityLevel && (
+                                <span className="ml-2 px-2 py-1 bg-[#67DBE2]/20 text-[#67DBE2] rounded text-xs font-medium">
+                                  City-Level
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs"><strong>Category:</strong> {outbreak.category}</div>
+                            <div className="text-xs"><strong>Keywords:</strong> {outbreak.keywords}</div>
+                            <div className="text-xs"><strong>Pathogen:</strong> {outbreak.pathogen}</div>
+                            <div className="text-xs"><strong>Date:</strong> {outbreak.date ? new Date(outbreak.date).toLocaleDateString() : 'N/A'}</div>
+                            {outbreak.url && (
+                              <a href={outbreak.url} target="_blank" rel="noopener noreferrer" className="text-xs text-[#67DBE2] hover:underline mt-2 block">
+                                Read more
+                              </a>
+                            )}
+                          </div>
+                        </Popup>
+                      </Marker>
+                    );
+                  } else {
+                    // Multiple outbreaks at same coordinates - group them but show as one marker with details
+                    const uniqueLocations = [...new Set(outbreaks.map((o: any) => o.location))];
+                    const locationName = uniqueLocations.length === 1 ? uniqueLocations[0] : `${uniqueLocations.length} locations`;
+                    const totalCount = outbreaks.length;
+                    const isCityLevel = outbreaks.some((o: any) => !!o.city); // At least one outbreak has a city
+                    const uniqueDiseases = [...new Set(outbreaks.map((o: any) => o.disease))];
+                    const uniqueCategories = [...new Set(outbreaks.map((o: any) => o.category))];
+                    
+                    markers.push(
                     <Marker
-                      key={locationName}
-                      position={representativePosition}
-                      icon={createCustomIcon(color, markerSize)}
+                        key={`group-${coordKey}`}
+                        position={outbreaks[0].position}
+                        icon={createCustomIcon(getSeverityColor(totalCount), isCityLevel ? 20 : 18)}
                     >
                       <Tooltip 
                         permanent={false}
@@ -991,20 +1092,15 @@ export const InteractiveMap = ({ selectedCategory: externalCategory }: Interacti
                           <div className="text-xs mb-2">
                             <strong>Diseases ({uniqueDiseases.length}):</strong> {uniqueDiseases.join(', ')}
                           </div>
-                          <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                            {locationOutbreaks.map((o: any, idx: number) => (
-                              <div key={idx} className="border-b border-gray-200 pb-2 last:border-0">
-                                <div className="text-xs font-semibold">{o.disease}</div>
-                                <div className="text-xs"><strong>Location:</strong> {o.location}</div>
-                                <div className="text-xs"><strong>Category:</strong> {o.category}</div>
-                                {o.pathogen && (
-                                  <div className="text-xs"><strong>Pathogen:</strong> {o.pathogen}</div>
-                                )}
-                                {o.date && (
-                                  <div className="text-xs text-gray-500">Date: {new Date(o.date).toLocaleDateString()}</div>
-                                )}
-                                {o.url && (
-                                  <a href={o.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-500 hover:underline block mt-1">
+                            <div className="space-y-2 mt-3 border-t border-gray-600 pt-2">
+                              {outbreaks.map((outbreak: any, idx: number) => (
+                                <div key={idx} className="text-xs border-b border-gray-700 pb-2 last:border-0">
+                                  <div className="font-semibold">{outbreak.disease}</div>
+                                  <div><strong>Location:</strong> {outbreak.location}</div>
+                                  <div><strong>Category:</strong> {outbreak.category}</div>
+                                  <div><strong>Date:</strong> {outbreak.date ? new Date(outbreak.date).toLocaleDateString() : 'N/A'}</div>
+                                  {outbreak.url && (
+                                    <a href={outbreak.url} target="_blank" rel="noopener noreferrer" className="text-[#67DBE2] hover:underline">
                                     Read more
                                   </a>
                                 )}
@@ -1015,7 +1111,10 @@ export const InteractiveMap = ({ selectedCategory: externalCategory }: Interacti
                       </Popup>
                     </Marker>
                   );
+                  }
                 });
+                
+                return markers;
               })()}
             </>
           )

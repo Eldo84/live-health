@@ -18,6 +18,7 @@ export interface NormalizedArticle {
     lng?: number;
   };
   diseases?: string[];
+  detected_disease_name?: string; // Actual disease name when disease is "OTHER" (not in CSV)
   case_count_mentioned?: number;
   confidence_score?: number; // 0-1, default 0.5
 }

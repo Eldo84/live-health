@@ -68,8 +68,8 @@ export function useSupabaseOutbreakSignals(categoryFilter?: string | null) {
 
         // Build query using PostgREST syntax
         // For foreign key joins, use: table!foreign_key_column(fields)
-        // Explicitly include city field to ensure it's returned
-        const selectClause = `*,city,diseases!disease_id(name,color_code),countries!country_id(name,code),news_articles!article_id(title,url,published_at)`;
+        // Explicitly include city and detected_disease_name fields to ensure they're returned
+        const selectClause = `*,city,detected_disease_name,diseases!disease_id(name,color_code,description),countries!country_id(name,code),news_articles!article_id(title,url,published_at)`;
         
         // Build query string - URLSearchParams handles encoding properly
         const queryParams = new URLSearchParams();
@@ -216,16 +216,29 @@ export function useSupabaseOutbreakSignals(categoryFilter?: string | null) {
               : "";
 
             // Build location string: city, country or just country
+            // Filter out null, undefined, empty strings, and the string "null"
+            const cityName = signal.city && 
+                             signal.city !== 'null' && 
+                             signal.city.trim() !== '' 
+                             ? signal.city.trim() 
+                             : null;
+            
             let locationString = country?.name || "Unknown";
-            if (signal.city) {
-              locationString = `${signal.city}, ${locationString}`;
+            if (cityName) {
+              locationString = `${cityName}, ${locationString}`;
+            }
+
+            // If disease is "OTHER", use detected_disease_name from the signal if available
+            let displayDiseaseName = disease?.name || "Unknown Disease";
+            if (disease?.name === "OTHER" && signal.detected_disease_name) {
+              displayDiseaseName = signal.detected_disease_name;
             }
 
             return {
               id: signal.id,
-              disease: disease?.name || "Unknown Disease",
+              disease: displayDiseaseName,
               location: locationString,
-              city: signal.city || undefined,
+              city: cityName || undefined, // Use normalized city name
               category: category.name,
               pathogen: pathogen,
               keywords: disease?.name || "", // Simplified
