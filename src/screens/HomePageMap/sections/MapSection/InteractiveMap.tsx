@@ -3,6 +3,7 @@ import { MapContainer, TileLayer, Marker, Popup, Tooltip, useMap } from "react-l
 import { Icon, DivIcon } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { useSupabaseOutbreakSignals, OutbreakSignal } from "../../../../lib/useSupabaseOutbreakSignals";
+import { FilterState } from "../FilterPanel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "../../../../components/ui/dialog";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "../../../../components/ui/collapsible";
 
@@ -61,39 +62,414 @@ const MapResizeHandler = () => {
   return null;
 };
 
-const FitBounds = ({ points, initialFit }: { points: Array<{ position: [number, number] }>; initialFit: boolean }) => {
+const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false }: { points: Array<{ position: [number, number] }>; initialFit: boolean; zoomTarget?: [number, number] | null; isUserLocation?: boolean }) => {
   const map = useMap();
   const hasFittedRef = React.useRef(false);
+  const lastZoomTargetRef = React.useRef<[number, number] | null>(null);
+  const lastPointsCountRef = React.useRef(0);
+  const lastIsUserLocationRef = React.useRef(false);
+  const userLocationZoomedRef = React.useRef(false);
+  const zoomAttemptsRef = React.useRef(0);
+  
+  // Helper function to zoom to user location
+  const zoomToUserLocation = React.useCallback((target: [number, number], attemptNumber: number = 0) => {
+    try {
+      console.log(`🎯 Zoom attempt ${attemptNumber + 1} to user location:`, target);
+      
+      // Ensure map is ready
+      if (!map || !map.getContainer()) {
+        console.warn('Map not ready yet, will retry');
+        return false;
+      }
+      
+      // Validate coordinates
+      if (!target || target.length !== 2 || isNaN(target[0]) || isNaN(target[1])) {
+        console.error('Invalid coordinates:', target);
+        return false;
+      }
+      
+      // Ensure coordinates are within valid range
+      const [lat, lng] = target;
+      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        console.error('Coordinates out of range:', target);
+        return false;
+      }
+      
+      // Invalidate map size to ensure it's properly rendered
+      map.invalidateSize();
+      
+      // Set view with zoom level 10
+      map.setView([lat, lng], 10, { 
+        animate: attemptNumber > 0, // Animate on retries
+        duration: 0.5 
+      });
+      
+      // Verify the zoom worked
+      setTimeout(() => {
+        const currentCenter = map.getCenter();
+        const currentZoom = map.getZoom();
+        const latDiff = Math.abs(currentCenter.lat - lat);
+        const lngDiff = Math.abs(currentCenter.lng - lng);
+        const distance = latDiff + lngDiff;
+        
+        console.log(`📍 Zoom verification - Center: [${currentCenter.lat}, ${currentCenter.lng}], Zoom: ${currentZoom}, Distance: ${distance}`);
+        
+        // If we're still far from target, try again (but limit attempts)
+        if ((distance > 0.1 || currentZoom < 8) && attemptNumber < 3) {
+          console.log(`⚠️ Zoom verification failed, retrying (attempt ${attemptNumber + 1})`);
+          setTimeout(() => zoomToUserLocation(target, attemptNumber + 1), 300);
+        } else if (distance <= 0.1 && currentZoom >= 8) {
+          console.log('✅ Successfully zoomed to user location!');
+          userLocationZoomedRef.current = true;
+        }
+      }, 100);
+      
+      return true;
+    } catch (e) {
+      console.error('Error in zoomToUserLocation:', e);
+      return false;
+    }
+  }, [map]);
   
   React.useEffect(() => {
-    // Only fit bounds initially or when points change significantly
-    if (!initialFit && hasFittedRef.current) {
-      return;
+    // PRIORITY 1: If user location is set, ALWAYS zoom to it (highest priority)
+    // This must happen even if initialFit would normally show the world
+    if (zoomTarget && isUserLocation) {
+      const [lat, lng] = zoomTarget;
+      const targetChanged = lastZoomTargetRef.current === null || 
+        (lastZoomTargetRef.current && (
+          Math.abs(lastZoomTargetRef.current[0] - lat) > 0.0001 || 
+          Math.abs(lastZoomTargetRef.current[1] - lng) > 0.0001
+        )) ||
+        lastIsUserLocationRef.current !== isUserLocation;
+      
+      if (targetChanged || !userLocationZoomedRef.current) {
+        console.log('📍 USER LOCATION ZOOM: Setting up zoom to:', zoomTarget, 'points:', points.length);
+        lastZoomTargetRef.current = zoomTarget;
+        lastPointsCountRef.current = points.length;
+        lastIsUserLocationRef.current = true;
+        hasFittedRef.current = true; // Mark as fitted to prevent initial fit from running
+        zoomAttemptsRef.current = 0;
+        
+        // Set up zoom attempts with proper cleanup
+        const timers: NodeJS.Timeout[] = [];
+        
+        // Immediate zoom attempt
+        const immediateTimer = setTimeout(() => {
+          if (map && map.getContainer()) {
+            console.log('🚀 Immediate zoom attempt to user location');
+            zoomToUserLocation(zoomTarget, 0);
+          }
+        }, 0);
+        timers.push(immediateTimer);
+        
+        // Backup zoom attempts
+        timers.push(setTimeout(() => {
+          if (map && map.getContainer()) {
+            try {
+              const currentCenter = map.getCenter();
+              const currentZoom = map.getZoom();
+              const latDiff = Math.abs(currentCenter.lat - lat);
+              const lngDiff = Math.abs(currentCenter.lng - lng);
+              const distance = latDiff + lngDiff;
+              
+              console.log(`🔍 Backup zoom 1 check - Distance: ${distance}, Zoom: ${currentZoom}`);
+              
+              if (distance > 0.5 || currentZoom < 8) {
+                console.log('🔄 Backup zoom 1: Map not at user location, zooming again');
+                map.invalidateSize();
+                map.setView([lat, lng], 10, { animate: true, duration: 0.8 });
+              }
+            } catch (e) {
+              console.error('Backup zoom 1 error:', e);
+            }
+          }
+        }, 300));
+        
+        timers.push(setTimeout(() => {
+          if (map && map.getContainer()) {
+            try {
+              const currentCenter = map.getCenter();
+              const currentZoom = map.getZoom();
+              const latDiff = Math.abs(currentCenter.lat - lat);
+              const lngDiff = Math.abs(currentCenter.lng - lng);
+              const distance = latDiff + lngDiff;
+              
+              console.log(`🔍 Backup zoom 2 check - Distance: ${distance}, Zoom: ${currentZoom}`);
+              
+              if (distance > 0.5 || currentZoom < 8) {
+                console.log('🔄 Backup zoom 2: Map not at user location, forcing zoom');
+                map.invalidateSize();
+                map.setView([lat, lng], 10, { animate: true, duration: 1 });
+              } else {
+                console.log('✅ Map successfully at user location');
+                userLocationZoomedRef.current = true;
+              }
+            } catch (e) {
+              console.error('Backup zoom 2 error:', e);
+            }
+          }
+        }, 600));
+        
+        timers.push(setTimeout(() => {
+          if (map && map.getContainer()) {
+            try {
+              const currentCenter = map.getCenter();
+              const currentZoom = map.getZoom();
+              const latDiff = Math.abs(currentCenter.lat - lat);
+              const lngDiff = Math.abs(currentCenter.lng - lng);
+              const distance = latDiff + lngDiff;
+              
+              if (distance > 0.5 || currentZoom < 8) {
+                console.log('🔄 Backup zoom 3: Final forced zoom to user location');
+                map.invalidateSize();
+                map.setView([lat, lng], 10, { animate: true, duration: 1 });
+                userLocationZoomedRef.current = true;
+              } else {
+                console.log('✅ Map successfully at user location (final check)');
+                userLocationZoomedRef.current = true;
+              }
+            } catch (e) {
+              console.error('Backup zoom 3 error:', e);
+            }
+          }
+        }, 1000));
+        
+        // Return cleanup function
+        return () => {
+          timers.forEach(timer => clearTimeout(timer));
+        };
+      }
+      
+      // If points change but we're at user location, maintain the zoom
+      if (points.length !== lastPointsCountRef.current && userLocationZoomedRef.current) {
+        lastPointsCountRef.current = points.length;
+        console.log('User location: points changed to', points.length, '- maintaining zoom at user location');
+        // Check if we need to re-zoom (in case something moved the map)
+        const maintainTimer = setTimeout(() => {
+    if (zoomTarget) {
+            const currentCenter = map.getCenter();
+            const currentZoom = map.getZoom();
+            const latDiff = Math.abs(currentCenter.lat - zoomTarget[0]);
+            const lngDiff = Math.abs(currentCenter.lng - zoomTarget[1]);
+            const distance = latDiff + lngDiff;
+            
+            // If we're far from the user location, re-zoom (but don't animate to avoid jarring)
+            if (distance > 1 || currentZoom < 8) {
+              console.log('🔄 Maintaining zoom: Re-zooming to user location (distance:', distance, 'zoom:', currentZoom, ')');
+              map.setView(zoomTarget, 10, { animate: false });
+            }
+          }
+        }, 100);
+        return () => clearTimeout(maintainTimer);
+      }
+      return; // Don't proceed to other zoom logic when user location is active
     }
     
+    // PRIORITY 2: If zoom target is provided (but not user location), zoom to that location
+    if (zoomTarget && !isUserLocation) {
+      // Check if zoom target changed
+      const targetChanged = lastZoomTargetRef.current === null || 
+        (lastZoomTargetRef.current[0] !== zoomTarget[0] || lastZoomTargetRef.current[1] !== zoomTarget[1]) ||
+        lastIsUserLocationRef.current !== isUserLocation;
+      
+      if (targetChanged) {
+        lastZoomTargetRef.current = zoomTarget;
+        lastPointsCountRef.current = points.length;
+        lastIsUserLocationRef.current = false;
+        userLocationZoomedRef.current = false;
+        
+        console.log('Zooming to target (country search):', zoomTarget, 'with', points.length, 'points');
+        
+        // For country search, fit bounds to all points in the country
+        if (points.length > 0) {
+          try {
+            const bounds = points.map(p => p.position);
+            console.log('Fitting bounds to', bounds.length, 'points (country search)');
+            map.fitBounds(bounds as [number, number][], {
+              padding: [80, 80],
+              maxZoom: 8,
+            });
+          } catch (e) {
+            console.warn('fitBounds failed, using setView:', e);
+            map.setView(zoomTarget, 6, { animate: true });
+          }
+        } else {
+          console.log('No points found, zooming to country center at level 6');
+          map.setView(zoomTarget, 6, { animate: true });
+        }
+        hasFittedRef.current = true;
+      } else if (points.length !== lastPointsCountRef.current && points.length > 0) {
+        // Points changed, refit bounds
+        lastPointsCountRef.current = points.length;
+        try {
+          const bounds = points.map(p => p.position);
+          map.fitBounds(bounds as [number, number][], {
+            padding: [80, 80],
+            maxZoom: 8,
+          });
+        } catch (e) {
+          map.setView(zoomTarget, 6, { animate: true });
+        }
+      }
+      return; // Don't proceed to initial fit logic
+    }
+    
+    // PRIORITY 3: Initial fit or show all points (only if no zoom target is set)
+      // Check if zoomTarget was cleared (transitioned from a value to null)
+      const wasZoomedToTarget = lastZoomTargetRef.current !== null;
+    const wasUserLocation = lastIsUserLocationRef.current;
+    
+    // If zoomTarget was cleared and user location is explicitly disabled, reset everything
+    if (wasZoomedToTarget && !zoomTarget && !isUserLocation) {
+      // User explicitly reset (clicked reset button) - reset to world view
+      console.log('🔄 Reset detected: Clearing zoom and resetting to world view');
+        lastZoomTargetRef.current = null;
+        lastPointsCountRef.current = 0;
+      lastIsUserLocationRef.current = false;
+      userLocationZoomedRef.current = false;
+      // Reset hasFittedRef to false so we can refit when data loads
+        hasFittedRef.current = false;
+      
+      // Reset map to world view immediately
+      console.log('Resetting map to world view (points:', points.length, ')');
+      map.setView([20, 0], 2, { animate: true });
+      
+      // If we have points, also fit bounds to show all of them
+      if (points.length > 0) {
+        const bounds = points.map(p => p.position);
+        if (bounds.length > 0) {
+          try {
+            console.log('Resetting: Fitting bounds to all', bounds.length, 'points');
+            map.fitBounds(bounds as [number, number][], {
+              padding: [50, 50],
+              maxZoom: 4, // World view zoom level
+              animate: true,
+            });
+            hasFittedRef.current = true;
+          } catch (e) {
+            console.warn('fitBounds failed during reset:', e);
+            // Already set to world view above, so just mark as fitted
+            hasFittedRef.current = true;
+          }
+        }
+      }
+      // If no points, hasFittedRef stays false so we can fit when data loads
+      return;
+    } else if (wasUserLocation && !isUserLocation && !zoomTarget) {
+      // User location was active but is now explicitly disabled (reset button clicked)
+      console.log('🔄 User location reset: Clearing user location zoom and resetting to world view');
+      lastZoomTargetRef.current = null;
+      lastPointsCountRef.current = 0;
+      lastIsUserLocationRef.current = false;
+      userLocationZoomedRef.current = false;
+      // Reset hasFittedRef to false so we can refit when data loads
+      hasFittedRef.current = false;
+      
+      // Reset to world view immediately
+      console.log('Resetting map to world view (points:', points.length, ')');
+      map.setView([20, 0], 2, { animate: true });
+      
+      // If we have points, also fit bounds to show all of them
+      if (points.length > 0) {
+        const bounds = points.map(p => p.position);
+        if (bounds.length > 0) {
+          try {
+            console.log('Resetting: Fitting bounds to all', bounds.length, 'points');
+            map.fitBounds(bounds as [number, number][], {
+              padding: [50, 50],
+              maxZoom: 4,
+              animate: true,
+            });
+            hasFittedRef.current = true;
+          } catch (e) {
+            console.warn('fitBounds failed during reset:', e);
+            hasFittedRef.current = true;
+          }
+        }
+      }
+      // If no points, hasFittedRef stays false so we can fit when data loads
+      return;
+    } else if (wasUserLocation || isUserLocation) {
+      // If it was/is a user location, preserve the zoom target ref even if zoomTarget prop is null
+      // This prevents the reset logic from running UNLESS isUserLocation is explicitly false
+      if (lastZoomTargetRef.current === null && zoomTarget) {
+        // Restore the zoom target ref if we have coordinates
+        lastZoomTargetRef.current = zoomTarget;
+        console.log('🔄 Preserving user location zoom target ref');
+      }
+    }
+    
+    // CRITICAL: If user location was set, NEVER run initial fit logic
+    // This prevents the map from zooming out to show all points
+    // BUT: Only if user location is still active (isUserLocation is true)
+    if ((wasUserLocation || isUserLocation) && isUserLocation && userLocationZoomedRef.current) {
+      console.log('🛡️ User location zoom is active - blocking all initial fit logic');
+      // Even if zoomTarget is null temporarily, don't reset - user location should persist
+      return; // Don't proceed with initial fit - this is the key fix
+    }
+    
+    // Only do initial fit if we don't have a zoom target and we weren't at user location
+    // AND user location is not currently active
+    // This handles the case where reset was clicked and we need to fit bounds when data loads
+    if (!zoomTarget && !wasUserLocation && !isUserLocation && (initialFit || !hasFittedRef.current)) {
     if (points.length === 0) {
-      // If no points, set default view
-      map.setView([20, 0], 2);
+        console.log('No points, setting default view (not user location)');
+          map.setView([20, 0], 2, { animate: true });
+          hasFittedRef.current = true;
       return;
     }
     
-    // Create bounds from all points
     const bounds = points.map(p => p.position);
-    
     if (bounds.length > 0) {
-      // Fit map to bounds with padding, but respect maxZoom of 2
       try {
+          console.log('Fitting bounds to all', bounds.length, 'points (after reset or initial load)');
         map.fitBounds(bounds as [number, number][], {
           padding: [50, 50],
-          maxZoom: 2,
+            maxZoom: points.length === 1 ? 10 : 4, // World view for multiple points
+            animate: true,
         });
         hasFittedRef.current = true;
       } catch (e) {
-        // Fallback if fitBounds fails
-        map.setView([20, 0], 2);
+            console.warn('fitBounds failed, using default view:', e);
+            map.setView([20, 0], 2, { animate: true });
+            hasFittedRef.current = true;
       }
     }
-  }, [map, points, initialFit]);
+      }
+    
+    // Handle case where reset was clicked but data loads afterward
+    // If we reset but points weren't loaded yet, refit when points become available
+    // This ensures the map shows all points after reset, even if data was loading when reset was clicked
+    if (!zoomTarget && !isUserLocation && !wasUserLocation && points.length > 0) {
+      // Check if we need to fit bounds (either hasn't been fitted, or points count changed after reset)
+      const shouldRefit = !hasFittedRef.current || 
+                         (lastPointsCountRef.current === 0 && points.length > 0);
+      
+      if (shouldRefit) {
+        console.log('🔄 Points loaded after reset - fitting bounds to all', points.length, 'points');
+        const bounds = points.map(p => p.position);
+        if (bounds.length > 0) {
+          try {
+            map.fitBounds(bounds as [number, number][], {
+              padding: [50, 50],
+              maxZoom: 4, // World view
+              animate: true,
+            });
+            hasFittedRef.current = true;
+            lastPointsCountRef.current = points.length;
+            return; // Don't proceed to other logic
+          } catch (e) {
+            console.warn('fitBounds failed after reset:', e);
+            map.setView([20, 0], 2, { animate: true });
+            hasFittedRef.current = true;
+            lastPointsCountRef.current = points.length;
+            return;
+          }
+        }
+      }
+    }
+  }, [map, points, initialFit, zoomTarget, isUserLocation]);
   
   return null;
 };
@@ -115,19 +491,21 @@ const MapControls = ({ mapType, onMapTypeChange, isOpen, onOpenChange }: { mapTy
       onOpenChange={onOpenChange} 
       className="absolute bottom-4 right-4 z-[1200] rounded-lg border border-[#EAEBF024] bg-[#FFFFFF14] shadow-lg backdrop-blur-sm overflow-hidden transition-all duration-300"
     >
-      <CollapsibleTrigger className="w-full hover:bg-[#305961]/50 transition-colors">
+      <CollapsibleTrigger asChild>
+        <div className="w-full hover:bg-[#305961]/50 transition-colors cursor-pointer">
         <div className="px-3 py-2 border-b border-[#EAEBF024]/20 flex items-center justify-between gap-2">
           <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-white text-xs tracking-[-0.10px] leading-4">
             Map Settings
           </h3>
-          <button className="w-4 h-4 p-0 hover:bg-transparent flex-shrink-0">
+            <div className="w-4 h-4 p-0 flex-shrink-0 flex items-center justify-center">
             <img
               className="w-4 h-4 transition-transform duration-200"
               alt="Dropdown"
               src="/group-938.svg"
               style={{ transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
             />
-          </button>
+            </div>
+          </div>
         </div>
       </CollapsibleTrigger>
       <CollapsibleContent>
@@ -189,13 +567,17 @@ const MapTileLayer = ({ mapType }: { mapType: MapType }) => {
 };
 
 interface InteractiveMapProps {
-  selectedCategory?: string | null;
+  filters?: FilterState | null;
   isFullscreen?: boolean;
+  zoomTarget?: [number, number] | null;
+  isUserLocation?: boolean;
+  onClearSearch?: () => void;
+  onDialogStateChange?: (isOpen: boolean) => void;
 }
 
-export const InteractiveMap = ({ selectedCategory: externalCategory, isFullscreen = false }: InteractiveMapProps): JSX.Element => {
+export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUserLocation = false, onClearSearch, onDialogStateChange }: InteractiveMapProps): JSX.Element => {
   // Use Supabase data instead of external APIs
-  const { signals, loading, error } = useSupabaseOutbreakSignals(externalCategory || null);
+  const { signals, loading, error } = useSupabaseOutbreakSignals(filters || null);
   const [zoom, setZoom] = useState(2);
   const [isLegendOpen, setIsLegendOpen] = useState(true);
   const [isMapControlsOpen, setIsMapControlsOpen] = useState(true);
@@ -210,19 +592,58 @@ export const InteractiveMap = ({ selectedCategory: externalCategory, isFullscree
   } | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const pieClickHandlersRef = React.useRef<Record<number, () => void>>({});
-  
-  // Use external category if provided, otherwise use internal state
-  const selectedCategory = externalCategory !== undefined ? externalCategory : null;
-  
-  // Track when data changes to refit bounds
+  const prevZoomTargetRef = React.useRef<[number, number] | null>(null);
+
+  // Notify parent when dialog state changes
   React.useEffect(() => {
-    if (signals.length > 0) {
+    onDialogStateChange?.(isDialogOpen);
+  }, [isDialogOpen, onDialogStateChange]);
+  
+  // Track when zoomTarget is cleared (search is cleared) to refit bounds
+  React.useEffect(() => {
+    // If zoomTarget was set and is now null, user cleared the search - refit to show all
+    // BUT: NEVER do this if it was/is a user location (to preserve user location zoom)
+    if (prevZoomTargetRef.current !== null && zoomTarget === null && !isUserLocation) {
+      console.log('Zoom target cleared (not user location), triggering refit to show all points');
+      setShouldFitBounds(true);
+      // Reset after a short delay
+      const timer = setTimeout(() => setShouldFitBounds(false), 100);
+      prevZoomTargetRef.current = null;
+      return () => clearTimeout(timer);
+    }
+    // If user location is set, NEVER clear the previous zoom target ref
+    // This prevents the "zoom target cleared" logic from running
+    if (isUserLocation && zoomTarget) {
+      prevZoomTargetRef.current = zoomTarget;
+    } else if (!isUserLocation) {
+    prevZoomTargetRef.current = zoomTarget || null;
+    }
+  }, [zoomTarget, isUserLocation]);
+  
+  // Track when data changes to refit bounds (only if no zoom target and not user location)
+  // IMPORTANT: When user location is set, NEVER trigger initial fit, even if data loads
+  React.useEffect(() => {
+    // CRITICAL: If user location is active, NEVER trigger initial fit
+    if (isUserLocation && zoomTarget) {
+      console.log('User location active - preventing initial fit');
+      setShouldFitBounds(false);
+      return;
+    }
+    
+    // Only auto-refit if:
+    // 1. There's no zoom target (not searching for a country, and reset was clicked)
+    // 2. It's NOT a user location zoom
+    // 3. We have signals
+    // This ensures that after reset, when data loads, we fit bounds to show all points
+    if (signals.length > 0 && zoomTarget === null && !isUserLocation) {
+      console.log('Data loaded after reset - triggering fit bounds to show all points');
+      // Only auto-refit if there's no zoom target (not searching for a country) and not user location
       setShouldFitBounds(true);
       // Reset after a short delay to allow initial fit
       const timer = setTimeout(() => setShouldFitBounds(false), 100);
       return () => clearTimeout(timer);
     }
-  }, [signals.length]);
+  }, [signals.length, zoomTarget, isUserLocation]);
 
   // Transform signals to points format (for compatibility with existing code)
   const points = signals.map(s => ({
@@ -290,7 +711,8 @@ export const InteractiveMap = ({ selectedCategory: externalCategory, isFullscree
     }
   };
   
-  const filteredPoints = selectedCategory ? points.filter(o => o.category === selectedCategory) : points;
+  // Points are already filtered by the hook based on filters
+  const filteredPoints = points;
 
   const createCustomIcon = (color: string, size: number) => new Icon({
     iconUrl: `data:image/svg+xml;base64,${btoa(
@@ -709,16 +1131,62 @@ export const InteractiveMap = ({ selectedCategory: externalCategory, isFullscree
           {loading ? "Loading map..." : error}
         </div>
       )}
+      
+      {/* No Results Message - Show when search is active but no results */}
+      {/* Don't show for user location detection or very short queries (1-2 chars) to avoid false positives while typing */}
+      {!loading && !error && signals.length === 0 && (filters?.diseaseSearch || filters?.country) && 
+       (filters?.diseaseSearch?.trim().length >= 3 || filters?.country) && !isUserLocation && (
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-[1100] bg-[#2a4149] border border-[#67DBE2]/30 rounded-lg p-6 shadow-xl max-w-md">
+          <div className="text-center">
+            <div className="text-4xl mb-4">🔍</div>
+            <h3 className="text-[#67DBE2] text-xl font-semibold mb-2">No Results Found</h3>
+            {filters?.country ? (
+              <>
+                <p className="text-[#ebebeb] text-sm mb-4">
+                  No outbreak signals found for <span className="font-semibold">"{filters.country}"</span>
+                </p>
+                <p className="text-[#ebebeb99] text-xs mb-4">
+                  There are no recent outbreak reports for this country in the database.
+                </p>
+                <p className="text-[#ebebeb99] text-xs mb-4">
+                  The map has been zoomed to {filters.country}. Try searching for a different country or disease, or check back later for new data.
+                </p>
+              </>
+            ) : filters?.diseaseSearch ? (
+              <>
+                <p className="text-[#ebebeb] text-sm mb-4">
+                  No outbreak signals found for <span className="font-semibold">"{filters.diseaseSearch}"</span>
+                </p>
+                <p className="text-[#ebebeb99] text-xs mb-4">
+                  This disease may not be in the database yet, or there are no recent outbreaks reported.
+                </p>
+                <p className="text-[#ebebeb99] text-xs mb-4">
+                  Try searching for a different disease or country, or check back later for new data.
+                </p>
+              </>
+            ) : null}
+            {onClearSearch && (
+              <button
+                onClick={onClearSearch}
+                className="mt-2 px-4 py-2 bg-[#67DBE2] hover:bg-[#67DBE2]/80 text-[#2a4149] rounded-md text-sm font-medium transition-colors"
+              >
+                Clear Search
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      
       <MapContainer
         center={[20, 0]}
         zoom={2}
         minZoom={2}
         maxZoom={18}
         maxBounds={[[-85, -180], [85, 180]]}
-        maxBoundsViscosity={1.0}
+        maxBoundsViscosity={0.5}
         worldCopyJump={true}
         style={{ height: "100%", width: "100%", background: "#1a2332" }}
-        zoomControl={false}
+        zoomControl={true}
       >
         {/* Point count badge */}
         <div className="absolute top-4 left-4 z-[1200] bg-[#0f172acc] text-white text-xs px-2 py-1 rounded">
@@ -740,19 +1208,21 @@ export const InteractiveMap = ({ selectedCategory: externalCategory, isFullscree
             boxShadow: '0px 1px 2px 0px #1018280A',
           }}
         >
-          <CollapsibleTrigger className="w-full hover:bg-[#305961]/50 transition-colors">
+          <CollapsibleTrigger asChild>
+            <div className="w-full hover:bg-[#305961]/50 transition-colors cursor-pointer">
             <div className="px-3 py-2 border-b border-[#EAEBF024]/20 flex items-center justify-between gap-2" style={{ width: '124px' }}>
               <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-white text-xs tracking-[-0.10px] leading-4">
                 Legend
               </h3>
-              <button className="w-4 h-4 p-0 hover:bg-transparent flex-shrink-0">
+                <div className="w-4 h-4 p-0 flex-shrink-0 flex items-center justify-center">
                 <img
                   className="w-4 h-4 transition-transform duration-200"
                   alt="Dropdown"
                   src="/group-938.svg"
                   style={{ transform: isLegendOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
                 />
-              </button>
+                </div>
+              </div>
             </div>
           </CollapsibleTrigger>
           <CollapsibleContent>
@@ -782,7 +1252,12 @@ export const InteractiveMap = ({ selectedCategory: externalCategory, isFullscree
         </Collapsible>
         <MapTileLayer mapType={mapType} />
         <ZoomHandler onZoomChange={setZoom} />
-        <FitBounds points={filteredPoints} initialFit={shouldFitBounds && filteredPoints.length > 0} />
+        <FitBounds 
+          points={filteredPoints} 
+          initialFit={shouldFitBounds && filteredPoints.length > 0 && !isUserLocation && !zoomTarget} 
+          zoomTarget={zoomTarget} 
+          isUserLocation={isUserLocation} 
+        />
         <MapResizeHandler />
         <MapControls mapType={mapType} onMapTypeChange={setMapType} isOpen={isMapControlsOpen} onOpenChange={setIsMapControlsOpen} />
         {
@@ -830,8 +1305,14 @@ export const InteractiveMap = ({ selectedCategory: externalCategory, isFullscree
                           )}
                         </div>
                         <div className="text-xs"><strong>Category:</strong> {outbreak.category}</div>
-                        <div className="text-xs"><strong>Keywords:</strong> {outbreak.keywords}</div>
-                        <div className="text-xs"><strong>Pathogen:</strong> {outbreak.pathogen}</div>
+                        {outbreak.source && (
+                          <div className="text-xs"><strong>Source:</strong> <span className="text-[#67DBE2]">{outbreak.source}</span></div>
+                        )}
+                        {outbreak.url && (
+                          <a href={outbreak.url} target="_blank" rel="noopener noreferrer" className="text-xs text-[#67DBE2] hover:underline mt-1 block">
+                            Read article →
+                          </a>
+                        )}
                       </div>
                     </Popup>
                   </Marker>
@@ -1029,12 +1510,13 @@ export const InteractiveMap = ({ selectedCategory: externalCategory, isFullscree
                               )}
                             </div>
                             <div className="text-xs"><strong>Category:</strong> {outbreak.category}</div>
-                            <div className="text-xs"><strong>Keywords:</strong> {outbreak.keywords}</div>
-                            <div className="text-xs"><strong>Pathogen:</strong> {outbreak.pathogen}</div>
+                            {(outbreak as OutbreakSignal).source && (
+                              <div className="text-xs"><strong>Source:</strong> <span className="text-[#67DBE2]">{(outbreak as OutbreakSignal).source}</span></div>
+                            )}
                             <div className="text-xs"><strong>Date:</strong> {outbreak.date ? new Date(outbreak.date).toLocaleDateString() : 'N/A'}</div>
                             {outbreak.url && (
-                              <a href={outbreak.url} target="_blank" rel="noopener noreferrer" className="text-xs text-[#67DBE2] hover:underline mt-2 block">
-                                Read more
+                              <a href={outbreak.url} target="_blank" rel="noopener noreferrer" className="text-xs text-[#67DBE2] hover:underline mt-1 block">
+                                Read article →
                               </a>
                             )}
                           </div>
@@ -1093,15 +1575,18 @@ export const InteractiveMap = ({ selectedCategory: externalCategory, isFullscree
                             <strong>Diseases ({uniqueDiseases.length}):</strong> {uniqueDiseases.join(', ')}
                           </div>
                             <div className="space-y-2 mt-3 border-t border-gray-600 pt-2">
-                              {outbreaks.map((outbreak: any, idx: number) => (
+                              {outbreaks.map((outbreak: OutbreakSignal, idx: number) => (
                                 <div key={idx} className="text-xs border-b border-gray-700 pb-2 last:border-0">
                                   <div className="font-semibold">{outbreak.disease}</div>
                                   <div><strong>Location:</strong> {outbreak.location}</div>
                                   <div><strong>Category:</strong> {outbreak.category}</div>
+                                  {outbreak.source && (
+                                    <div><strong>Source:</strong> <span className="text-[#67DBE2]">{outbreak.source}</span></div>
+                                  )}
                                   <div><strong>Date:</strong> {outbreak.date ? new Date(outbreak.date).toLocaleDateString() : 'N/A'}</div>
                                   {outbreak.url && (
                                     <a href={outbreak.url} target="_blank" rel="noopener noreferrer" className="text-[#67DBE2] hover:underline">
-                                    Read more
+                                    Read article →
                                   </a>
                                 )}
                               </div>
@@ -1127,13 +1612,18 @@ export const InteractiveMap = ({ selectedCategory: externalCategory, isFullscree
     <Dialog open={isDialogOpen} onOpenChange={(open) => {
       console.log('Dialog onOpenChange called with:', open);
       setIsDialogOpen(open);
+      if (!open) {
+        // Clear selected pie data when dialog closes
+        setSelectedPieData(null);
+      }
     }}>
-      <DialogContent className="max-w-4xl">
-        <DialogHeader>
+      <DialogContent className="max-w-4xl flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="text-xl">Outbreak Details</DialogTitle>
           <DialogClose />
         </DialogHeader>
         
+        <div className="flex-1 overflow-y-auto min-h-0 px-6 pb-6">
         {selectedPieData && (() => {
             const { points } = selectedPieData;
             
@@ -1170,60 +1660,61 @@ export const InteractiveMap = ({ selectedCategory: externalCategory, isFullscree
             };
             
             return (
-              <div className="p-6 space-y-4">
+              <div className="space-y-4">
                 {/* Locations */}
-                <div className="text-base font-semibold text-white">
+                <div className="text-base font-semibold text-white break-words pr-8">
                   {locationText}
                 </div>
                 
                 {/* Diseases */}
                 <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto custom-scrollbar">
                   {uniqueDiseases.map((disease, idx) => (
-                    <span key={idx} className="text-xs text-white/90 lowercase px-2 py-1 bg-[#67DBE2]/20 rounded border border-[#67DBE2]/30">
+                    <span key={idx} className="text-xs text-white/90 lowercase px-2 py-1 bg-[#67DBE2]/20 rounded border border-[#67DBE2]/30 break-words">
                       {disease}
                     </span>
                   ))}
                 </div>
                 
                 {/* Table Header */}
-                <div className="grid grid-cols-4 gap-4 pt-4 border-t border-[#67DBE2]/20">
-                  <div className="text-xs font-semibold text-[#67DBE2]">Date</div>
-                  <div className="text-xs font-semibold text-[#67DBE2]">Location</div>
-                  <div className="text-xs font-semibold text-[#67DBE2]">Report</div>
-                  <div className="text-xs font-semibold text-[#67DBE2]">Diseases</div>
-                  <div className="text-xs font-semibold text-[#67DBE2]">Syndromes</div>
+                <div className="grid grid-cols-5 gap-2 pt-4 border-t border-[#67DBE2]/20 min-w-0">
+                  <div className="text-xs font-semibold text-[#67DBE2] min-w-0 truncate">Date</div>
+                  <div className="text-xs font-semibold text-[#67DBE2] min-w-0 truncate">Location</div>
+                  <div className="text-xs font-semibold text-[#67DBE2] min-w-0 truncate">Report</div>
+                  <div className="text-xs font-semibold text-[#67DBE2] min-w-0 truncate">Disease</div>
+                  <div className="text-xs font-semibold text-[#67DBE2] min-w-0 truncate">Category</div>
                 </div>
                 
                 {/* Table Rows */}
-                <div className="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar">
+                <div className="space-y-2">
                   {sortedPoints.map((point, idx) => (
-                    <div key={idx} className="grid grid-cols-4 gap-4 py-2 border-b border-[#67DBE2]/10">
-                      <div className="text-xs text-white/80">
+                    <div key={idx} className="grid grid-cols-5 gap-2 py-2 border-b border-[#67DBE2]/10 min-w-0">
+                      <div className="text-xs text-white/80 min-w-0 break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                         {formatDate(point.date)}
                       </div>
-                      <div className="text-xs text-white/90">
+                      <div className="text-xs text-white/90 min-w-0 break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                         {point.location}
                       </div>
-                      <div className="text-xs text-white/90">
+                      <div className="text-xs text-white/90 min-w-0 break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                         {point.url ? (
                           <a 
                             href={point.url} 
                             target="_blank" 
                             rel="noopener noreferrer"
-                            className="text-[#67DBE2] hover:underline line-clamp-2"
+                            className="text-[#67DBE2] hover:underline break-words"
                             title={point.title || point.disease || "Outbreak Report"}
+                            style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}
                           >
                             {point.title || point.disease || "Outbreak Report"}
                           </a>
                         ) : (
-                          <span>{point.title || point.disease || "Outbreak Report"}</span>
+                          <span className="break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>{point.title || point.disease || "Outbreak Report"}</span>
                         )}
                       </div>
-                      <div className="text-xs text-white/80 lowercase">
+                      <div className="text-xs text-white/80 lowercase min-w-0 break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                         {point.disease || "N/A"}
                       </div>
-                      <div className="text-xs text-white/80">
-                        {point.keywords || point.category || "N/A"}
+                      <div className="text-xs text-white/80 min-w-0 break-words" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+                        {point.category || point.keywords || "N/A"}
                       </div>
                     </div>
                   ))}
@@ -1231,8 +1722,9 @@ export const InteractiveMap = ({ selectedCategory: externalCategory, isFullscree
               </div>
             );
           })()}
-        </DialogContent>
-      </Dialog>
+        </div>
+      </DialogContent>
+    </Dialog>
     </>
   );
 };

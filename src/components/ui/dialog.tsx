@@ -64,7 +64,7 @@ export const DialogContent = ({ children, className = "" }: DialogContentProps) 
       />
       {/* Dialog */}
       <div
-        className={`fixed left-1/2 top-1/2 z-[10000] max-h-[90vh] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 transform overflow-y-auto rounded-lg bg-[#2a4149] border border-[#67DBE2]/30 shadow-2xl ${className}`}
+        className={`fixed left-1/2 top-1/2 z-[10000] max-h-[90vh] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 transform overflow-hidden rounded-lg bg-[#2a4149] border border-[#67DBE2]/30 shadow-2xl flex flex-col ${className}`}
         style={{ zIndex: 10000 }}
         onClick={(e) => e.stopPropagation()}
       >

@@ -13,17 +13,37 @@ export async function parseRSSFeedArticles({
 }) {
   const feedArticles: NormalizedArticle[] = [];
   try {
-    const parser = new rssParser();
+    const parser = new rssParser({
+      // Custom fields to parse additional content
+      customFields: {
+        item: [
+          ['content:encoded', 'contentEncoded'],
+          ['description', 'description'],
+          ['summary', 'summary'],
+        ],
+      },
+    });
     const feed = await parser.parseURL(url);
     const items = Array.isArray(feed.items) ? feed.items : [];
     feedArticles.push(
-      ...items.slice(0, maxItems).map((item: any) => ({
-        title: item.title,
-        content: item.content,
-        url: item.link as string,
-        publishedAt: item.isoDate || (item.pubDate as string),
-        source: sourceName as any,
-      }))
+      ...items.slice(0, maxItems).map((item: any) => {
+        // Try multiple content fields in order of preference
+        const content = 
+          item.content || 
+          item.contentSnippet || 
+          item.contentEncoded || 
+          item.description || 
+          item.summary || 
+          '';
+        
+        return {
+          title: item.title || '',
+          content: content,
+          url: item.link || item.guid || '',
+          publishedAt: item.isoDate || item.pubDate || new Date().toISOString(),
+          source: sourceName as any,
+        };
+      }).filter((article) => article.title && article.url) // Filter out invalid articles
     );
   } catch (e) {
     console.warn(`${sourceName} RSS fetch failed:`, e);

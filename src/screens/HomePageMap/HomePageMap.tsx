@@ -4,32 +4,307 @@ import { NavigationTabsSection } from "./sections/NavigationTabsSection";
 import { InteractiveMap } from "./sections/MapSection/InteractiveMap";
 import { NewsSection } from "./sections/NewsSection";
 import { SponsoredSection } from "./sections/SponsoredSection";
+import { FilterState } from "./sections/FilterPanel";
+import { Input } from "../../components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { useSupabaseOutbreakSignals } from "../../lib/useSupabaseOutbreakSignals";
-import { Maximize2, Minimize2 } from "lucide-react";
+import { detectCountryInText, geocodeLocation } from "../../lib/geocode";
+import { geocodeWithOpenCage } from "../../lib/opencage";
+import { useUserLocation } from "../../lib/useUserLocation";
+import { Maximize2, Minimize2, X, RefreshCcw, Utensils, Droplet, Bug, Wind, Handshake, Hospital, PawPrint, Heart, Shield, AlertTriangle, MapPin } from "lucide-react";
 import { useFullscreen } from "../../contexts/FullscreenContext";
 
 // Removed demo outbreaks; using data-driven InteractiveMap
 
 export const HomePageMap = (): JSX.Element => {
-  const [selectedCategory, setSelectedCategory] = React.useState<string | null>(null);
+  const [filters, setFilters] = React.useState<FilterState>({
+    country: null,
+    dateRange: "7d", // Default to 7 days like dashboard
+    category: null,
+    diseaseSearch: "",
+  });
   const [hoveredCategory, setHoveredCategory] = React.useState<string | null>(null);
+  const [zoomTarget, setZoomTarget] = React.useState<[number, number] | null>(null);
   const { isFullscreen: isMapFullscreen, setIsFullscreen: setIsMapFullscreen } = useFullscreen();
+  const mapContainerRef = React.useRef<HTMLDivElement>(null);
+  const [categoryTop, setCategoryTop] = React.useState<string>('820px');
+  const [isDialogOpen, setIsDialogOpen] = React.useState(false);
+  const [showLocationNotification, setShowLocationNotification] = React.useState(false);
+  const [showLocationError, setShowLocationError] = React.useState(true);
+  const [isUserLocationZoom, setIsUserLocationZoom] = React.useState(false);
+  const locationAutoAppliedRef = React.useRef(false);
   
-  // Fetch signals to calculate category stats
-  const { signals } = useSupabaseOutbreakSignals(null);
+  // Request user location on mount
+  const { location, isRequesting: isRequestingLocation, error: locationError } = useUserLocation(true);
+  
+  // Fetch signals to calculate category stats (use filters but don't filter by category for stats)
+  const statsFilters = { ...filters, category: null };
+  const { signals } = useSupabaseOutbreakSignals(statsFilters);
+
+  // Extract available countries from signals for search matching
+  const availableCountries = React.useMemo(() => {
+    const countries = new Set<string>();
+    signals.forEach(s => {
+      // Extract country from location (format: "City, Country" or "Country")
+      const parts = s.location.split(',').map(p => p.trim());
+      const country = parts.length > 1 ? parts[parts.length - 1] : parts[0];
+      if (country && country !== "Unknown") {
+        countries.add(country);
+      }
+    });
+    return Array.from(countries).sort();
+  }, [signals]);
+
+  // Handle search input change - just update the input value, don't process yet
+  const handleSearchChange = (value: string) => {
+    setFilters(prev => ({ ...prev, diseaseSearch: value }));
+  };
+
+  const handleResetFilters = () => {
+    console.log('🔄 Resetting filters and map to world view');
+    setFilters({
+      country: null,
+      dateRange: "7d",
+      category: null,
+      diseaseSearch: "",
+    });
+    // Clear zoom target and user location zoom to reset map to world view
+    setZoomTarget(null);
+    setIsUserLocationZoom(false);
+    // Keep locationAutoAppliedRef as true to prevent auto-re-applying location after reset
+    // User can manually search for their location if they want it back
+    // locationAutoAppliedRef.current remains true to prevent auto-apply
+  };
+
+  // Handle search processing (determine if it's a country or disease)
+  const processSearch = React.useCallback(async (searchQuery: string) => {
+    if (!searchQuery || !searchQuery.trim()) {
+      setFilters(prev => ({ ...prev, country: null }));
+      setZoomTarget(null);
+      return;
+    }
+
+    const query = searchQuery.trim();
+    const queryLower = query.toLowerCase();
+    
+    console.log('Processing search:', query);
+    
+    // First, check if it's a country name in our lookup
+    const detectedCountry = detectCountryInText(queryLower);
+    console.log('Detected country from lookup:', detectedCountry);
+    
+    if (detectedCountry) {
+      // Try to get coordinates for the country (fast local lookup)
+      let coords = geocodeLocation(detectedCountry);
+      console.log('Coordinates from lookup:', coords);
+      
+      // Set country filter immediately if we have coordinates (optimistic update)
+      if (coords) {
+        console.log('Setting country filter to:', detectedCountry, 'with coordinates:', coords);
+        setFilters(prev => ({ ...prev, country: detectedCountry, diseaseSearch: prev.diseaseSearch }));
+        setIsUserLocationZoom(false); // Country search, not user location
+        setZoomTarget(coords);
+        return;
+      }
+      
+      // Even without coordinates, set the country filter immediately so filtering can start
+      // The map will use available countries from signals if coordinates aren't found
+      setFilters(prev => ({ ...prev, country: detectedCountry, diseaseSearch: prev.diseaseSearch }));
+      setIsUserLocationZoom(false); // Country search, not user location
+      
+      // Try OpenCage API in background (non-blocking - update if found)
+      // Don't wait for this - let user see results immediately
+      geocodeWithOpenCage(detectedCountry).then(coords => {
+        if (coords) {
+          console.log('Coordinates from OpenCage:', coords);
+          // Update zoom target if country filter is still set to this country
+          setFilters(prev => {
+            if (prev.country === detectedCountry) {
+              setZoomTarget(coords);
+              setIsUserLocationZoom(false);
+            }
+            return prev;
+          });
+        }
+      }).catch(e => {
+        console.warn('Failed to geocode country:', e);
+      });
+      
+      return;
+    }
+
+    // Check if any signal location matches the search (case-insensitive partial match)
+    // This helps find countries that might be in the database but not in our lookup
+    // But only if query is at least 3 characters to avoid false matches with single letters
+    const matchingCountry = queryLower.length >= 3 ? availableCountries.find(country => {
+      const countryLower = country.toLowerCase();
+      // Only match if country starts with query or query starts with country (exact/prefix match)
+      // This prevents "c" from matching "Democratic Republic of Congo"
+      return countryLower === queryLower || 
+             countryLower.startsWith(queryLower) ||
+             queryLower.startsWith(countryLower) ||
+             // Handle common aliases (these are always valid)
+             (queryLower === 'usa' && countryLower.includes('united states')) ||
+             (queryLower === 'us' && countryLower.includes('united states')) ||
+             (queryLower === 'uk' && countryLower.includes('united kingdom'));
+    }) : null;
+
+    console.log('Matching country from available countries:', matchingCountry);
+
+    if (matchingCountry) {
+      let coords = geocodeLocation(matchingCountry);
+      
+      // Set country filter immediately if we have coordinates
+      if (coords) {
+        console.log('Setting country filter to matching country:', matchingCountry, 'with coordinates:', coords);
+        setFilters(prev => ({ ...prev, country: matchingCountry, diseaseSearch: prev.diseaseSearch }));
+        setIsUserLocationZoom(false); // Country search, not user location
+        setZoomTarget(coords);
+        return;
+      }
+      
+      // Set country filter immediately even without coordinates
+      setFilters(prev => ({ ...prev, country: matchingCountry, diseaseSearch: prev.diseaseSearch }));
+      setIsUserLocationZoom(false); // Country search, not user location
+      
+      // Try OpenCage in background (non-blocking)
+      geocodeWithOpenCage(matchingCountry).then(coords => {
+        if (coords) {
+          setFilters(prev => {
+            if (prev.country === matchingCountry) {
+              setZoomTarget(coords);
+              setIsUserLocationZoom(false);
+            }
+            return prev;
+          });
+        }
+      }).catch(e => {
+        console.warn('Failed to geocode country:', e);
+      });
+      
+      return;
+    }
+
+    // If not found in lookup or available countries, try OpenCage API directly with the query
+    // BUT: Only do this if the query looks like it could be a country name
+    // Skip OpenCage for common disease names to avoid false positives
+    // Common disease names that might geocode to places (like "Malaria" town in Greece)
+    const commonDiseaseNames = [
+      'malaria', 'dengue', 'cholera', 'ebola', 'covid', 'flu', 'influenza',
+      'measles', 'mumps', 'tuberculosis', 'tb', 'hiv', 'aids', 'hepatitis',
+      'typhoid', 'yellow fever', 'zika', 'chikungunya', 'plague', 'anthrax'
+    ];
+    const looksLikeDisease = commonDiseaseNames.some(disease => 
+      queryLower === disease || queryLower.startsWith(disease) || queryLower.includes(disease)
+    );
+    
+    if (!detectedCountry && !matchingCountry && !looksLikeDisease) {
+      // Try OpenCage in background (non-blocking) - don't wait for it
+      geocodeWithOpenCage(query).then(coords => {
+        if (coords) {
+          console.log('Found coordinates via OpenCage, treating as location:', query);
+          const countryName = query.charAt(0).toUpperCase() + query.slice(1).toLowerCase();
+          setFilters(prev => {
+            // Only update if search hasn't changed
+            if (prev.diseaseSearch === query) {
+              return { ...prev, country: countryName };
+            }
+            return prev;
+          });
+          setIsUserLocationZoom(false); // Country search, not user location
+          setZoomTarget(coords);
+        }
+      }).catch(e => {
+        console.warn('OpenCage geocoding failed for query:', query, e);
+      });
+      // Don't return - let it fall through to disease search immediately
+    } else if (looksLikeDisease) {
+      console.log('Query looks like a disease name, skipping OpenCage geocoding:', query);
+    }
+
+    // If not a country, treat it as a disease search - clear country filter
+    console.log('Treating as disease search:', query);
+    setFilters(prev => {
+      // Clear country filter if it was set, but keep the diseaseSearch value
+      if (prev.country !== null) {
+        console.log('Clearing country filter, keeping disease search:', query);
+        return { ...prev, country: null };
+      }
+      // Ensure diseaseSearch is set (it should already be set by handleSearchChange, but just in case)
+      return prev;
+    });
+    setZoomTarget(null);
+    setIsUserLocationZoom(false);
+  }, [availableCountries]);
+
+  // Minimal debounce for search processing - instant for known countries, 150ms for others
+  React.useEffect(() => {
+    const currentSearch = filters.diseaseSearch;
+    
+    // For known countries in lookup, process immediately (no debounce)
+    if (currentSearch && currentSearch.trim()) {
+      const queryLower = currentSearch.toLowerCase().trim();
+      const detectedCountry = detectCountryInText(queryLower);
+      
+      if (detectedCountry && geocodeLocation(detectedCountry)) {
+        // Known country - process immediately
+        processSearch(currentSearch);
+        return;
+      }
+    }
+    
+    // For other searches, use minimal debounce
+    const timer = setTimeout(() => {
+      processSearch(currentSearch);
+    }, 150); // 150ms delay for typing
+
+    return () => clearTimeout(timer);
+  }, [filters.diseaseSearch, processSearch]);
+
+  // Reset map to world view when date range filter changes
+  const prevDateRangeRef = React.useRef<string | null>(null);
+  React.useEffect(() => {
+    // Skip on initial mount
+    if (prevDateRangeRef.current === null) {
+      prevDateRangeRef.current = filters.dateRange;
+      return;
+    }
+    
+    // If date range changed, reset map to world view
+    if (prevDateRangeRef.current !== filters.dateRange) {
+      console.log('📅 Date range changed, resetting map to world view');
+      prevDateRangeRef.current = filters.dateRange;
+      // Clear zoom target and user location zoom to reset to world view
+      setZoomTarget(null);
+      setIsUserLocationZoom(false);
+    }
+  }, [filters.dateRange]);
 
   const diseaseCategories = [
-    { name: "Foodborne Outbreaks", color: "#f87171", icon: "🍽️" },
-    { name: "Waterborne Outbreaks", color: "#66dbe1", icon: "💧" },
-    { name: "Vector-Borne Outbreaks", color: "#fbbf24", icon: "🦟" },
-    { name: "Airborne Outbreaks", color: "#a78bfa", icon: "💨" },
-    { name: "Contact Transmission", color: "#fb923c", icon: "🤝" },
-    { name: "Healthcare-Associated Infections", color: "#ef4444", icon: "🏥" },
-    { name: "Zoonotic Outbreaks", color: "#10b981", icon: "🐾" },
-    { name: "Sexually Transmitted Infections", color: "#ec4899", icon: "❤️" },
-    { name: "Vaccine-Preventable Diseases", color: "#3b82f6", icon: "🛡️" },
-    { name: "Emerging Infectious Diseases", color: "#f59e0b", icon: "⚠️" },
+    { name: "Foodborne Outbreaks", color: "#f87171", icon: Utensils },
+    { name: "Waterborne Outbreaks", color: "#66dbe1", icon: Droplet },
+    { name: "Vector-Borne Outbreaks", color: "#fbbf24", icon: Bug },
+    { name: "Airborne Outbreaks", color: "#a78bfa", icon: Wind },
+    { name: "Contact Transmission", color: "#fb923c", icon: Handshake },
+    { name: "Healthcare-Associated Infections", color: "#ef4444", icon: Hospital },
+    { name: "Zoonotic Outbreaks", color: "#10b981", icon: PawPrint },
+    { name: "Sexually Transmitted Infections", color: "#ec4899", icon: Heart },
+    { name: "Vaccine-Preventable Diseases", color: "#3b82f6", icon: Shield },
+    { name: "Emerging Infectious Diseases", color: "#f59e0b", icon: AlertTriangle },
   ];
+
+  // Handle category selection from disease category icons
+  const handleCategoryClick = (categoryName: string) => {
+    setFilters(prev => ({
+      ...prev,
+      category: prev.category === categoryName ? null : categoryName,
+      // Clear country and disease search when selecting a category
+      country: null,
+      diseaseSearch: "",
+    }));
+    setZoomTarget(null);
+    setIsUserLocationZoom(false);
+  };
 
   // Calculate category statistics
   const categoryStats = React.useMemo(() => {
@@ -74,9 +349,181 @@ export const HomePageMap = (): JSX.Element => {
     setIsMapFullscreen(!isMapFullscreen);
   };
 
+  // Auto-apply location when detected (only once on initial load)
+  React.useEffect(() => {
+    if (location && !locationAutoAppliedRef.current) {
+      // User location detected - automatically filter by country and zoom to location
+      const detectedCountry = location.country;
+      const userCoords = location.coordinates;
+      
+      console.log('📍 User location detected:', {
+        country: detectedCountry,
+        city: location.city,
+        coordinates: userCoords,
+        lat: userCoords[0],
+        lng: userCoords[1]
+      });
+      
+      // Validate coordinates
+      if (!userCoords || userCoords.length !== 2 || isNaN(userCoords[0]) || isNaN(userCoords[1])) {
+        console.error('❌ Invalid user coordinates:', userCoords);
+        return;
+      }
+      
+      const [lat, lng] = userCoords;
+      if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+        console.error('❌ User coordinates out of range:', userCoords);
+        return;
+      }
+      
+      // Check if country exists in our lookup or available countries
+      const coords = geocodeLocation(detectedCountry);
+      const countryExists = coords || availableCountries.some(c => 
+        c.toLowerCase() === detectedCountry.toLowerCase()
+      );
+      
+      if (countryExists && !filters.country) {
+        // Set country filter (only if not already set)
+        setFilters(prev => ({
+          ...prev,
+          country: detectedCountry,
+        }));
+      }
+      
+      // ALWAYS zoom to user's location (regardless of country existence)
+      // Use their actual coordinates, not country center
+      // IMPORTANT: Set both flags and zoom target together to prevent clearing
+      console.log('🎯 Setting zoom target to user location:', userCoords);
+      setIsUserLocationZoom(true);
+      setZoomTarget(userCoords);
+      
+      // Show notification
+      setShowLocationNotification(true);
+      locationAutoAppliedRef.current = true;
+      
+      // Auto-hide notification after 5 seconds
+      setTimeout(() => {
+        setShowLocationNotification(false);
+      }, 5000);
+    }
+  }, [location, availableCountries]);
+  
+  // Ensure zoom target and user location flag stay set even if filters change
+  React.useEffect(() => {
+    // If user location was applied, maintain the zoom target
+    if (locationAutoAppliedRef.current && location && isUserLocationZoom) {
+      // Ensure zoom target is still set to user location
+      if (!zoomTarget || 
+          Math.abs(zoomTarget[0] - location.coordinates[0]) > 0.0001 ||
+          Math.abs(zoomTarget[1] - location.coordinates[1]) > 0.0001) {
+        console.log('🔄 Restoring user location zoom target');
+        setZoomTarget(location.coordinates);
+        setIsUserLocationZoom(true);
+      }
+    }
+  }, [location, isUserLocationZoom, zoomTarget]);
+
+  // Calculate category position relative to map container
+  React.useEffect(() => {
+    if (isMapFullscreen) {
+      return;
+    }
+
+    const updateCategoryPosition = () => {
+      const mapContainer = mapContainerRef.current;
+      if (!mapContainer) {
+        // Fallback to default if map container not available
+        setCategoryTop('820px');
+        return;
+      }
+
+      const mapRect = mapContainer.getBoundingClientRect();
+      const containerRect = mapContainer.parentElement?.getBoundingClientRect();
+      if (!containerRect) {
+        setCategoryTop('820px');
+        return;
+      }
+
+      // Calculate position: map bottom + 20px spacing
+      const mapBottom = mapRect.bottom - containerRect.top;
+      const newTop = Math.max(820, mapBottom + 20); // Ensure minimum position
+      setCategoryTop(`${newTop}px`);
+    };
+
+    // Initial calculation
+    updateCategoryPosition();
+    
+    // Update on window resize
+    window.addEventListener('resize', updateCategoryPosition);
+    
+    // Update after delays to account for map rendering and transitions
+    const timeoutIds = [
+      setTimeout(updateCategoryPosition, 100),
+      setTimeout(updateCategoryPosition, 600), // After transition completes
+    ];
+
+    // Use ResizeObserver to watch for map container size changes
+    let resizeObserver: ResizeObserver | null = null;
+    if (mapContainerRef.current) {
+      resizeObserver = new ResizeObserver(() => {
+        updateCategoryPosition();
+      });
+      resizeObserver.observe(mapContainerRef.current);
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateCategoryPosition);
+      timeoutIds.forEach(id => clearTimeout(id));
+      if (resizeObserver && mapContainerRef.current) {
+        resizeObserver.unobserve(mapContainerRef.current);
+      }
+    };
+  }, [isMapFullscreen]); // Recalculate when fullscreen changes
+
   return (
     <div className={`bg-[#2a4149] relative ${isMapFullscreen ? 'absolute inset-0 w-full h-full overflow-hidden' : 'min-h-screen overflow-x-hidden'}`}>
       <div className="relative w-full h-full">
+        {/* Location Detection Notification */}
+        {showLocationNotification && location && (
+          <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-[1100] bg-[#67DBE2] text-[#2a4149] px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+            <MapPin className="w-5 h-5 flex-shrink-0" />
+            <div className="flex-1">
+              <div className="font-semibold text-sm">
+                Showing outbreaks in {location.country}
+                {location.city && `, ${location.city}`}
+              </div>
+              <div className="text-xs opacity-90">
+                Your location has been detected. Click to dismiss.
+              </div>
+            </div>
+            <button
+              onClick={() => setShowLocationNotification(false)}
+              className="ml-2 hover:bg-[#2a4149]/20 rounded p-1 transition-colors"
+              aria-label="Dismiss notification"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+        
+        {/* Location Request Error Notification */}
+        {locationError && !location && !isRequestingLocation && showLocationError && (
+          <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-[1100] bg-[#ef4444] text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300 max-w-md">
+            <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+            <div className="flex-1">
+              <div className="font-semibold text-sm">Location Access Required</div>
+              <div className="text-xs opacity-90">{locationError}</div>
+            </div>
+            <button
+              onClick={() => setShowLocationError(false)}
+              className="ml-2 hover:bg-white/20 rounded p-1 transition-colors"
+              aria-label="Dismiss error"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+        
         {/* Header Title - Top Left */}
         <div className={`absolute top-[32px] left-[120px] z-[1000] transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
           <h1 className="[font-family:'Roboto',Helvetica] font-bold text-[#67DBE2] text-[38px] tracking-[-0.5px] leading-[48px]">
@@ -86,18 +533,72 @@ export const HomePageMap = (): JSX.Element => {
           </h1>
         </div>
 
-        {/* Search and Navigation - Top Right */}
-        <div className={`absolute top-[32px] right-[20px] z-[1000] flex flex-col gap-3 transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-          <input
+        {/* Filters and Navigation - Top Right */}
+        <div className={`absolute top-[32px] right-[20px] z-[1000] flex flex-col items-end gap-3 transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+          <div className="flex items-center gap-4">
+            {/* Date Range Tabs */}
+            <div className="flex items-center w-[357px] h-[38px] rounded-[6px] border border-[#DAE0E633] bg-transparent px-1 py-1 shadow-[0px_1px_2px_#1018280a]" style={{ borderBottomColor: "#FFFFFF33", borderBottomWidth: "1px" }}>
+              <Tabs
+                value={filters.dateRange || "7d"}
+                onValueChange={(value) => setFilters(prev => ({ ...prev, dateRange: value }))}
+                className="w-full"
+              >
+                <TabsList className="grid w-full h-full grid-cols-6 bg-transparent border-0 gap-1">
+                  {["24h", "7d", "14d", "30d", "6m", "1y"].map((range) => (
+                    <TabsTrigger
+                      key={range}
+                      value={range}
+                      className="text-xs font-semibold text-[#EBEBEBCC] data-[state=active]:bg-[#FFFFFF24] data-[state=active]:text-white rounded-[4px] h-full"
+                    >
+                      {range}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
+            </div>
+            {/* Search Bar */}
+            <div className="flex w-[185px] h-[40px] items-center gap-2 px-3 bg-[#FFFFFF24] rounded-[6px] overflow-hidden border border-solid border-[#DAE0E633] shadow-[0px_1px_2px_#1018280A]">
+              <img
+                className="relative w-[18px] h-[18px]"
+                alt="Search"
+                src="/zoom-search.svg"
+              />
+              <Input
             type="text"
-            placeholder="Search here..."
-            className="w-[360px] h-[42px] rounded-[8px] border border-[#DAE0E633] bg-[#FFFFFF24] py-[12px] px-4 text-sm text-white placeholder-[#ffffff80] shadow-[0px_2px_4px_0px_rgba(16,24,40,0.08)] focus:outline-none focus:ring-2 focus:ring-[#67DBE2]/50 focus:border-[#67DBE2]/50 transition-all"
-          />
+                placeholder="Search diseases, countries..."
+                value={filters.diseaseSearch || ""}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="flex-1 bg-transparent border-0 text-[#EBEBEB] text-sm [font-family:'Roboto',Helvetica] font-medium tracking-[-0.10px] leading-5 placeholder:text-[#EBEBEB] focus-visible:ring-0 focus-visible:ring-offset-0 h-auto p-0"
+              />
+              {filters.diseaseSearch && (
+                <button
+                  onClick={() => {
+                    setFilters(prev => ({ ...prev, diseaseSearch: "", country: null }));
+                    setZoomTarget(null);
+                  }}
+                  className="flex items-center justify-center w-4 h-4 text-[#EBEBEB99] hover:text-[#EBEBEB] transition-colors"
+                  aria-label="Clear search"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+            <button
+              onClick={handleResetFilters}
+              className="flex items-center justify-center w-10 h-[40px] rounded-[6px] border border-[#DAE0E633] bg-[#FFFFFF14] text-[#EBEBEBCC] hover:text-white hover:bg-[#FFFFFF24] transition-colors shadow-[0px_1px_2px_#1018280A]"
+              title="Reset filters"
+              aria-label="Reset filters"
+            >
+              <RefreshCcw className="w-4 h-4" />
+            </button>
+          </div>
+
           <NavigationTabsSection />
         </div>
 
         {/* Map - Main Content Area */}
         <div 
+          ref={mapContainerRef}
           className={`absolute rounded-[12px] z-[1000] overflow-hidden shadow-2xl border border-[#67DBE2]/20 transition-all duration-500 ease-in-out ${
             isMapFullscreen 
               ? 'top-0 left-0 right-0 bottom-0 w-full h-full rounded-none' 
@@ -117,7 +618,18 @@ export const HomePageMap = (): JSX.Element => {
               <Maximize2 className="w-5 h-5 group-hover:text-white transition-colors" />
             )}
           </button>
-          <InteractiveMap selectedCategory={selectedCategory} isFullscreen={isMapFullscreen} />
+          <InteractiveMap 
+            filters={filters}
+            isFullscreen={isMapFullscreen}
+            zoomTarget={zoomTarget}
+            isUserLocation={isUserLocationZoom}
+            onClearSearch={() => {
+              setFilters(prev => ({ ...prev, diseaseSearch: "", country: null }));
+              setZoomTarget(null);
+              setIsUserLocationZoom(false);
+            }}
+            onDialogStateChange={setIsDialogOpen}
+          />
         </div>
 
         {/* News Section - Right Sidebar */}
@@ -132,36 +644,58 @@ export const HomePageMap = (): JSX.Element => {
 
         {/* Disease Category Icons - Bottom Left, Under Map */}
         <div 
-          className={`absolute z-[1000] transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-          style={{ top: '820px', left: '120px', width: '790px', height: '52px' }}
+          className={`absolute z-[1000] transition-all duration-300 ${isMapFullscreen || isDialogOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+          style={{
+            top: isMapFullscreen ? 'auto' : categoryTop,
+            left: '120px',
+            width: isMapFullscreen ? 'auto' : 'min(790px, calc(100vw - 680px - 120px))',
+            height: '52px',
+          }}
         >
-          <div className="flex items-center h-full gap-[30px]">
+          <div className="flex items-center h-full gap-[30px] flex-wrap">
             {diseaseCategories.map((category) => {
               const stats = categoryStats[category.name] || { cases: 0, severity: 'Low' };
               return (
                 <div key={category.name} className="relative flex flex-col items-center">
                   <button
-                    onClick={() => setSelectedCategory(
-                      selectedCategory === category.name ? null : category.name
-                    )}
+                    onClick={() => handleCategoryClick(category.name)}
                     onMouseEnter={() => handleMouseEnter(category.name)}
                     onMouseLeave={handleMouseLeave}
-                    className={`w-12 h-12 flex items-center justify-center rounded-full text-2xl cursor-pointer transition-all duration-200 ${
-                      selectedCategory === category.name
-                        ? 'scale-110 ring-2 ring-offset-2 ring-offset-[#2a4149]'
-                        : 'hover:scale-110'
-                    }`}
+                    className="flex items-center justify-center rounded-full cursor-pointer transition-all duration-200 relative"
                     style={{
-                      backgroundColor: selectedCategory === category.name 
-                        ? `${category.color}CC` 
-                        : `${category.color}80`,
-                      borderColor: selectedCategory === category.name ? category.color : 'transparent',
-                      boxShadow: selectedCategory === category.name 
+                      width: '52px',
+                      height: '52px',
+                      backgroundColor: '#FFFFFF',
+                      border: 'none',
+                      boxShadow: filters.category === category.name 
                         ? `0 0 16px ${category.color}60, 0 4px 8px rgba(0,0,0,0.3)` 
                         : `0 2px 4px rgba(0,0,0,0.2)`,
                     }}
                   >
-                    {category.icon}
+                    <div 
+                      className="absolute inset-0 rounded-full"
+                      style={{
+                        backgroundColor: category.color,
+                        width: filters.category === category.name ? '52px' : '48px',
+                        height: filters.category === category.name ? '52px' : '48px',
+                        margin: 'auto',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.2s',
+                      }}
+                    >
+                      {React.createElement(category.icon, {
+                        style: {
+                          width: '32px',
+                          height: '32px',
+                          color: '#FFFFFF',
+                          stroke: '#FFFFFF',
+                          fill: 'none',
+                          strokeWidth: 2.5,
+                        }
+                      })}
+                    </div>
                   </button>
                   
                   {/* Tooltip */}

@@ -33,13 +33,13 @@ export const NewsSection = (): JSX.Element => {
       
       // Fetch news articles with source information
       // Filter to show articles published within the last 3 months
-      // Order by published_at desc to show newest articles first
+      // Order by published_at desc to show most recently published articles first
       const queryParams = new URLSearchParams();
       queryParams.set('select', '*,news_sources!source_id(name)');
       // Filter: only articles published in the last 3 months (PostgREST syntax: column.gte.value)
       queryParams.set('published_at', `gte.${threeMonthsAgoISO}`);
-      queryParams.set('order', 'published_at.desc'); // Newest first
-      queryParams.set('limit', '50'); // Increased from 20 to show more articles
+      queryParams.set('order', 'published_at.desc'); // Most recently published first
+      queryParams.set('limit', '500'); // Fetch enough to include all articles from all sources
       
       const query = `${supabaseUrl}/rest/v1/news_articles?${queryParams.toString()}`;
 
@@ -61,10 +61,25 @@ export const NewsSection = (): JSX.Element => {
       const data: any[] = await response.json();
       console.log('Fetched news articles:', data.length, 'items');
       console.log('Date filter:', threeMonthsAgoISO);
+      
+      // Debug: Check sources in the response
+      const sourcesInResponse = new Set<string>();
+      data.forEach((item: any) => {
+        if (item.news_sources) {
+          if (Array.isArray(item.news_sources) && item.news_sources.length > 0) {
+            sourcesInResponse.add(item.news_sources[0]?.name || 'Unknown');
+          } else if (typeof item.news_sources === 'object' && item.news_sources.name) {
+            sourcesInResponse.add(item.news_sources.name);
+          }
+        }
+      });
+      console.log('Sources in API response:', Array.from(sourcesInResponse));
+      
       if (data.length > 0) {
         console.log('Sample article dates:', data.slice(0, 3).map((a: any) => ({
           title: a.title?.substring(0, 50),
-          published_at: a.published_at
+          published_at: a.published_at,
+          source: a.news_sources?.name || (Array.isArray(a.news_sources) ? a.news_sources[0]?.name : 'Unknown')
         })));
       }
       
@@ -108,8 +123,60 @@ export const NewsSection = (): JSX.Element => {
         return publishedDate >= threeMonthsAgo;
       });
       
-      console.log('Transformed news articles (within last 3 months):', transformed.length);
-      return transformed;
+      // Normalize title for comparison (removes source suffixes and normalizes)
+      const normalizeTitle = (title: string): string => {
+        return title
+          .toLowerCase()
+          .trim()
+          // Remove common source suffixes that don't affect story identity
+          .replace(/\s*-\s*(tribune india|ani news|msn|aol\.com|bernama|crispng\.com|reuters|bbc|who|cdc|promed)$/i, '')
+          .replace(/\s*[….]+\s*$/g, '') // Remove trailing ellipses
+          .replace(/\s+/g, ' ') // Normalize whitespace
+          .replace(/[^\w\s-]/g, '') // Remove special characters
+          .trim();
+      };
+      
+      // Remove duplicates based on article URL and normalized title (keep most recent version)
+      const uniqueArticlesByUrl = new Map<string, NewsArticle>();
+      const uniqueArticlesByTitle = new Map<string, NewsArticle>();
+      
+      transformed.forEach(article => {
+        const normalizedTitle = normalizeTitle(article.title);
+        
+        // First check by URL
+        if (!uniqueArticlesByUrl.has(article.url) || 
+            new Date(article.published_at) > new Date(uniqueArticlesByUrl.get(article.url)!.published_at)) {
+          uniqueArticlesByUrl.set(article.url, article);
+        }
+        
+        // Then check by normalized title (to catch same story from different sources)
+        if (!uniqueArticlesByTitle.has(normalizedTitle) || 
+            new Date(article.published_at) > new Date(uniqueArticlesByTitle.get(normalizedTitle)!.published_at)) {
+          uniqueArticlesByTitle.set(normalizedTitle, article);
+        }
+      });
+      
+      // Use title-based deduplication as the primary deduplication method
+      // This ensures we only show one article per story, even if it comes from multiple sources
+      const finalArticles = Array.from(uniqueArticlesByTitle.values());
+      
+      // Sort by published_at desc (most recently published first) - simple and straightforward
+      finalArticles.sort((a, b) => 
+        new Date(b.published_at).getTime() - new Date(a.published_at).getTime()
+      );
+      
+      // Debug logging
+      const sourceCounts = new Map<string, number>();
+      finalArticles.forEach(article => {
+        const sourceName = article.source.name;
+        sourceCounts.set(sourceName, (sourceCounts.get(sourceName) || 0) + 1);
+      });
+      console.log('Final articles:', finalArticles.length);
+      console.log('Sources in final list:', Object.fromEntries(sourceCounts));
+      console.log('First 10 article sources:', finalArticles.slice(0, 10).map(a => a.source.name));
+      console.log('Last 10 article sources:', finalArticles.slice(-10).map(a => a.source.name));
+      
+      return finalArticles;
     } catch (e: any) {
       console.error('Error fetching news:', e);
       throw e;

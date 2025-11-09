@@ -323,24 +323,7 @@ export async function storeArticlesAndSignals({
   for (const article of matchedArticles) {
     const countryInfo = getCountryInfo(article.location?.country ?? "");
 
-    // if no country info, skip the article
-    if (!countryInfo) {
-      skippedNoLocation++;
-      continue;
-    }
-
-    // Geocode city if available
-    let cityCoords: [number, number] | null = null;
-    const cityName = article.location?.city;
-    if (cityName && cityName !== "null" && cityName.trim() !== "") {
-      cityCoords = await geocodeCity(cityName, countryInfo.country);
-      if (cityCoords) {
-        console.log(`Geocoded city: ${cityName}, ${countryInfo.country} -> ${cityCoords[0]}, ${cityCoords[1]}`);
-      } else {
-        console.log(`Failed to geocode city: ${cityName}, ${countryInfo.country}`);
-      }
-    }
-
+    // Match source first (needed for storing article regardless of location)
     let source = sources?.find((s: any) => {
       const sourceLower = (article.source as string).toLowerCase();
       const dbNameLower = s.name.toLowerCase();
@@ -363,6 +346,21 @@ export async function storeArticlesAndSignals({
       continue;
     }
 
+    // Geocode city if available (only if we have country info)
+    let cityCoords: [number, number] | null = null;
+    if (countryInfo) {
+      const cityName = article.location?.city;
+      if (cityName && cityName !== "null" && cityName.trim() !== "") {
+        cityCoords = await geocodeCity(cityName, countryInfo.country);
+        if (cityCoords) {
+          console.log(`Geocoded city: ${cityName}, ${countryInfo.country} -> ${cityCoords[0]}, ${cityCoords[1]}`);
+        } else {
+          console.log(`Failed to geocode city: ${cityName}, ${countryInfo.country}`);
+        }
+      }
+    }
+
+    // Get or create country if location exists
     let dbCountry: { id: string; name: string; code: string } | null = null;
     if (countryInfo) {
       let { data: foundCountry } = await supabase
@@ -386,6 +384,8 @@ export async function storeArticlesAndSignals({
       dbCountry = foundCountry;
     }
 
+    // Store article regardless of whether it has location or not
+    // Articles without locations will appear in news section but won't create signals
     const { data: newsArticle, error: articleError } = await supabase
       .from("news_articles")
       .upsert(
@@ -426,6 +426,12 @@ export async function storeArticlesAndSignals({
       continue;
     }
 
+    // Track articles without location for reporting
+    if (!countryInfo) {
+      skippedNoLocation++;
+    }
+
+    // Only create outbreak signals if we have both location and diseases
     if (dbCountry && article.diseases && article.diseases.length > 0) {
       for (const disease of article.diseases) {
         // Skip empty diseases
@@ -519,8 +525,9 @@ export async function storeArticlesAndSignals({
         const caseCount = article.case_count_mentioned ?? 0;
 
         // Use city coordinates if available, otherwise fallback to country coordinates
-        const finalLatitude = cityCoords ? cityCoords[0] : countryInfo.latitude;
-        const finalLongitude = cityCoords ? cityCoords[1] : countryInfo.longitude;
+        // Note: countryInfo is guaranteed to exist here because we're inside the dbCountry check
+        const finalLatitude = cityCoords ? cityCoords[0] : (countryInfo?.latitude ?? 0);
+        const finalLongitude = cityCoords ? cityCoords[1] : (countryInfo?.longitude ?? 0);
 
         // Use normalized city (already computed above)
         // Store detected disease name if disease is "OTHER"

@@ -41,7 +41,7 @@ You are required to match the following fields for each news report:
 - id: string - the same id of the news report from the user's input array. This field is required.
 - diseases: string[] - the diseases that the news report matches from the "Disease" (first) column of the CSV content above. If the disease mentioned is NOT in the CSV, use "OTHER" but try to identify the actual disease name mentioned. This field is required.
 - detected_disease_name: string - OPTIONAL field. If the disease is not in the CSV and you used "OTHER", provide the actual disease name mentioned in the article here (e.g., "Rift Valley Fever"). If the disease is in the CSV, you can omit this field or set it to null.
-- country: string - a valid country name from the countries list below. Even if the news report doesn't mention a country, you should try to find the most relevant country for the news report. As a last resort, you can determine the country from the news provider, or your best guess is also fine. This field is required, cannot be null, and must be a valid country name from the countries list below.
+- country: string - a valid country name from the countries list below. Try to find the most relevant country for the news report. If you cannot determine the country (even from the news provider), you may set this to "null". This field should be a valid country name from the countries list below, or "null" if no country can be determined.
 - city: string - the city/state/province of the outbreak, if any. Even if the news report doesn't mention a city, you should try to find the most relevant city for the news report. If you can't find a city, you should set the city to null. This field is optional.
 - case_count_mentioned: number - the number of cases mentioned in the news report. If the news report doesn't mention a number of cases, you should set the case_count_mentioned to null. This field is optional.
 - confidence_score: number - the confidence score for the match, between 0 and 1. This field is required.
@@ -150,12 +150,20 @@ export async function deepseekMatchArticles(opts: {
                                         ? detected_disease_name.trim() 
                                         : undefined;
 
+      // Normalize country - handle "null" strings and empty values
+      // Only normalize if country exists and is not "null"
+      const normalizedCountry = country && 
+                                country !== "null" && 
+                                country.trim() !== "" 
+                                ? getNormalizedCountryName(country) 
+                                : undefined;
+      
       return {
         ...article,
-        location: {
-          country: getNormalizedCountryName(country ?? ""),
+        location: normalizedCountry ? {
+          country: normalizedCountry,
           city: normalizedCity,
-        },
+        } : undefined,
         diseases: diseasesArray,
         detected_disease_name: normalizedDetectedDisease,
         case_count_mentioned: case_count_mentioned
@@ -165,8 +173,8 @@ export async function deepseekMatchArticles(opts: {
       };
     })
     .filter((article) => article !== null)
-    .filter((article) => article.diseases && article.diseases.length > 0) // must match at least one disease
-    .filter((article) => article.location?.country); // must match a country
+    .filter((article) => article.diseases && article.diseases.length > 0); // must match at least one disease
+    // Note: We no longer filter out articles without countries - they'll be stored but won't create signals
 
   return articleMatches;
 }

@@ -98,7 +98,7 @@ Deno.serve(async (req: Request) => {
     console.log(`Articles matched by AI: ${matchedArticles.length}`);
     console.log(`Articles stored in database: ${processedCount}`);
     console.log(
-      `Articles without location (stored in news only, no signals): ${skippedNoLocation}`
+      `Articles stored without location (shown in news, but no signals created): ${skippedNoLocation}`
     );
     console.log(`Articles skipped - no source: ${skippedNoSource}`);
     console.log(`Signals skipped - duplicates: ${skippedDuplicate}`);

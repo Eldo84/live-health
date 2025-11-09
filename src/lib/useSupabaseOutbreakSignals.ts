@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
+import { FilterState } from "../screens/HomePageMap/sections/FilterPanel";
 
 export interface OutbreakSignal {
   id: string;
@@ -12,77 +13,220 @@ export interface OutbreakSignal {
   date?: string;
   url?: string;
   title?: string;
+  source?: string; // News source name
   severity?: string;
   confidence?: number;
 }
 
-interface SupabaseSignal {
-  id: string;
-  latitude: number;
-  longitude: number;
-  confidence_score: number;
-  severity_assessment: string;
-  detected_at: string;
-  case_count_mentioned: number;
-  disease: {
-    name: string;
-    color_code: string;
-  };
-  country: {
-    name: string;
-    code: string;
-  };
-  article: {
-    title: string;
-    url: string;
-    published_at: string;
-  };
-  category?: {
-    outbreak_category: {
-      name: string;
-      color: string;
-    };
-  };
-}
+const DATE_RANGE_MS: Record<string, number> = {
+  "24h": 24 * 60 * 60 * 1000,
+  "7d": 7 * 24 * 60 * 60 * 1000,
+  "14d": 14 * 24 * 60 * 60 * 1000,
+  "30d": 30 * 24 * 60 * 60 * 1000,
+  "6m": 6 * 30 * 24 * 60 * 60 * 1000, // Approximate
+  "1y": 365 * 24 * 60 * 60 * 1000,
+};
 
-export function useSupabaseOutbreakSignals(categoryFilter?: string | null) {
-  const [signals, setSignals] = useState<OutbreakSignal[]>([]);
+export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
+  const [allSignals, setAllSignals] = useState<OutbreakSignal[]>([]); // Store ALL signals
+  const [signals, setSignals] = useState<OutbreakSignal[]>([]); // Filtered signals
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const lastDateRangeRef = React.useRef<string | null>(null);
+  const hasFetchedRef = React.useRef(false);
+  const fetchIdRef = React.useRef(0);
 
+  // Filter signals client-side (instant, no database call)
+  // Use useMemo for performance - only recalculate when filters or allSignals change
+  const filteredSignals = useMemo(() => {
+    if (allSignals.length === 0) {
+      // Debug: Log when allSignals is empty
+      if (loading === false) {
+        console.log('⚠️ allSignals is empty and loading is false - no data available');
+      }
+      return [];
+    }
+    
+    console.log('🔍 Filtering', allSignals.length, 'signals with filters:', {
+      country: filters?.country,
+      diseaseSearch: filters?.diseaseSearch,
+      category: filters?.category
+    });
+
+    let filtered = allSignals;
+
+    // Apply date range filter client-side using the normalized signal date
+    if (filters?.dateRange) {
+      const rangeMs = DATE_RANGE_MS[filters.dateRange];
+      if (rangeMs) {
+        const cutoff = Date.now() - rangeMs;
+        filtered = filtered.filter(signal => {
+          if (!signal.date) {
+            return false;
+          }
+          const signalTime = Date.parse(signal.date);
+          if (Number.isNaN(signalTime)) {
+            return false;
+          }
+          return signalTime >= cutoff;
+        });
+      }
+    }
+
+    // Filter by category (client-side)
+    if (filters?.category) {
+      filtered = filtered.filter(s => s.category === filters.category);
+    }
+
+    // Filter by country (client-side)
+    if (filters?.country) {
+      const countryFilter = filters.country.toLowerCase().trim();
+      filtered = filtered.filter(s => {
+        const signalCountry = (s as any).countryName?.toLowerCase().trim() || '';
+        const locationLower = s.location.toLowerCase().trim();
+        
+        // Handle common aliases (optimized checks)
+        if (countryFilter.includes('united states') || countryFilter.includes('usa') || countryFilter === 'us') {
+          return signalCountry.includes('united states') ||
+                 locationLower.includes('united states') || 
+                 locationLower.includes('usa') || 
+                 locationLower.includes(', us') ||
+                 locationLower.includes(' u.s.') ||
+                 locationLower.endsWith(', us');
+        }
+        if (countryFilter.includes('united kingdom') || countryFilter === 'uk') {
+          return signalCountry.includes('united kingdom') ||
+                 locationLower.includes('united kingdom') || 
+                 locationLower.includes(' uk') ||
+                 locationLower.includes(', uk') ||
+                 locationLower.endsWith(', uk');
+        }
+        
+        // Quick exact match first
+        if (signalCountry === countryFilter) return true;
+        
+        // Then partial matches
+        return signalCountry.includes(countryFilter) ||
+               countryFilter.includes(signalCountry) ||
+               locationLower.includes(countryFilter);
+      });
+    }
+
+    // Filter by disease search (client-side)
+    if (filters?.diseaseSearch && filters.diseaseSearch.trim()) {
+      const searchTerm = filters.diseaseSearch.toLowerCase().trim();
+      const countryName = filters?.country?.toLowerCase().trim();
+      
+      // Skip if search term matches country name
+      const isCountryMatch = countryName && (
+        searchTerm === countryName ||
+        (searchTerm === 'usa' && countryName.includes('united states')) ||
+        (searchTerm === 'us' && countryName.includes('united states')) ||
+        (searchTerm === 'uk' && countryName.includes('united kingdom'))
+      );
+      
+      if (!isCountryMatch) {
+        // Precompute lowercase strings once for better performance
+        filtered = filtered.filter(s => {
+          const detectedDisease = (s as any).detectedDiseaseName?.toLowerCase() || '';
+          const diseaseLower = s.disease.toLowerCase();
+          const keywordsLower = s.keywords.toLowerCase();
+          const pathogenLower = (s.pathogen || '').toLowerCase();
+          const titleLower = (s.title || '').toLowerCase();
+          
+          const fields = [diseaseLower, detectedDisease, keywordsLower, pathogenLower, titleLower];
+
+          // Direct substring match
+          const substringMatch = fields.some(field => field.includes(searchTerm));
+          if (substringMatch) return true;
+
+          // Prefix match on individual words (supports first-letter searches)
+          const prefixMatch = fields.some(field =>
+            field
+              .split(/[\s,;:()/\-]+/)
+              .filter(Boolean)
+              .some((word: string) => word.startsWith(searchTerm))
+          );
+
+          return prefixMatch;
+        });
+      }
+    }
+
+    console.log('✅ Filtered to', filtered.length, 'signals');
+    return filtered;
+  }, [allSignals, filters?.category, filters?.country, filters?.diseaseSearch, loading]);
+  
+  // Update signals state when filtered results change
+  useEffect(() => {
+    // Always update signals with filtered results
+    // If filters are cleared, filteredSignals will be allSignals again
+    setSignals(filteredSignals);
+    
+    // Debug: Log when filtering results in 0 signals (but allSignals has data)
+    if (filteredSignals.length === 0 && allSignals.length > 0) {
+      console.log('⚠️ Filtered to 0 signals, but allSignals has', allSignals.length, 'signals');
+      console.log('Active filters:', {
+        country: filters?.country,
+        diseaseSearch: filters?.diseaseSearch,
+        category: filters?.category,
+        dateRange: filters?.dateRange
+      });
+      console.log('Sample countries in allSignals:', 
+        Array.from(new Set(allSignals.slice(0, 50).map(s => (s as any).countryName))).filter(Boolean).slice(0, 10));
+    }
+  }, [filteredSignals, allSignals.length, filters]);
+
+  // Fetch data from database (only when dateRange changes or on mount)
   useEffect(() => {
     let active = true;
     let intervalId: number | null = null;
 
     async function fetchSignals(isInitial = false) {
       try {
+        const fetchId = ++fetchIdRef.current;
+        console.log('🚀 fetchSignals called, isInitial:', isInitial, 'active:', active, 'fetchId:', fetchId);
         if (isInitial) {
           setLoading(true);
         }
-        const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-        const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+        const envVars = (import.meta as unknown as { env?: Record<string, string | undefined> })?.env ?? import.meta.env;
+        const supabaseUrl = envVars?.VITE_SUPABASE_URL;
+        const supabaseKey = envVars?.VITE_SUPABASE_ANON_KEY;
 
         if (!supabaseUrl || !supabaseKey) {
           throw new Error("Missing Supabase configuration. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY");
         }
 
+        // Calculate date range filter (server-side) only for short ranges to reduce payload
+        let dateFilter: string | null = null;
+        if (filters?.dateRange === "24h" || filters?.dateRange === "7d") {
+          const rangeMs = DATE_RANGE_MS[filters.dateRange];
+          if (rangeMs) {
+            dateFilter = new Date(Date.now() - rangeMs).toISOString();
+          }
+        }
+
         // Build query using PostgREST syntax
-        // For foreign key joins, use: table!foreign_key_column(fields)
-        // Explicitly include city and detected_disease_name fields to ensure they're returned
-        const selectClause = `*,city,detected_disease_name,diseases!disease_id(name,color_code,description),countries!country_id(name,code),news_articles!article_id(title,url,published_at)`;
+        // NOTE: We no longer filter by country at DB level - we fetch all data and filter client-side
+        // This allows instant filtering without database round trips
+        const selectClause = `*,city,detected_disease_name,diseases!disease_id(name,color_code,description),countries!country_id(name,code),news_articles!article_id(title,url,published_at,source_id,news_sources(name))`;
         
         // Build query string - URLSearchParams handles encoding properly
         const queryParams = new URLSearchParams();
         queryParams.set('select', selectClause);
         queryParams.set('latitude', 'not.is.null');
         queryParams.set('longitude', 'not.is.null');
-        queryParams.set('detected_at', `gte.${new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()}`);
+        if (dateFilter) {
+          queryParams.set('detected_at', `gte.${dateFilter}`);
+        }
+        // NO country filter at DB level - fetch all data for client-side filtering
         queryParams.set('order', 'detected_at.desc');
-        // Remove limit to get all outbreak signals, or use a very high limit if needed
         queryParams.set('limit', '10000');
         
         let query = `${supabaseUrl}/rest/v1/outbreak_signals?${queryParams.toString()}`;
 
+        console.log('📡 Fetching from:', query.substring(0, 100) + '...');
+        
         const response = await fetch(query, {
           headers: {
             apikey: supabaseKey,
@@ -92,38 +236,34 @@ export function useSupabaseOutbreakSignals(categoryFilter?: string | null) {
 
         if (!response.ok) {
           const errorText = await response.text();
-          console.error('Supabase query error:', errorText);
+          console.error('❌ Supabase query error:', response.status, response.statusText, errorText);
           throw new Error(`Failed to fetch outbreak signals: ${response.statusText}`);
         }
 
         const data: any[] = await response.json();
+        console.log('📦 Raw data received:', data.length, 'signals');
         
-        console.log('Raw signals fetched from API:', data.length);
-        console.log('Sample signals:', data.slice(0, 3).map((s: any) => ({
-          id: s.id,
-          lat: s.latitude,
-          lng: s.longitude,
-          detected_at: s.detected_at
-        })));
-
-        // Get disease categories mapping (fetch separately for simplicity)
-        const categoryParams = new URLSearchParams();
-        categoryParams.set('select', 'disease_id,outbreak_categories!category_id(name,color)');
-        const categoryUrl = `${supabaseUrl}/rest/v1/disease_categories?${categoryParams.toString()}`;
+        // Fetch category and pathogen mappings in parallel for better performance
+        const [categoryResponse, pathogenResponse] = await Promise.all([
+          fetch(`${supabaseUrl}/rest/v1/disease_categories?select=disease_id,outbreak_categories!category_id(name,color)`, {
+            headers: {
+              apikey: supabaseKey,
+              Authorization: `Bearer ${supabaseKey}`,
+            },
+          }),
+          fetch(`${supabaseUrl}/rest/v1/disease_pathogens?select=disease_id,pathogens!pathogen_id(name,type)&is_primary=eq.true`, {
+            headers: {
+              apikey: supabaseKey,
+              Authorization: `Bearer ${supabaseKey}`,
+            },
+          })
+        ]);
         
-        const categoryResponse = await fetch(categoryUrl, {
-          headers: {
-            apikey: supabaseKey,
-            Authorization: `Bearer ${supabaseKey}`,
-          },
-        });
-        
+        // Parse category mapping
         let diseaseCategoryMap: Record<string, { name: string; color: string }> = {};
         if (categoryResponse.ok) {
           const categoryData: any[] = await categoryResponse.json();
-          // Build a map: disease_id -> category
           categoryData.forEach((cat: any) => {
-            // Handle different response formats
             const catObj = cat.outbreak_categories;
             let categoryName: string | undefined;
             let categoryColor: string | undefined;
@@ -145,23 +285,10 @@ export function useSupabaseOutbreakSignals(categoryFilter?: string | null) {
           });
         }
 
-        // Get pathogen information mapping
-        const pathogenParams = new URLSearchParams();
-        pathogenParams.set('select', 'disease_id,pathogens!pathogen_id(name,type)');
-        pathogenParams.set('is_primary', 'eq.true');
-        const pathogenUrl = `${supabaseUrl}/rest/v1/disease_pathogens?${pathogenParams.toString()}`;
-        
-        const pathogenResponse = await fetch(pathogenUrl, {
-          headers: {
-            apikey: supabaseKey,
-            Authorization: `Bearer ${supabaseKey}`,
-          },
-        });
-        
+        // Parse pathogen mapping
         let diseasePathogenMap: Record<string, string> = {};
         if (pathogenResponse.ok) {
           const pathogenData: any[] = await pathogenResponse.json();
-          // Build a map: disease_id -> pathogen name
           pathogenData.forEach((p: any) => {
             const pathogenObj = p.pathogens;
             let pathogenName: string | undefined;
@@ -178,27 +305,36 @@ export function useSupabaseOutbreakSignals(categoryFilter?: string | null) {
           });
         }
         
-        // Debug: log category map
-        console.log('Category map loaded:', Object.keys(diseaseCategoryMap).length, 'diseases mapped');
-
-        // Debug: log raw data
-        console.log('Raw signals fetched:', data.length);
-        console.log('Sample signal:', data[0]);
-        
         // Transform to map format
-        const transformed: OutbreakSignal[] = data
-          .filter((s: any) => {
+        console.log('🔄 Transforming', data.length, 'raw signals... (fetchId:', fetchId, ')');
+        let transformed: OutbreakSignal[] = [];
+        try {
+          const filtered = data.filter((s: any) => {
             // Ensure we have valid coordinates
             const lat = typeof s.latitude === 'string' ? parseFloat(s.latitude) : s.latitude;
             const lng = typeof s.longitude === 'string' ? parseFloat(s.longitude) : s.longitude;
-            return lat && lng && !isNaN(lat) && !isNaN(lng);
-          })
-          .map((signal: any) => {
+            const isValid = lat && lng && !isNaN(lat) && !isNaN(lng);
+            if (!isValid && data.length < 10) {
+              console.warn('⚠️ Invalid coordinates for signal:', s.id, 'lat:', lat, 'lng:', lng);
+            }
+            return isValid;
+          });
+          console.log('✓ Filtered to', filtered.length, 'signals with valid coordinates (fetchId:', fetchId, ')');
+          
+          transformed = filtered.map((signal: any, index: number) => {
+            try {
             // Extract nested data from PostgREST format
             // PostgREST returns joined data as nested objects with the table name
             const disease = Array.isArray(signal.diseases) ? signal.diseases[0] : signal.diseases;
             const country = Array.isArray(signal.countries) ? signal.countries[0] : signal.countries;
-            const article = Array.isArray(signal.news_articles) ? signal.news_articles[0] : signal.news_articles;
+            const articleRaw = Array.isArray(signal.news_articles) ? signal.news_articles[0] : signal.news_articles;
+            // Extract article data and nested source
+            const article = articleRaw ? {
+              title: articleRaw.title,
+              url: articleRaw.url,
+              published_at: articleRaw.published_at,
+              news_sources: articleRaw.news_sources
+            } : null;
             
             // Parse coordinates properly
             const lat = typeof signal.latitude === 'string' ? parseFloat(signal.latitude) : signal.latitude;
@@ -223,10 +359,15 @@ export function useSupabaseOutbreakSignals(categoryFilter?: string | null) {
                              ? signal.city.trim() 
                              : null;
             
-            let locationString = country?.name || "Unknown";
+            // Get country name - use the name from the joined countries table
+            const countryName = country?.name || "Unknown";
+            let locationString = countryName;
             if (cityName) {
-              locationString = `${cityName}, ${locationString}`;
+              locationString = `${cityName}, ${countryName}`;
             }
+            
+            // Store country name separately for easier filtering
+            const signalCountryName = countryName;
 
             // If disease is "OTHER", use detected_disease_name from the signal if available
             let displayDiseaseName = disease?.name || "Unknown Disease";
@@ -234,52 +375,128 @@ export function useSupabaseOutbreakSignals(categoryFilter?: string | null) {
               displayDiseaseName = signal.detected_disease_name;
             }
 
-            return {
+            // Extract news source name
+            // PostgREST may return news_sources as an object or array, or it might be nested differently
+            let sourceName: string | undefined;
+            if (articleRaw) {
+              // Try multiple possible structures
+              const newsSources = articleRaw.news_sources;
+              if (newsSources) {
+                if (Array.isArray(newsSources) && newsSources.length > 0) {
+                  sourceName = newsSources[0]?.name;
+                } else if (typeof newsSources === 'object' && newsSources !== null) {
+                  if ('name' in newsSources) {
+                    sourceName = (newsSources as any).name;
+                  } else if (Array.isArray(Object.values(newsSources)) && Object.values(newsSources)[0]) {
+                    // Handle case where it's wrapped in an object with array values
+                    const firstValue = Object.values(newsSources)[0] as any;
+                    sourceName = firstValue?.name;
+                  }
+                }
+              }
+              // If still no source, log for debugging
+              if (!sourceName && articleRaw.source_id) {
+                console.debug('Source name not found for article with source_id:', articleRaw.source_id);
+              }
+            }
+
+            const outbreakSignal: OutbreakSignal = {
               id: signal.id,
               disease: displayDiseaseName,
               location: locationString,
               city: cityName || undefined, // Use normalized city name
               category: category.name,
               pathogen: pathogen,
-              keywords: disease?.name || "", // Simplified
+              keywords: signal.detected_disease_name || disease?.name || "", // Use detected_disease_name for better search
               position: [lat, lng] as [number, number],
               date: signal.detected_at || article?.published_at,
               url: article?.url,
               title: article?.title,
+              source: sourceName,
               severity: signal.severity_assessment,
               confidence: signal.confidence_score,
             };
-          });
-        
-        console.log('Transformed signals:', transformed.length);
-        console.log('Categories found:', [...new Set(transformed.map(s => s.category))]);
-        console.log('Signals with cities:', transformed.filter(s => s.city).length);
-        console.log('Sample signals with cities:', transformed.filter(s => s.city).slice(0, 3).map(s => ({ city: s.city, location: s.location })));
-
-        // Filter by category if provided
-        const filtered = categoryFilter
-          ? transformed.filter(s => s.category === categoryFilter)
-          : transformed;
-
-        if (!active) return;
-        
-        // Log if new data detected (compare with previous signals)
-        if (!isInitial && signals.length > 0) {
-          const newCount = filtered.length - signals.length;
-          if (newCount > 0) {
-            console.log(`🆕 ${newCount} new outbreak signals detected!`);
-          } else {
-            console.log(`✓ Refreshed: ${filtered.length} signals (no new data)`);
-          }
+            
+            // Add country name and detected_disease_name to the signal for filtering (store in a way we can access it)
+            (outbreakSignal as any).countryName = signalCountryName;
+            (outbreakSignal as any).detectedDiseaseName = signal.detected_disease_name;
+            
+            return outbreakSignal;
+            } catch (signalError: any) {
+              console.error(`❌ Error transforming signal ${index} (id: ${signal.id}):`, signalError);
+              // Return null for failed signals, we'll filter them out
+              return null;
+            }
+          }).filter((s): s is OutbreakSignal => s !== null);
+          
+          console.log('✓ Mapped to', transformed.length, 'valid signals (fetchId:', fetchId, ')');
+        } catch (transformError: any) {
+          console.error('❌ Error in transformation pipeline (fetchId:', fetchId, '):', transformError);
+          console.error('Stack:', transformError.stack);
+          throw transformError; // Re-throw to be caught by outer catch
         }
         
-        setSignals(filtered);
-        setError(null);
+        console.log(`✅ Transformed ${transformed.length} signals successfully (fetchId: ${fetchId})`);
+        
+        // Check if component is still mounted before updating state
+        if (!active) {
+          console.warn('⚠️ Component unmounted during fetch, skipping state update');
+          return;
+        }
+        
+        // Skip if a newer fetch has already started
+        if (fetchId !== fetchIdRef.current) {
+          console.warn('⚠️ Stale fetch result (fetchId:', fetchId, 'current:', fetchIdRef.current, ') - skipping state update');
+          return;
+        }
+
+        // Always update allSignals with fetched data
+        console.log(`📝 Updating allSignals with ${transformed.length} signals (isInitial: ${isInitial}, active: ${active}, fetchId: ${fetchId})`);
+        
+        // Always update allSignals with fetched data
+        // On initial load, always set the data (even if empty) - this ensures we know we've loaded
+        // On refresh, preserve existing data if new fetch returns 0 results
+        setAllSignals(prev => {
+          if (isInitial) {
+            // Initial load: always use fetched data (even if empty)
+            console.log(`✓ Initial load: Setting allSignals to ${transformed.length} signals (prev had ${prev.length})`);
+            if (transformed.length === 0) {
+              console.warn('⚠️ Initial load returned 0 signals - check date filter or database');
+            }
+            return transformed;
+          } else {
+            // Refresh: update if we have new data, otherwise preserve existing
+            if (transformed.length > 0) {
+              console.log(`✓ Refresh: Updating allSignals to ${transformed.length} signals (prev had ${prev.length})`);
+              return transformed;
+            } else if (prev.length > 0) {
+              console.warn('⚠️ Refresh returned 0 signals, preserving existing', prev.length, 'signals');
+              return prev;
+            } else {
+              console.warn('⚠️ No signals in refresh and no previous data');
+              return [];
+            }
+          }
+        });
+        
+        // Double-check active before setting error to null
+        if (active) {
+          setError(null);
+        }
       } catch (err: any) {
         if (!active) return;
         console.error("Error fetching outbreak signals:", err);
         setError(err.message || "Failed to load outbreak data");
-        setSignals([]); // Fallback to empty array
+        // Don't clear allSignals on error - preserve existing data
+        // Use functional update to access current allSignals value
+        setAllSignals(prev => {
+          // Only clear if we never had any data
+          if (prev.length === 0) {
+            return [];
+          }
+          // Preserve existing data on error
+          return prev;
+        });
       } finally {
         if (isInitial) {
           setLoading(false);
@@ -287,8 +504,25 @@ export function useSupabaseOutbreakSignals(categoryFilter?: string | null) {
       }
     }
 
-    // Initial fetch
-    fetchSignals(true);
+    // Only refetch when dateRange changes (affects database query)
+    // Country and disease search are handled client-side for instant results
+    const currentDateRange = filters?.dateRange || null;
+    const dateRangeChanged = lastDateRangeRef.current !== currentDateRange;
+    const isInitialFetch = !hasFetchedRef.current;
+    
+    // Always fetch on initial mount (hasFetchedRef will be false on first render)
+    // Also fetch when dateRange changes
+    if (isInitialFetch || dateRangeChanged) {
+      console.log('🔄 Fetching signals - isInitial:', isInitialFetch, 'dateRangeChanged:', dateRangeChanged, 'dateRange:', currentDateRange, 'allSignals.length:', allSignals.length);
+      lastDateRangeRef.current = currentDateRange;
+      hasFetchedRef.current = true;
+      // Initial fetch shows loading, date range change doesn't
+      fetchSignals(isInitialFetch).catch(err => {
+        console.error('❌ Fetch error in useEffect:', err);
+      });
+    } else {
+      console.log('⏭️ Skipping fetch - already fetched, dateRange unchanged. allSignals.length:', allSignals.length);
+    }
 
     // Poll for new signals every 2 minutes (matching the cron schedule)
     intervalId = window.setInterval(async () => {
@@ -307,8 +541,12 @@ export function useSupabaseOutbreakSignals(categoryFilter?: string | null) {
       if (intervalId !== null) {
         clearInterval(intervalId);
       }
+      // Reset fetch tracking so StrictMode re-run triggers fetch again
+      hasFetchedRef.current = false;
+      lastDateRangeRef.current = null;
+      fetchIdRef.current = 0;
     };
-  }, [categoryFilter]);
+  }, [filters?.dateRange]); // Only depend on dateRange, not all filters
 
   return { signals, loading, error };
 }
