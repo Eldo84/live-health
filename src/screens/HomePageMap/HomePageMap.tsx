@@ -22,6 +22,7 @@ export const HomePageMap = (): JSX.Element => {
     dateRange: "7d", // Default to 7 days like dashboard
     category: null,
     diseaseSearch: "",
+    diseaseType: "all", // Default to show all disease types
   });
   const [hoveredCategory, setHoveredCategory] = React.useState<string | null>(null);
   const [zoomTarget, setZoomTarget] = React.useState<[number, number] | null>(null);
@@ -67,6 +68,7 @@ export const HomePageMap = (): JSX.Element => {
       dateRange: "7d",
       category: null,
       diseaseSearch: "",
+      diseaseType: "all",
     });
     // Clear zoom target and user location zoom to reset map to world view
     setZoomTarget(null);
@@ -540,7 +542,7 @@ export const HomePageMap = (): JSX.Element => {
 
         {/* Filters and Navigation - Top Right */}
         <div className={`absolute top-[32px] z-[1000] flex flex-col items-end gap-3 transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} style={{ right: '200px' }}>
-          <div className="flex items-center gap-2" style={{ maxWidth: 'calc(100vw - 100px)' }}>
+          <div className="flex items-center gap-1" style={{ maxWidth: 'calc(50vw - 100px)' }}>
             {/* Date Range Tabs */}
             <div className="flex items-center h-[38px] rounded-[6px] border border-[#DAE0E633] bg-transparent px-1 py-1 shadow-[0px_1px_2px_#1018280a]" style={{ width: '220px', minWidth: '220px', borderBottomColor: "#FFFFFF33", borderBottomWidth: "1px" }}>
               <Tabs
@@ -588,9 +590,21 @@ export const HomePageMap = (): JSX.Element => {
                 </button>
               )}
             </div>
+            {/* Disease Type Filter */}
+            <select
+              value={filters.diseaseType || "all"}
+              onChange={(e) => setFilters(prev => ({ ...prev, diseaseType: e.target.value === "all" ? "all" : e.target.value as "human" | "veterinary" | "zoonotic" }))}
+              className="h-[40px] px-2.5 bg-[#FFFFFF24] rounded-[6px] border border-solid border-[#DAE0E633] text-[#EBEBEB] text-xs [font-family:'Roboto',Helvetica] font-medium tracking-[-0.10px] shadow-[0px_1px_2px_#1018280A] focus:outline-none focus:ring-2 focus:ring-[#67DBE2]/50 [&>option]:bg-[#2a4149] [&>option]:text-white"
+              style={{ width: '140px', minWidth: '140px', flexShrink: 0, marginLeft: '10px' }}
+            >
+              <option value="all">All Types</option>
+              <option value="human">Human Only</option>
+              <option value="veterinary">Veterinary Only</option>
+              <option value="zoonotic">Zoonotic (Both)</option>
+            </select>
             <button
               onClick={handleResetFilters}
-              className="flex items-center justify-center w-9 h-[40px] rounded-[6px] border border-[#DAE0E633] bg-[#FFFFFF14] text-[#EBEBEBCC] hover:text-white hover:bg-[#FFFFFF24] transition-colors shadow-[0px_1px_2px_#1018280A] flex-shrink-0"
+              className="flex items-center ml-2 justify-center w-10 h-[40px] rounded-[6px] border border-[#DAE0E633] bg-[#FFFFFF14] text-[#EBEBEBCC] hover:text-white hover:bg-[#FFFFFF24] transition-colors shadow-[0px_1px_2px_#1018280A] flex-shrink-0"
               title="Reset filters"
               aria-label="Reset filters"
             >

@@ -9,6 +9,7 @@ export interface FilterState {
   dateRange: string | null; // "24h", "7d", "14d", "30d", "6m", "1y"
   category: string | null;
   diseaseSearch: string;
+  diseaseType: "all" | "human" | "veterinary" | "zoonotic" | null; // Filter by disease type
 }
 
 interface FilterPanelProps {
@@ -54,10 +55,11 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
       dateRange: null,
       category: null,
       diseaseSearch: "",
+      diseaseType: "all",
     });
   };
 
-  const hasActiveFilters = filters.country || filters.dateRange || filters.category || filters.diseaseSearch;
+  const hasActiveFilters = filters.country || filters.dateRange || filters.category || filters.diseaseSearch || (filters.diseaseType && filters.diseaseType !== "all");
 
   return (
     <Collapsible
@@ -175,6 +177,23 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                     {category}
                   </option>
                 ))}
+              </select>
+            </div>
+
+            {/* Disease Type Filter */}
+            <div className="space-y-2">
+              <label className="[font-family:'Roboto',Helvetica] text-xs font-medium text-white/90">
+                Disease Type
+              </label>
+              <select
+                value={filters.diseaseType || "all"}
+                onChange={(e) => updateFilter("diseaseType", e.target.value === "all" ? "all" : e.target.value)}
+                className="w-full bg-[#23313c] border border-[#EAEBF024] text-white text-sm h-8 px-2 rounded-md focus:outline-none focus:ring-2 focus:ring-[#67DBE2]/50 [&>option]:bg-[#23313c] [&>option]:text-white"
+              >
+                <option value="all">All Types</option>
+                <option value="human">Human Only</option>
+                <option value="veterinary">Veterinary Only</option>
+                <option value="zoonotic">Zoonotic (Both)</option>
               </select>
             </div>
 

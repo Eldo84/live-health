@@ -153,9 +153,24 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
       }
     }
 
+    // Filter by disease type (client-side)
+    if (filters?.diseaseType && filters.diseaseType !== "all") {
+      filtered = filtered.filter(s => {
+        const diseaseType = (s as any).diseaseType;
+        if (filters.diseaseType === "human") {
+          return diseaseType === "human" || diseaseType === null || diseaseType === undefined; // Default to human if not set
+        } else if (filters.diseaseType === "veterinary") {
+          return diseaseType === "veterinary";
+        } else if (filters.diseaseType === "zoonotic") {
+          return diseaseType === "zoonotic";
+        }
+        return true;
+      });
+    }
+
     console.log('✅ Filtered to', filtered.length, 'signals');
     return filtered;
-  }, [allSignals, filters?.category, filters?.country, filters?.diseaseSearch, loading]);
+  }, [allSignals, filters?.category, filters?.country, filters?.diseaseSearch, filters?.diseaseType, loading]);
   
   // Update signals state when filtered results change
   useEffect(() => {
@@ -209,7 +224,7 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
         // Build query using PostgREST syntax
         // NOTE: We no longer filter by country at DB level - we fetch all data and filter client-side
         // This allows instant filtering without database round trips
-        const selectClause = `*,city,detected_disease_name,diseases!disease_id(name,color_code,description),countries!country_id(name,code),news_articles!article_id(title,url,published_at,source_id,news_sources(name))`;
+        const selectClause = `*,city,detected_disease_name,diseases!disease_id(name,color_code,description,disease_type),countries!country_id(name,code),news_articles!article_id(title,url,published_at,source_id,news_sources(name))`;
         
         // Build query string - URLSearchParams handles encoding properly
         const queryParams = new URLSearchParams();
@@ -221,7 +236,12 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
         }
         // NO country filter at DB level - fetch all data for client-side filtering
         queryParams.set('order', 'detected_at.desc');
-        queryParams.set('limit', '10000');
+        // Default to last 30 days if no date filter to reduce payload size
+        if (!dateFilter) {
+          const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+          queryParams.set('detected_at', `gte.${thirtyDaysAgo}`);
+        }
+        queryParams.set('limit', '5000'); // Reduced from 10000 to save bandwidth
         
         let query = `${supabaseUrl}/rest/v1/outbreak_signals?${queryParams.toString()}`;
 
@@ -374,6 +394,9 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
             if (disease?.name === "OTHER" && signal.detected_disease_name) {
               displayDiseaseName = signal.detected_disease_name;
             }
+            
+            // Get disease_type from disease object
+            const diseaseType = disease?.disease_type || "human"; // Default to human if not set
 
             // Extract news source name
             // PostgREST may return news_sources as an object or array, or it might be nested differently
@@ -417,9 +440,10 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
               confidence: signal.confidence_score,
             };
             
-            // Add country name and detected_disease_name to the signal for filtering (store in a way we can access it)
+            // Add country name, detected_disease_name, and disease_type to the signal for filtering (store in a way we can access it)
             (outbreakSignal as any).countryName = signalCountryName;
             (outbreakSignal as any).detectedDiseaseName = signal.detected_disease_name;
+            (outbreakSignal as any).diseaseType = diseaseType;
             
             return outbreakSignal;
             } catch (signalError: any) {
@@ -524,7 +548,8 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
       console.log('⏭️ Skipping fetch - already fetched, dateRange unchanged. allSignals.length:', allSignals.length);
     }
 
-    // Poll for new signals every 2 minutes (matching the cron schedule)
+    // Poll for new signals every 10 minutes (reduced from 2 minutes to save bandwidth)
+    // Cron runs every 2 hours, so 10 minutes is sufficient for updates
     intervalId = window.setInterval(async () => {
       if (!active) return;
       try {
@@ -534,7 +559,7 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
         // Silent fail on refresh to avoid disrupting user
         console.error('Error refreshing outbreak signals:', e);
       }
-    }, 120000); // 2 minutes = 120000ms
+    }, 600000); // 10 minutes = 600000ms
 
     return () => {
       active = false;

@@ -1,4 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
+import csv from "npm:csvtojson@2";
+import type { SupabaseClient } from 'npm:@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -9,34 +11,88 @@ const corsHeaders = {
 const SPREADSHEET_URL = 'https://docs.google.com/spreadsheets/d/1HU-AANvAkXXLqga2rsSMyy5Hhn3_uJ2ewVZ1UrNbC30/export?format=csv&gid=0';
 
 interface SpreadsheetRow {
-  disease: string;
-  pathogen: string;
-  outbreakCategory: string;
-  pathogenType: string;
-  keywords: string;
+  Disease: string;
+  Pathogen: string;
+  "Outbreak Category": string;
+  PathogenType: string;
+  Keywords: string;
 }
 
-function parseCSV(csv: string): SpreadsheetRow[] {
-  const lines = csv.split('\n');
-  const rows: SpreadsheetRow[] = [];
-  
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) continue;
-    
-    const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
-    if (values.length >= 5) {
-      rows.push({
-        disease: values[0],
-        pathogen: values[1],
-        outbreakCategory: values[2],
-        pathogenType: values[3],
-        keywords: values[4],
-      });
-    }
+// Helper function to get or create an outbreak category
+async function getOrCreateCategory(
+  supabase: SupabaseClient,
+  categoryName: string
+): Promise<string | null> {
+  if (!categoryName || !categoryName.trim()) {
+    return null;
   }
   
-  return rows;
+  const normalizedName = categoryName.trim();
+  
+  // Check if category exists (case-insensitive match)
+  const { data: existingCategory } = await supabase
+    .from('outbreak_categories')
+    .select('id, name')
+    .ilike('name', normalizedName)
+    .maybeSingle();
+  
+  if (existingCategory) {
+    return existingCategory.id;
+  }
+  
+  // Check for exact match (case-sensitive) as fallback
+  const { data: exactMatch } = await supabase
+    .from('outbreak_categories')
+    .select('id')
+    .eq('name', normalizedName)
+    .maybeSingle();
+  
+  if (exactMatch) {
+    return exactMatch.id;
+  }
+  
+  // Create new category with default values
+  // Use a color palette that cycles based on category name hash
+  const defaultColors = [
+    '#8b5cf6', // purple
+    '#06b6d4', // cyan
+    '#f59e0b', // amber
+    '#10b981', // green
+    '#ec4899', // pink
+    '#6366f1', // indigo
+    '#14b8a6', // teal
+    '#f97316', // orange
+    '#ef4444', // red
+    '#3b82f6', // blue
+  ];
+  
+  // Use hash of name to consistently assign colors
+  let hash = 0;
+  for (let i = 0; i < normalizedName.length; i++) {
+    hash = ((hash << 5) - hash) + normalizedName.charCodeAt(i);
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  const colorIndex = Math.abs(hash) % defaultColors.length;
+  const defaultColor = defaultColors[colorIndex];
+  
+  const { data: newCategory, error } = await supabase
+    .from('outbreak_categories')
+    .insert({
+      name: normalizedName,
+      description: `Category: ${normalizedName}`,
+      color: defaultColor,
+      icon: 'alert-circle', // Default icon
+    })
+    .select('id')
+    .single();
+  
+  if (error || !newCategory) {
+    console.error(`Error creating category "${normalizedName}":`, error);
+    return null;
+  }
+  
+  console.log(`Created new category: "${normalizedName}" with color ${defaultColor}`);
+  return newCategory.id;
 }
 
 Deno.serve(async (req: Request) => {
@@ -56,8 +112,8 @@ Deno.serve(async (req: Request) => {
     const csvResponse = await fetch(SPREADSHEET_URL);
     const csvText = await csvResponse.text();
     
-    console.log('Parsing CSV...');
-    const rows = parseCSV(csvText);
+    console.log('Parsing CSV with csvtojson...');
+    const rows: SpreadsheetRow[] = await csv().fromString(csvText);
     console.log(`Parsed ${rows.length} rows`);
 
     let processedCount = 0;
@@ -66,19 +122,33 @@ Deno.serve(async (req: Request) => {
 
     for (const row of rows) {
       try {
+        // Validate required fields
+        if (!row.Disease || !row.Disease.trim()) {
+          console.warn('Skipping row with missing Disease name');
+          skippedCount++;
+          continue;
+        }
+        
+        const diseaseName = row.Disease.trim();
+        const pathogenName = row.Pathogen?.trim() || '';
+        const categoryName = row["Outbreak Category"]?.trim() || '';
+        const pathogenType = row.PathogenType?.trim() || '';
+        const keywords = row.Keywords?.trim() || '';
+        
         let diseaseId;
         const { data: existingDisease } = await supabase
           .from('diseases')
           .select('id')
-          .eq('name', row.disease)
+          .eq('name', diseaseName)
           .maybeSingle();
 
         if (existingDisease) {
           diseaseId = existingDisease.id;
+          // Update existing disease to ensure it's marked as from spreadsheet
           await supabase
             .from('diseases')
             .update({
-              clinical_manifestation: row.disease,
+              clinical_manifestation: diseaseName,
               spreadsheet_source: true,
             })
             .eq('id', diseaseId);
@@ -92,7 +162,7 @@ Deno.serve(async (req: Request) => {
             'Airborne Outbreaks': 'high',
           };
           
-          const severity = severityMap[row.outbreakCategory] || 'medium';
+          const severity = severityMap[categoryName] || 'medium';
           const colorMap: Record<string, string> = {
             'critical': '#f87171',
             'high': '#fbbf24',
@@ -103,87 +173,129 @@ Deno.serve(async (req: Request) => {
           const { data: newDisease, error: diseaseError } = await supabase
             .from('diseases')
             .insert({
-              name: row.disease,
-              description: `${row.disease} caused by ${row.pathogen}`,
+              name: diseaseName,
+              description: pathogenName ? `${diseaseName} caused by ${pathogenName}` : diseaseName,
               severity_level: severity,
               color_code: colorMap[severity],
-              clinical_manifestation: row.disease,
+              clinical_manifestation: diseaseName,
               spreadsheet_source: true,
             })
             .select()
             .maybeSingle();
 
           if (diseaseError || !newDisease) {
-            console.error(`Error creating disease ${row.disease}:`, diseaseError);
+            console.error(`Error creating disease ${diseaseName}:`, diseaseError);
+            errors.push({ row: diseaseName, error: `Failed to create disease: ${diseaseError?.message || 'Unknown error'}` });
             skippedCount++;
             continue;
           }
           diseaseId = newDisease.id;
         }
 
-        const pathogenTypeMap: Record<string, string> = {
-          'Bacteria': 'Bacteria',
-          'Virus': 'Virus',
-          'Fungus': 'Fungus',
-          'other(parasite/protozoan or Helminth)': 'Protozoan',
-          'Parasite': 'Parasite',
-          'Helminth': 'Helminth',
-        };
-        const normalizedPathogenType = pathogenTypeMap[row.pathogenType] || 'Other';
+        // Process pathogen if provided
+        if (pathogenName) {
+          const pathogenTypeMap: Record<string, string> = {
+            'Bacteria': 'Bacteria',
+            'Virus': 'Virus',
+            'Fungus': 'Fungus',
+            'other(parasite/protozoan or Helminth)': 'Protozoan',
+            'Parasite': 'Parasite',
+            'Helminth': 'Helminth',
+          };
+          const normalizedPathogenType = pathogenTypeMap[pathogenType] || 'Other';
 
-        let pathogenId;
-        const { data: existingPathogen } = await supabase
-          .from('pathogens')
-          .select('id')
-          .eq('name', row.pathogen)
-          .maybeSingle();
-
-        if (existingPathogen) {
-          pathogenId = existingPathogen.id;
-        } else {
-          const { data: newPathogen } = await supabase
+          let pathogenId;
+          const { data: existingPathogen } = await supabase
             .from('pathogens')
-            .insert({
-              name: row.pathogen,
-              type: normalizedPathogenType,
-              description: `Causative agent of ${row.disease}`,
-            })
-            .select()
+            .select('id')
+            .eq('name', pathogenName)
             .maybeSingle();
-          
-          if (!newPathogen) {
-            console.error(`Error creating pathogen ${row.pathogen}`);
-            continue;
+
+          if (existingPathogen) {
+            pathogenId = existingPathogen.id;
+          } else {
+            const { data: newPathogen } = await supabase
+              .from('pathogens')
+              .insert({
+                name: pathogenName,
+                type: normalizedPathogenType,
+                description: `Causative agent of ${diseaseName}`,
+              })
+              .select()
+              .maybeSingle();
+            
+            if (!newPathogen) {
+              console.error(`Error creating pathogen ${pathogenName}`);
+              errors.push({ row: diseaseName, error: `Failed to create pathogen: ${pathogenName}` });
+            } else {
+              pathogenId = newPathogen.id;
+            }
           }
-          pathogenId = newPathogen.id;
+
+          if (pathogenId) {
+            await supabase
+              .from('disease_pathogens')
+              .upsert({
+                disease_id: diseaseId,
+                pathogen_id: pathogenId,
+                is_primary: true,
+              }, { onConflict: 'disease_id,pathogen_id' });
+          }
         }
 
-        await supabase
-          .from('disease_pathogens')
-          .upsert({
-            disease_id: diseaseId,
-            pathogen_id: pathogenId,
-            is_primary: true,
-          }, { onConflict: 'disease_id,pathogen_id' });
-
-        const { data: category } = await supabase
-          .from('outbreak_categories')
-          .select('id')
-          .eq('name', row.outbreakCategory)
-          .maybeSingle();
-
-        if (category) {
+        // Process category - only create if exists in spreadsheet, otherwise use "Other"
+        let categoryId: string | null = null;
+        if (categoryName) {
+          // Try to find or create the category from spreadsheet
+          categoryId = await getOrCreateCategory(supabase, categoryName);
+          if (!categoryId) {
+            console.warn(`Could not create or find category for "${categoryName}" (disease: ${diseaseName}), using "Other"`);
+          }
+        }
+        
+        // If no category from spreadsheet or category creation failed, use "Other"
+        if (!categoryId) {
+          const { data: otherCategory } = await supabase
+            .from('outbreak_categories')
+            .select('id')
+            .eq('name', 'Other')
+            .maybeSingle();
+          
+          if (otherCategory) {
+            categoryId = otherCategory.id;
+          } else {
+            // Create "Other" category if it doesn't exist
+            const { data: newOtherCategory } = await supabase
+              .from('outbreak_categories')
+              .insert({
+                name: 'Other',
+                description: 'Diseases without a specific outbreak category',
+                color: '#66dbe1',
+                icon: 'alert-circle',
+              })
+              .select('id')
+              .single();
+            
+            if (newOtherCategory) {
+              categoryId = newOtherCategory.id;
+            }
+          }
+        }
+        
+        // Link disease to category (either from spreadsheet or "Other")
+        if (categoryId) {
           await supabase
             .from('disease_categories')
             .upsert({
               disease_id: diseaseId,
-              category_id: category.id,
+              category_id: categoryId,
             }, { onConflict: 'disease_id,category_id' });
         }
 
-        if (row.keywords) {
-          const keywords = row.keywords.split(/[,;]/).map(k => k.trim()).filter(k => k);
-          for (const keyword of keywords) {
+        // Process keywords if provided
+        if (keywords) {
+          const keywordList = keywords.split(/[,;]/).map(k => k.trim()).filter(k => k);
+          for (const keyword of keywordList) {
             await supabase
               .from('disease_keywords')
               .upsert({
@@ -197,8 +309,9 @@ Deno.serve(async (req: Request) => {
 
         processedCount++;
       } catch (error) {
-        console.error(`Error processing row:`, error);
-        errors.push({ row: row.disease, error: error.message });
+        const diseaseName = row.Disease || 'Unknown';
+        console.error(`Error processing row for ${diseaseName}:`, error);
+        errors.push({ row: diseaseName, error: error.message || String(error) });
         skippedCount++;
       }
     }

@@ -1,6 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import type { NormalizedArticle } from "./types.ts";
-import { loadHumanDiseaseCSV } from "./spreadsheet.ts";
+import { loadHumanDiseaseCSV, loadVeterinaryDiseaseCSV } from "./spreadsheet.ts";
 import { fetchArticles } from "./fetchNews.ts";
 import { deepseekMatchArticles } from "./match.ts";
 import { storeArticlesAndSignals } from "./storage.ts";
@@ -25,11 +25,14 @@ Deno.serve(async (req: Request) => {
 
     console.log("Starting outbreak data collection...");
 
-    // 1) Spreadsheet data
+    // 1) Spreadsheet data (pre-load for caching)
     console.log(
       "Step 1: Fetching spreadsheet data (direct source for cache)..."
     );
-    await loadHumanDiseaseCSV();
+    await Promise.all([
+      loadHumanDiseaseCSV(),
+      loadVeterinaryDiseaseCSV(), // Pre-load for potential use in matching
+    ]);
 
     // 2) Fetch news and remove duplicates
     console.log("Step 2: Fetching news articles...");
@@ -69,16 +72,19 @@ Deno.serve(async (req: Request) => {
     );
 
     // For debugging skipped articles
-    // console.log(
-    //   "UNMATCHED ARTICLES TITLES: ",
-    //   JSON.stringify(
-    //     articles
-    //       .filter((a) => !matchedArticles.some((m) => m.title === a.title))
-    //       .map((a) => `${a.id} => ${a.title}`),
-    //     null,
-    //     2
-    //   )
-    // );
+    const unmatchedArticles = articles.filter(
+      (a) => !matchedArticles.some((m) => m.title === a.title)
+    );
+    if (unmatchedArticles.length > 0) {
+      console.log(
+        "UNMATCHED ARTICLES TITLES: ",
+        JSON.stringify(
+          unmatchedArticles.map((a) => `${a.id} => ${a.title}`),
+          null,
+          2
+        )
+      );
+    }
 
     // 4) Store
     console.log("Step 4: Storing data in database...");

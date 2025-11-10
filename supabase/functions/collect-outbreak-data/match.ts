@@ -1,17 +1,21 @@
 import { OpenAI } from "npm:openai@6";
 import type { NormalizedArticle } from "./types.ts";
 import { getAllCountryNames, getNormalizedCountryName } from "./countries.ts";
-import { loadHumanDiseaseCSV } from "./spreadsheet.ts";
+import { loadHumanDiseaseCSV, loadVeterinaryDiseaseCSV } from "./spreadsheet.ts";
 
 const openai = new OpenAI({
   baseURL: "https://api.deepseek.com",
   apiKey: Deno.env.get("DEEPSEEK_API_KEY"),
 });
 
-const generateSystemPrompt = (humanDiseaseCSV: string) => {
+const generateSystemPrompt = (humanDiseaseCSV: string, veterinaryDiseaseCSV: string) => {
   return `
-You are a helpful assistant whose role is to classify human disease outbreak news reports into outbreak signals
+You are a helpful assistant whose role is to classify disease outbreak news reports (both human and veterinary) into outbreak signals
 using the data provided in the CSV content below. The CSV content contains diseases and their properties (including alternative keywords that can indicate the disease).
+
+There are TWO CSV datasets provided:
+1. HUMAN DISEASES CSV - Diseases that affect humans. Match diseases from this CSV and mark them as "human" type.
+2. VETERINARY DISEASES CSV - Diseases that affect animals. Match diseases from this CSV and mark them as "veterinary" type.
 
 The CSV contains the following columns in order:
 - Disease: the name of a disease
@@ -20,20 +24,33 @@ The CSV contains the following columns in order:
 - PathogenType: the type of the pathogen
 - Keywords: the keywords that can indicate the disease
 
+HUMAN DISEASES CSV (match diseases from here and mark as "human"):
 \`\`\`csv
 ${humanDiseaseCSV}
 \`\`\`
 
+VETERINARY DISEASES CSV (match diseases from here and mark as "veterinary"):
+\`\`\`csv
+${veterinaryDiseaseCSV}
+\`\`\`
+
 The CSV is not perfectly formatted, so ignore anything that is does not fit the format above.
+
+CRITICAL MATCHING RULES:
+1. Match diseases from BOTH spreadsheets - check the HUMAN DISEASES CSV first, then the VETERINARY DISEASES CSV
+2. If a disease is found in the HUMAN DISEASES CSV, mark it as "human" type
+3. If a disease is found in the VETERINARY DISEASES CSV, mark it as "veterinary" type
+4. If a disease affects BOTH humans and animals (zoonotic), mark it as "zoonotic" type. Common zoonotic diseases include: Avian Influenza, Rabies, Anthrax, Leptospirosis, Q Fever, Rift Valley Fever
+5. Match diseases by checking the spreadsheets - use the Disease names and Keywords columns to find matches
+6. Create signals for ALL disease outbreaks (human, veterinary, and zoonotic) - the frontend will filter them
 
 The user will provide a json array of news report titles and their ids (eg. "1 => New York Times: COVID-19 outbreak in New York"), which you need to classify into outbreak signals.
 Outbreak signals are signals that indicate a new outbreak of a disease in a specific country and/or city.
 Each news report should be classified into one or more outbreak signals, depending on the locations mentioned in the news report.
 
-News reports that are not related health-related, should be ignored.
-You should however try to find the most relevant disease for the news report matching the diseases (Disease column) in the CSV.
+You should try to find the most relevant disease for the news report by matching diseases from BOTH spreadsheets (HUMAN and VETERINARY).
 
-IMPORTANT: If the news report mentions a disease that is NOT in the CSV, you should still extract it and use "OTHER" as the disease name, BUT include the actual disease name mentioned in the article. For example, if the article mentions "Rift Valley Fever" which is not in the CSV, return "OTHER" as the disease, but we need to know it's actually "Rift Valley Fever".
+IMPORTANT: If the news report mentions a disease that is NOT in either CSV, you should still extract it and use "OTHER" as the disease name, BUT include the actual disease name mentioned in the article. Try to determine the disease_type based on the context (if it mentions animals/livestock, mark as "veterinary"; if it mentions humans, mark as "human"; if both, mark as "zoonotic").
 
 If a news report mentions mulitple countries or cities, you should create multiple outbreak signals, one for each country or city. With the same id as the news report.
 
@@ -41,6 +58,7 @@ You are required to match the following fields for each news report:
 - id: string - the same id of the news report from the user's input array. This field is required.
 - diseases: string[] - the diseases that the news report matches from the "Disease" (first) column of the CSV content above. If the disease mentioned is NOT in the CSV, use "OTHER" but try to identify the actual disease name mentioned. This field is required.
 - detected_disease_name: string - OPTIONAL field. If the disease is not in the CSV and you used "OTHER", provide the actual disease name mentioned in the article here (e.g., "Rift Valley Fever"). If the disease is in the CSV, you can omit this field or set it to null.
+- disease_type: string - OPTIONAL field. If you can determine the disease type, provide "human", "veterinary", or "zoonotic". If unsure, omit this field and it will be determined from spreadsheet matching. This field is optional.
 - country: string - a valid country name from the countries list below. Try to find the most relevant country for the news report. If you cannot determine the country (even from the news provider), you may set this to "null". This field should be a valid country name from the countries list below, or "null" if no country can be determined.
 - city: string - the city/state/province of the outbreak, if any. Even if the news report doesn't mention a city, you should try to find the most relevant city for the news report. If you can't find a city, you should set the city to null. This field is optional.
 - case_count_mentioned: number - the number of cases mentioned in the news report. If the news report doesn't mention a number of cases, you should set the case_count_mentioned to null. This field is optional.
@@ -54,15 +72,17 @@ ${JSON.stringify(getAllCountryNames())}
 The response should be a valid json array (wrapped in square brackets) of outbreak signals formatted in a long string with "=>" as a separator.
 
 The format should be:
-"id => diseases ( | separated) => detected_disease_name => country => city => case_count_mentioned => confidence_score"
+"id => diseases ( | separated) => detected_disease_name => disease_type => country => city => case_count_mentioned => confidence_score"
 
 If detected_disease_name is not applicable (disease is in CSV), use "null" for that field.
+If disease_type cannot be determined, use "null" for that field (it will be determined from spreadsheet matching).
 
 Example:
 [
-"1 => COVID-19 | Influenza => null => United States => New York => 100 => 0.5",
-"2 => Rabies => null => United Kingdom => null => null => 0.8",
-"3 => OTHER => Rift Valley Fever => Senegal => null => 42 => 0.9"
+"1 => COVID-19 | Influenza => null => human => United States => New York => 100 => 0.5",
+"2 => Rabies => null => zoonotic => United Kingdom => null => null => 0.8",
+"3 => OTHER => Rift Valley Fever => zoonotic => Senegal => null => 42 => 0.9",
+"4 => OTHER => Goat Plague => veterinary => Uganda => Kikuube District => null => 0.7"
 ]
 
 `;
@@ -72,11 +92,14 @@ export async function deepseekMatchArticles(opts: {
   articles: NormalizedArticle[];
 }): Promise<NormalizedArticle[]> {
   const { articles } = opts;
-  const humanDiseaseCSV = await loadHumanDiseaseCSV();
+  const [humanDiseaseCSV, veterinaryDiseaseCSV] = await Promise.all([
+    loadHumanDiseaseCSV(),
+    loadVeterinaryDiseaseCSV(),
+  ]);
 
   const completion = await openai.chat.completions.create({
     messages: [
-      { role: "system", content: generateSystemPrompt(humanDiseaseCSV) },
+      { role: "system", content: generateSystemPrompt(humanDiseaseCSV, veterinaryDiseaseCSV) },
       {
         role: "user",
         content: JSON.stringify(articles.map((a) => `${a.id} => ${a.title}`)),
@@ -90,9 +113,13 @@ export async function deepseekMatchArticles(opts: {
     `DEEPSEEK MATCH COMPLETION TOKENS: total=${completion.usage?.total_tokens}, prompt=${completion.usage?.prompt_tokens}, completion=${completion.usage?.completion_tokens}`
   );
 
+  // Log raw AI response for debugging
+  const rawResponse = completion.choices[0].message.content || "[]";
+  console.log(`AI RAW RESPONSE (first 500 chars): ${rawResponse.substring(0, 500)}`);
+
   let matches: string[] = [];
   try {
-    const parsed = JSON.parse(completion.choices[0].message.content || "[]");
+    const parsed = JSON.parse(rawResponse);
     // Handle both array and object responses
     if (Array.isArray(parsed)) {
       matches = parsed;
@@ -114,17 +141,21 @@ export async function deepseekMatchArticles(opts: {
     .map((match) => {
       const parts = match.split(" => ");
       // Handle both old format (6 parts) and new format (7 parts with detected_disease_name)
+      // Parse fields: id => diseases => detected_disease_name => disease_type => country => city => case_count_mentioned => confidence_score
       const [
         id,
         diseases,
         detected_disease_name,
+        disease_type,
         country,
         city,
         case_count_mentioned,
         confidence_score,
-      ] = parts.length === 7 
+      ] = parts.length === 8 
         ? parts 
-        : [parts[0], parts[1], null, parts[2], parts[3], parts[4], parts[5]]; // Fallback to old format
+        : parts.length === 7
+        ? [parts[0], parts[1], null, null, parts[2], parts[3], parts[4], parts[5]] // Old format without disease_type
+        : [parts[0], parts[1], null, null, parts[2], parts[3], parts[4], parts[5]]; // Fallback
 
       const article = articles.find(
         (a) => id && a.id && a.id.toString() === id.toString()
@@ -149,6 +180,16 @@ export async function deepseekMatchArticles(opts: {
                                         detected_disease_name.trim() !== "" 
                                         ? detected_disease_name.trim() 
                                         : undefined;
+      const normalizedDiseaseType = disease_type && 
+                                     disease_type !== "null" && 
+                                     disease_type.trim() !== "" &&
+                                     ["human", "veterinary", "zoonotic"].includes(disease_type.trim().toLowerCase())
+                                     ? disease_type.trim().toLowerCase() as "human" | "veterinary" | "zoonotic"
+                                     : undefined;
+
+      // Note: The AI can optionally provide disease_type. If provided, it will be used.
+      // Otherwise, the spreadsheet matching in storage.ts will determine disease_type
+      // based on which spreadsheet the disease is found in.
 
       // Normalize country - handle "null" strings and empty values
       // Only normalize if country exists and is not "null"
@@ -166,6 +207,7 @@ export async function deepseekMatchArticles(opts: {
         } : undefined,
         diseases: diseasesArray,
         detected_disease_name: normalizedDetectedDisease,
+        disease_type: normalizedDiseaseType,
         case_count_mentioned: case_count_mentioned
           ? parseInt(case_count_mentioned)
           : undefined,

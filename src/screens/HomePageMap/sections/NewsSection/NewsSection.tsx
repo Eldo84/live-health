@@ -32,14 +32,18 @@ export const NewsSection = (): JSX.Element => {
       const threeMonthsAgoISO = threeMonthsAgo.toISOString();
       
       // Fetch news articles with source information
-      // Filter to show articles published within the last 3 months
+      // Filter to show articles published within the last 1 month (reduced from 3 months to save bandwidth)
       // Order by published_at desc to show most recently published articles first
+      const oneMonthAgo = new Date();
+      oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+      const oneMonthAgoISO = oneMonthAgo.toISOString();
+      
       const queryParams = new URLSearchParams();
       queryParams.set('select', '*,news_sources!source_id(name)');
-      // Filter: only articles published in the last 3 months (PostgREST syntax: column.gte.value)
-      queryParams.set('published_at', `gte.${threeMonthsAgoISO}`);
+      // Filter: only articles published in the last 1 month (PostgREST syntax: column.gte.value)
+      queryParams.set('published_at', `gte.${oneMonthAgoISO}`);
       queryParams.set('order', 'published_at.desc'); // Most recently published first
-      queryParams.set('limit', '500'); // Fetch enough to include all articles from all sources
+      queryParams.set('limit', '200'); // Reduced from 500 to save bandwidth
       
       const query = `${supabaseUrl}/rest/v1/news_articles?${queryParams.toString()}`;
 
@@ -203,7 +207,8 @@ export const NewsSection = (): JSX.Element => {
       }
     })();
 
-    // Poll for new articles every 2 minutes (matching the cron schedule)
+    // Poll for new articles every 10 minutes (reduced from 2 minutes to save bandwidth)
+    // Cron runs every 2 hours, so 10 minutes is sufficient for updates
     intervalId = window.setInterval(async () => {
       if (!active) return;
       try {
@@ -216,7 +221,7 @@ export const NewsSection = (): JSX.Element => {
         // Silent fail on refresh to avoid disrupting user
         console.error('Error refreshing news:', e);
       }
-    }, 120000); // 2 minutes = 120000ms
+    }, 600000); // 10 minutes = 600000ms
 
     return () => {
       active = false;

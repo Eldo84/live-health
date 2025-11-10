@@ -2,7 +2,7 @@ import { type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { isLikelySameString } from "./utils.ts";
 import type { DiseaseInfo, NormalizedArticle } from "./types.ts";
 import { getCountryInfo } from "./countries.ts";
-import { loadHumanDiseaseCSV, csvToJson } from "./spreadsheet.ts";
+import { loadHumanDiseaseCSV, loadVeterinaryDiseaseCSV, csvToJson } from "./spreadsheet.ts";
 
 // Geocode city using OpenCage API
 async function geocodeCity(
@@ -59,32 +59,68 @@ async function geocodeCity(
 }
 
 export async function matchDiseaseFromSpreadsheet(
-  disease: string
+  disease: string,
+  checkVeterinary: boolean = false // Deprecated: Now always checks both spreadsheets, kept for backward compatibility
 ): Promise<DiseaseInfo | null> {
+  // Load human disease spreadsheet (always needed)
   const humanDiseaseCSV = await loadHumanDiseaseCSV();
   const humanDiseaseJson = await csvToJson(humanDiseaseCSV);
 
-  const row = humanDiseaseJson.find((row) => {
-    const rowDisease = row["Disease"];
-    const rowKeywords = row["Keywords"];
+  // Helper function to find matching row
+  const findMatchingRow = (json: any[]) => {
+    return json.find((row) => {
+      const rowDisease = row["Disease"];
+      const rowKeywords = row["Keywords"];
 
-    if (rowDisease && isLikelySameString(disease, rowDisease)) {
-      return true;
+      if (rowDisease && isLikelySameString(disease, rowDisease)) {
+        return true;
+      }
+      if (
+        rowKeywords &&
+        rowKeywords
+          .split(",")
+          .map((keyword: string) => keyword.trim())
+          .some((keyword: string) => isLikelySameString(disease, keyword))
+      ) {
+        return true;
+      }
+      return false;
+    });
+  };
+
+  // Check human diseases first (primary source)
+  let row = findMatchingRow(humanDiseaseJson);
+  let diseaseType: "human" | "veterinary" | "zoonotic" = "human";
+
+  if (row) {
+    // Found in human spreadsheet - mark as human
+    diseaseType = "human";
+  } else {
+    // Not found in human spreadsheet - check veterinary spreadsheet
+    const veterinaryDiseaseCSV = await loadVeterinaryDiseaseCSV();
+    const veterinaryDiseaseJson = await csvToJson(veterinaryDiseaseCSV);
+    row = findMatchingRow(veterinaryDiseaseJson);
+    
+    if (row) {
+      // Found in veterinary spreadsheet - check if it's a zoonotic disease (affects both humans and animals)
+      const zoonoticDiseases = [
+        "Avian Influenza",
+        "Bird Flu",
+        "Rabies",
+        "Anthrax",
+        "Leptospirosis",
+        "Q Fever",
+        "Rift Valley Fever",
+      ];
+      const isZoonotic = zoonoticDiseases.some((zoonotic) =>
+        row["Disease"]?.toLowerCase().includes(zoonotic.toLowerCase())
+      );
+      diseaseType = isZoonotic ? "zoonotic" : "veterinary";
     }
-    if (
-      rowKeywords &&
-      rowKeywords
-        .split(",")
-        .map((keyword: string) => keyword.trim())
-        .some((keyword: string) => isLikelySameString(disease, keyword))
-    ) {
-      return true;
-    }
-    return false;
-  });
+  }
 
   if (!row) {
-    console.warn(`Disease or Keyword "${disease}" not found in spreadsheet`);
+    console.warn(`Disease or Keyword "${disease}" not found in either spreadsheet`);
     return null;
   }
 
@@ -94,29 +130,118 @@ export async function matchDiseaseFromSpreadsheet(
     category: row["Outbreak Category"],
     pathogenType: row["PathogenType"],
     keywords: row["Keywords"],
+    diseaseType: diseaseType,
   };
+}
+
+// Helper function to get or create an outbreak category
+async function getOrCreateCategory(
+  supabase: SupabaseClient,
+  categoryName: string
+): Promise<string | null> {
+  if (!categoryName || !categoryName.trim()) {
+    return null;
+  }
+  
+  const normalizedName = categoryName.trim();
+  
+  // Check if category exists (case-insensitive match)
+  const { data: existingCategory } = await supabase
+    .from("outbreak_categories")
+    .select("id, name")
+    .ilike("name", normalizedName)
+    .maybeSingle();
+  
+  if (existingCategory) {
+    return existingCategory.id;
+  }
+  
+  // Check for exact match (case-sensitive) as fallback
+  const { data: exactMatch } = await supabase
+    .from("outbreak_categories")
+    .select("id")
+    .eq("name", normalizedName)
+    .maybeSingle();
+  
+  if (exactMatch) {
+    return exactMatch.id;
+  }
+  
+  // Create new category with default values
+  // Use a color palette that cycles based on category name hash
+  const defaultColors = [
+    "#8b5cf6", // purple
+    "#06b6d4", // cyan
+    "#f59e0b", // amber
+    "#10b981", // green
+    "#ec4899", // pink
+    "#6366f1", // indigo
+    "#14b8a6", // teal
+    "#f97316", // orange
+    "#ef4444", // red
+    "#3b82f6", // blue
+  ];
+  
+  // Use hash of name to consistently assign colors
+  let hash = 0;
+  for (let i = 0; i < normalizedName.length; i++) {
+    hash = ((hash << 5) - hash) + normalizedName.charCodeAt(i);
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  const colorIndex = Math.abs(hash) % defaultColors.length;
+  const defaultColor = defaultColors[colorIndex];
+  
+  const { data: newCategory, error } = await supabase
+    .from("outbreak_categories")
+    .insert({
+      name: normalizedName,
+      description: `Category: ${normalizedName}`,
+      color: defaultColor,
+      icon: "alert-circle", // Default icon
+    })
+    .select("id")
+    .single();
+  
+  if (error || !newCategory) {
+    console.error(`Error creating category "${normalizedName}":`, error);
+    return null;
+  }
+  
+  console.log(`Created new category: "${normalizedName}" with color ${defaultColor}`);
+  return newCategory.id;
 }
 
 export async function getOrCreateDisease({
   supabase,
   disease,
   detectedDiseaseName,
+  aiDetectedDiseaseType,
 }: {
   supabase: SupabaseClient;
   disease: string;
   detectedDiseaseName?: string; // Actual disease name when disease is "OTHER"
+  aiDetectedDiseaseType?: "human" | "veterinary" | "zoonotic"; // AI-detected disease type (optional)
 }): Promise<string | null> {
   try {
     // If disease is "OTHER" and we have a detected disease name, use that for description
     const isOther = disease.toUpperCase().trim() === "OTHER";
     
-    const diseaseInfo = await matchDiseaseFromSpreadsheet(disease);
+    let diseaseInfo = await matchDiseaseFromSpreadsheet(disease);
     
-    // If disease is "OTHER" and not in spreadsheet, create/use OTHER disease with detected name
+    // If disease is "OTHER" and not in spreadsheet, check if detected_disease_name is in veterinary spreadsheet
+    if (isOther && !diseaseInfo && detectedDiseaseName) {
+      // Check veterinary spreadsheet for the detected disease name
+      diseaseInfo = await matchDiseaseFromSpreadsheet(detectedDiseaseName, true);
+    }
+    
+    // If disease is "OTHER" and still not in any spreadsheet, create/use OTHER disease with detected name
     if (isOther && !diseaseInfo) {
+      // Use AI-detected disease_type if provided, otherwise default to "human"
+      const diseaseType = aiDetectedDiseaseType || "human";
+      
       let { data: otherDisease } = await supabase
         .from("diseases")
-        .select("id, name, description")
+        .select("id, name, description, disease_type")
         .eq("name", "OTHER")
         .maybeSingle();
       
@@ -131,10 +256,18 @@ export async function getOrCreateDisease({
             color_code: "#66dbe1",
             clinical_manifestation: "Other",
             spreadsheet_source: false,
+            disease_type: diseaseType,
           })
           .select()
           .single();
         otherDisease = newOtherDisease;
+      } else if (aiDetectedDiseaseType && otherDisease.disease_type !== aiDetectedDiseaseType) {
+        // Update disease_type if AI detected a different type
+        await supabase
+          .from("diseases")
+          .update({ disease_type: aiDetectedDiseaseType })
+          .eq("id", otherDisease.id);
+        otherDisease.disease_type = aiDetectedDiseaseType;
       }
       
       // Update description if we have a detected disease name
@@ -170,15 +303,36 @@ export async function getOrCreateDisease({
       return otherDisease?.id ?? null;
     }
     
-    if (!diseaseInfo) return null;
-
+    // Check if disease exists in database first (by the input disease name)
+    // This handles cases where disease exists but matchDiseaseFromSpreadsheet returns null
     let { data: existingDisease } = await supabase
       .from("diseases")
       .select("id, name")
-      .eq("name", diseaseInfo.diseaseName)
+      .eq("name", disease)
       .maybeSingle();
+    
+    // If disease not found in spreadsheet but exists in database, try to match by database name
+    if (!diseaseInfo && existingDisease) {
+      // Try matching again using the database disease name
+      diseaseInfo = await matchDiseaseFromSpreadsheet(existingDisease.name);
+    }
+    
+    // If still no diseaseInfo and disease doesn't exist, return null
+    if (!diseaseInfo && !existingDisease) {
+      return null;
+    }
 
-    if (!existingDisease) {
+    // If we have diseaseInfo, use the canonical name from spreadsheet
+    if (diseaseInfo) {
+      const { data: diseaseByName } = await supabase
+        .from("diseases")
+        .select("id, name")
+        .eq("name", diseaseInfo.diseaseName)
+        .maybeSingle();
+      existingDisease = diseaseByName;
+    }
+
+    if (!existingDisease && diseaseInfo) {
       const severityMap: Record<string, string> = {
         "Emerging Infectious Diseases": "critical",
         "Healthcare-Associated Infections": "high",
@@ -186,6 +340,7 @@ export async function getOrCreateDisease({
         "Waterborne Outbreaks": "high",
         "Vector-Borne Outbreaks": "high",
         "Airborne Outbreaks": "high",
+        "Veterinary Outbreaks": "medium",
       };
       const severity = severityMap[diseaseInfo.category || ""] || "medium";
       const colorMap: Record<string, string> = {
@@ -194,6 +349,9 @@ export async function getOrCreateDisease({
         medium: "#66dbe1",
         low: "#4ade80",
       };
+
+      // Determine disease type: use AI-detected type if provided, otherwise use from spreadsheet matching
+      const diseaseType = aiDetectedDiseaseType || diseaseInfo.diseaseType || "human";
 
       const { data: newDisease, error: diseaseError } = await supabase
         .from("diseases")
@@ -206,6 +364,7 @@ export async function getOrCreateDisease({
           color_code: colorMap[severity],
           clinical_manifestation: diseaseInfo.diseaseName,
           spreadsheet_source: true,
+          disease_type: diseaseType,
         })
         .select()
         .single();
@@ -261,23 +420,56 @@ export async function getOrCreateDisease({
         }
       }
 
+      // Process category - only create if exists in spreadsheet, otherwise use "Other"
+      let categoryId: string | null = null;
       if (diseaseInfo.category) {
-        const { data: category } = await supabase
-          .from("outbreak_categories")
-          .select("id")
-          .eq("name", diseaseInfo.category)
-          .maybeSingle();
-        if (category) {
-          await supabase
-            .from("disease_categories")
-            .upsert(
-              { disease_id: existingDisease?.id, category_id: category.id },
-              { onConflict: "disease_id,category_id" }
-            );
+        // Try to find or create the category from spreadsheet
+        categoryId = await getOrCreateCategory(supabase, diseaseInfo.category);
+        if (!categoryId) {
+          console.warn(`Could not create or find category for "${diseaseInfo.category}" (disease: ${diseaseInfo.diseaseName}), using "Other"`);
         }
       }
+      
+      // If no category from spreadsheet or category creation failed, use "Other"
+      if (!categoryId) {
+        const { data: otherCategory } = await supabase
+          .from("outbreak_categories")
+          .select("id")
+          .eq("name", "Other")
+          .maybeSingle();
+        
+        if (otherCategory) {
+          categoryId = otherCategory.id;
+        } else {
+          // Create "Other" category if it doesn't exist
+          const { data: newOtherCategory } = await supabase
+            .from("outbreak_categories")
+            .insert({
+              name: "Other",
+              description: "Diseases without a specific outbreak category",
+              color: "#66dbe1",
+              icon: "alert-circle",
+            })
+            .select("id")
+            .single();
+          
+          if (newOtherCategory) {
+            categoryId = newOtherCategory.id;
+          }
+        }
+      }
+      
+      // Link disease to category (either from spreadsheet or "Other")
+      if (categoryId) {
+        await supabase
+          .from("disease_categories")
+          .upsert(
+            { disease_id: existingDisease?.id, category_id: categoryId },
+            { onConflict: "disease_id,category_id" }
+          );
+      }
 
-      if (diseaseInfo.keywords) {
+      if (diseaseInfo && diseaseInfo.keywords) {
         await supabase.from("disease_keywords").upsert(
           {
             disease_id: existingDisease?.id,
@@ -287,6 +479,66 @@ export async function getOrCreateDisease({
           },
           { onConflict: "disease_id,keyword" }
         );
+      }
+    } else {
+      // Disease already exists - still need to link category if not already linked
+      // Check if disease already has a category
+      const { data: existingCategoryLink } = await supabase
+        .from("disease_categories")
+        .select("category_id")
+        .eq("disease_id", existingDisease.id)
+        .maybeSingle();
+
+      // Only link category if disease doesn't have one yet
+      if (!existingCategoryLink) {
+        // Process category - only create if exists in spreadsheet, otherwise use "Other"
+        let categoryId: string | null = null;
+        if (diseaseInfo && diseaseInfo.category) {
+          // Try to find or create the category from spreadsheet
+          categoryId = await getOrCreateCategory(supabase, diseaseInfo.category);
+          if (!categoryId) {
+            console.warn(`Could not create or find category for "${diseaseInfo.category}" (disease: ${diseaseInfo.diseaseName}), using "Other"`);
+          }
+        }
+        
+        // If no category from spreadsheet or category creation failed, use "Other"
+        if (!categoryId) {
+          const { data: otherCategory } = await supabase
+            .from("outbreak_categories")
+            .select("id")
+            .eq("name", "Other")
+            .maybeSingle();
+          
+          if (otherCategory) {
+            categoryId = otherCategory.id;
+          } else {
+            // Create "Other" category if it doesn't exist
+            const { data: newOtherCategory } = await supabase
+              .from("outbreak_categories")
+              .insert({
+                name: "Other",
+                description: "Diseases without a specific outbreak category",
+                color: "#66dbe1",
+                icon: "alert-circle",
+              })
+              .select("id")
+              .single();
+            
+            if (newOtherCategory) {
+              categoryId = newOtherCategory.id;
+            }
+          }
+        }
+        
+        // Link disease to category (either from spreadsheet or "Other")
+        if (categoryId) {
+          await supabase
+            .from("disease_categories")
+            .upsert(
+              { disease_id: existingDisease.id, category_id: categoryId },
+              { onConflict: "disease_id,category_id" }
+            );
+        }
       }
     }
 
@@ -442,7 +694,8 @@ export async function storeArticlesAndSignals({
         const diseaseId = await getOrCreateDisease({ 
           supabase, 
           disease,
-          detectedDiseaseName: article.detected_disease_name 
+          detectedDiseaseName: article.detected_disease_name,
+          aiDetectedDiseaseType: article.disease_type
         });
         if (!diseaseId) continue;
         
