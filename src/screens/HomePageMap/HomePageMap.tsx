@@ -432,21 +432,26 @@ export const HomePageMap = (): JSX.Element => {
     const updateCategoryPosition = () => {
       const mapContainer = mapContainerRef.current;
       if (!mapContainer) {
-        // Fallback to default if map container not available
-        setCategoryTop('820px');
+        // Responsive fallback based on screen size
+        const fallback = window.innerWidth >= 1024 ? '820px' : window.innerWidth >= 768 ? '700px' : window.innerWidth >= 640 ? '600px' : '500px';
+        setCategoryTop(fallback);
         return;
       }
 
       const mapRect = mapContainer.getBoundingClientRect();
       const containerRect = mapContainer.parentElement?.getBoundingClientRect();
       if (!containerRect) {
-        setCategoryTop('820px');
+        // Responsive fallback based on screen size
+        const fallback = window.innerWidth >= 1024 ? '820px' : window.innerWidth >= 768 ? '700px' : window.innerWidth >= 640 ? '600px' : '500px';
+        setCategoryTop(fallback);
         return;
       }
 
       // Calculate position: map bottom + 20px spacing
       const mapBottom = mapRect.bottom - containerRect.top;
-      const newTop = Math.max(820, mapBottom + 20); // Ensure minimum position
+      // Responsive minimum position based on screen size
+      const minPosition = window.innerWidth >= 1024 ? 820 : window.innerWidth >= 768 ? 700 : window.innerWidth >= 640 ? 600 : 500;
+      const newTop = Math.max(minPosition, mapBottom + 20); // Ensure minimum position
       setCategoryTop(`${newTop}px`);
     };
 
@@ -482,7 +487,7 @@ export const HomePageMap = (): JSX.Element => {
 
   return (
     <div className={`bg-[#2a4149] relative ${isMapFullscreen ? 'absolute inset-0 w-full h-full overflow-hidden' : 'min-h-screen overflow-x-hidden'}`}>
-      <div className="relative w-full h-full">
+      <div className="relative w-full h-full min-w-[1280px]">
         {/* Location Detection Notification */}
         {showLocationNotification && location && (
           <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-[1100] bg-[#67DBE2] text-[#2a4149] px-4 py-3 rounded-lg shadow-lg flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
@@ -525,8 +530,8 @@ export const HomePageMap = (): JSX.Element => {
         )}
         
         {/* Header Title - Top Left */}
-        <div className={`absolute top-[32px] left-[120px] z-[1000] transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-          <h1 className="[font-family:'Roboto',Helvetica] font-bold text-[#67DBE2] text-[38px] tracking-[-0.5px] leading-[48px]">
+        <div className={`absolute top-[32px] left-[90px] z-[1000] transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+          <h1 className="[font-family:'Roboto',Helvetica] font-bold text-[#67DBE2] text-[32px] tracking-[-0.5px] leading-[40px] max-w-[500px]">
             Global Outbreak & Disease
             <br />
             Monitoring System
@@ -534,10 +539,10 @@ export const HomePageMap = (): JSX.Element => {
         </div>
 
         {/* Filters and Navigation - Top Right */}
-        <div className={`absolute top-[32px] right-[20px] z-[1000] flex flex-col items-end gap-3 transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-          <div className="flex items-center gap-4">
+        <div className={`absolute top-[32px] z-[1000] flex flex-col items-end gap-3 transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} style={{ right: '200px' }}>
+          <div className="flex items-center gap-2" style={{ maxWidth: 'calc(100vw - 100px)' }}>
             {/* Date Range Tabs */}
-            <div className="flex items-center w-[357px] h-[38px] rounded-[6px] border border-[#DAE0E633] bg-transparent px-1 py-1 shadow-[0px_1px_2px_#1018280a]" style={{ borderBottomColor: "#FFFFFF33", borderBottomWidth: "1px" }}>
+            <div className="flex items-center h-[38px] rounded-[6px] border border-[#DAE0E633] bg-transparent px-1 py-1 shadow-[0px_1px_2px_#1018280a]" style={{ width: '220px', minWidth: '220px', borderBottomColor: "#FFFFFF33", borderBottomWidth: "1px" }}>
               <Tabs
                 value={filters.dateRange || "7d"}
                 onValueChange={(value) => setFilters(prev => ({ ...prev, dateRange: value }))}
@@ -557,18 +562,18 @@ export const HomePageMap = (): JSX.Element => {
               </Tabs>
             </div>
             {/* Search Bar */}
-            <div className="flex w-[185px] h-[40px] items-center gap-2 px-3 bg-[#FFFFFF24] rounded-[6px] overflow-hidden border border-solid border-[#DAE0E633] shadow-[0px_1px_2px_#1018280A]">
+            <div className="flex h-[40px] items-center gap-2 px-2.5 bg-[#FFFFFF24] rounded-[6px] overflow-hidden border border-solid border-[#DAE0E633] shadow-[0px_1px_2px_#1018280A]" style={{ width: '160px', minWidth: '160px', flexShrink: 0, marginLeft: '30px' }}>
               <img
-                className="relative w-[18px] h-[18px]"
+                className="relative w-[16px] h-[16px] flex-shrink-0"
                 alt="Search"
                 src="/zoom-search.svg"
               />
               <Input
             type="text"
-                placeholder="Search diseases, countries..."
+                placeholder="Search..."
                 value={filters.diseaseSearch || ""}
                 onChange={(e) => handleSearchChange(e.target.value)}
-                className="flex-1 bg-transparent border-0 text-[#EBEBEB] text-sm [font-family:'Roboto',Helvetica] font-medium tracking-[-0.10px] leading-5 placeholder:text-[#EBEBEB] focus-visible:ring-0 focus-visible:ring-offset-0 h-auto p-0"
+                className="flex-1 bg-transparent border-0 text-[#EBEBEB] text-xs [font-family:'Roboto',Helvetica] font-medium tracking-[-0.10px] leading-5 placeholder:text-[#EBEBEB] focus-visible:ring-0 focus-visible:ring-offset-0 h-auto p-0 min-w-0"
               />
               {filters.diseaseSearch && (
                 <button
@@ -576,7 +581,7 @@ export const HomePageMap = (): JSX.Element => {
                     setFilters(prev => ({ ...prev, diseaseSearch: "", country: null }));
                     setZoomTarget(null);
                   }}
-                  className="flex items-center justify-center w-4 h-4 text-[#EBEBEB99] hover:text-[#EBEBEB] transition-colors"
+                  className="flex items-center justify-center w-4 h-4 text-[#EBEBEB99] hover:text-[#EBEBEB] transition-colors flex-shrink-0"
                   aria-label="Clear search"
                 >
                   <X className="w-3 h-3" />
@@ -585,15 +590,17 @@ export const HomePageMap = (): JSX.Element => {
             </div>
             <button
               onClick={handleResetFilters}
-              className="flex items-center justify-center w-10 h-[40px] rounded-[6px] border border-[#DAE0E633] bg-[#FFFFFF14] text-[#EBEBEBCC] hover:text-white hover:bg-[#FFFFFF24] transition-colors shadow-[0px_1px_2px_#1018280A]"
+              className="flex items-center justify-center w-9 h-[40px] rounded-[6px] border border-[#DAE0E633] bg-[#FFFFFF14] text-[#EBEBEBCC] hover:text-white hover:bg-[#FFFFFF24] transition-colors shadow-[0px_1px_2px_#1018280A] flex-shrink-0"
               title="Reset filters"
               aria-label="Reset filters"
             >
-              <RefreshCcw className="w-4 h-4" />
+              <RefreshCcw className="w-3.5 h-3.5" />
             </button>
           </div>
 
-          <NavigationTabsSection />
+          <div style={{ maxWidth: 'calc(100vw - 100px)' }}>
+            <NavigationTabsSection />
+          </div>
         </div>
 
         {/* Map - Main Content Area */}
@@ -602,13 +609,14 @@ export const HomePageMap = (): JSX.Element => {
           className={`absolute rounded-[12px] z-[1000] overflow-hidden shadow-2xl border border-[#67DBE2]/20 transition-all duration-500 ease-in-out ${
             isMapFullscreen 
               ? 'top-0 left-0 right-0 bottom-0 w-full h-full rounded-none' 
-              : 'top-[160px] left-[120px] w-[calc(100vw-680px)] h-[calc(100vh-320px)] min-w-[900px] min-h-[650px]'
+              : 'top-[160px] left-[90px] w-[calc(100vw-550px)] h-[calc(100vh-320px)] min-w-[750px] min-h-[650px]'
           }`}
         >
           {/* Fullscreen Toggle Button */}
           <button
             onClick={toggleFullscreen}
-            className={`absolute top-4 right-4 z-[1300] bg-[#2a4149] hover:bg-[#305961] text-[#67DBE2] p-2 rounded-lg shadow-lg border border-[#67DBE2]/30 transition-all duration-200 hover:scale-110 hover:border-[#67DBE2]/60 flex items-center justify-center group`}
+            className={`absolute top-4 z-[1300] bg-[#2a4149] hover:bg-[#305961] text-[#67DBE2] p-2 rounded-lg shadow-lg border border-[#67DBE2]/30 transition-all duration-200 hover:scale-110 hover:border-[#67DBE2]/60 flex items-center justify-center group`}
+            style={isMapFullscreen ? { right: '80px' } : { right: '16px' }}
             title={isMapFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
             aria-label={isMapFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
           >
@@ -633,12 +641,12 @@ export const HomePageMap = (): JSX.Element => {
         </div>
 
         {/* News Section - Right Sidebar */}
-        <div className={`absolute top-[160px] right-[20px] z-[1000] transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+        <div className={`absolute top-[160px] z-[1000] transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} style={{ left: 'calc(90px + min(calc(100vw - 550px), calc(100vw - 260px)) + 10px)', width: '240px' }}>
           <NewsSection />
         </div>
 
         {/* Sponsored Section - Right Sidebar, Below News */}
-        <div className={`absolute top-[560px] right-[20px] z-[1000] transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+        <div className={`absolute top-[560px] z-[1000] transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} style={{ left: 'calc(90px + min(calc(100vw - 550px), calc(100vw - 260px)) + 10px)', width: '240px' }}>
           <SponsoredSection />
         </div>
 
@@ -647,12 +655,12 @@ export const HomePageMap = (): JSX.Element => {
           className={`absolute z-[1000] transition-all duration-300 ${isMapFullscreen || isDialogOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
           style={{
             top: isMapFullscreen ? 'auto' : categoryTop,
-            left: '120px',
-            width: isMapFullscreen ? 'auto' : 'min(790px, calc(100vw - 680px - 120px))',
-            height: '52px',
+            left: '90px',
+            width: isMapFullscreen ? 'auto' : 'min(790px, calc(100vw - 550px - 90px))',
+            height: '44px',
           }}
         >
-          <div className="flex items-center h-full gap-[30px] flex-wrap">
+          <div className="flex items-center h-full gap-[18px] flex-wrap">
             {diseaseCategories.map((category) => {
               const stats = categoryStats[category.name] || { cases: 0, severity: 'Low' };
               return (
@@ -663,12 +671,12 @@ export const HomePageMap = (): JSX.Element => {
                     onMouseLeave={handleMouseLeave}
                     className="flex items-center justify-center rounded-full cursor-pointer transition-all duration-200 relative"
                     style={{
-                      width: '52px',
-                      height: '52px',
+                      width: '44px',
+                      height: '44px',
                       backgroundColor: '#FFFFFF',
                       border: 'none',
                       boxShadow: filters.category === category.name 
-                        ? `0 0 16px ${category.color}60, 0 4px 8px rgba(0,0,0,0.3)` 
+                        ? `0 0 14px ${category.color}60, 0 4px 8px rgba(0,0,0,0.3)` 
                         : `0 2px 4px rgba(0,0,0,0.2)`,
                     }}
                   >
@@ -676,8 +684,8 @@ export const HomePageMap = (): JSX.Element => {
                       className="absolute inset-0 rounded-full"
                       style={{
                         backgroundColor: category.color,
-                        width: filters.category === category.name ? '52px' : '48px',
-                        height: filters.category === category.name ? '52px' : '48px',
+                        width: filters.category === category.name ? '44px' : '40px',
+                        height: filters.category === category.name ? '44px' : '40px',
                         margin: 'auto',
                         display: 'flex',
                         alignItems: 'center',
@@ -687,8 +695,8 @@ export const HomePageMap = (): JSX.Element => {
                     >
                       {React.createElement(category.icon, {
                         style: {
-                          width: '32px',
-                          height: '32px',
+                          width: '26px',
+                          height: '26px',
                           color: '#FFFFFF',
                           stroke: '#FFFFFF',
                           fill: 'none',

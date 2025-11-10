@@ -476,7 +476,7 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false }: {
 
 type MapType = 'dark' | 'light' | 'street' | 'topographic' | 'imagery';
 
-const MapControls = ({ mapType, onMapTypeChange, isOpen, onOpenChange }: { mapType: MapType; onMapTypeChange: (type: MapType) => void; isOpen: boolean; onOpenChange: (open: boolean) => void }) => {
+const MapControls = ({ mapType, onMapTypeChange, isOpen, onOpenChange, isFullscreen = false }: { mapType: MapType; onMapTypeChange: (type: MapType) => void; isOpen: boolean; onOpenChange: (open: boolean) => void; isFullscreen?: boolean }) => {
   const mapTypes: { id: MapType; label: string }[] = [
     { id: 'dark', label: 'Dark' },
     { id: 'light', label: 'Light' },
@@ -489,7 +489,10 @@ const MapControls = ({ mapType, onMapTypeChange, isOpen, onOpenChange }: { mapTy
     <Collapsible 
       open={isOpen} 
       onOpenChange={onOpenChange} 
-      className="absolute bottom-4 right-4 z-[1200] rounded-lg border border-[#EAEBF024] bg-[#FFFFFF14] shadow-lg backdrop-blur-sm overflow-hidden transition-all duration-300"
+      className={`absolute z-[1200] rounded-lg border border-[#EAEBF024] bg-[#FFFFFF14] shadow-lg backdrop-blur-sm overflow-hidden transition-all duration-300 ${
+        isFullscreen ? 'bottom-12' : 'bottom-4 right-4'
+      }`}
+      style={isFullscreen ? { right: '80px' } : undefined}
     >
       <CollapsibleTrigger asChild>
         <div className="w-full hover:bg-[#305961]/50 transition-colors cursor-pointer">
@@ -1189,7 +1192,9 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
         zoomControl={true}
       >
         {/* Point count badge */}
-        <div className="absolute top-4 left-4 z-[1200] bg-[#0f172acc] text-white text-xs px-2 py-1 rounded">
+        <div className={`absolute z-[1200] bg-[#0f172acc] text-white text-xs px-2 py-1 rounded ${
+          isFullscreen ? 'top-4 left-20' : 'top-4 left-4'
+        }`}>
           {filteredPoints.length} points
         </div>
         
@@ -1198,10 +1203,18 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
           open={isLegendOpen} 
           onOpenChange={setIsLegendOpen} 
           className={`absolute z-[1200] overflow-hidden transition-all duration-300 ${
-            isFullscreen ? 'top-14 right-4' : 'top-0 right-0'
+            isFullscreen ? 'top-16' : 'top-0 right-0'
           }`}
-          style={{
-            borderTopRightRadius: isFullscreen ? '8px' : '10px',
+          style={isFullscreen ? {
+            borderTopRightRadius: '8px',
+            borderBottomLeftRadius: '10px',
+            background: '#315C64B2',
+            border: '1px solid #EAEBF024',
+            boxShadow: '0px 1px 2px 0px #1018280A',
+            right: '80px',
+            maxWidth: '140px'
+          } : {
+            borderTopRightRadius: '10px',
             borderBottomLeftRadius: '10px',
             background: '#315C64B2',
             border: '1px solid #EAEBF024',
@@ -1259,7 +1272,7 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
           isUserLocation={isUserLocation} 
         />
         <MapResizeHandler />
-        <MapControls mapType={mapType} onMapTypeChange={setMapType} isOpen={isMapControlsOpen} onOpenChange={setIsMapControlsOpen} />
+        <MapControls mapType={mapType} onMapTypeChange={setMapType} isOpen={isMapControlsOpen} onOpenChange={setIsMapControlsOpen} isFullscreen={isFullscreen} />
         {
           // Low zoom: show aggregated pies grouped by category (skip single-point cells, show them as pins)
           zoom <= 5 ? (

@@ -12,7 +12,7 @@ const navigationTabs = [
 
 export const NavigationTabsSection = (): JSX.Element => {
   return (
-    <nav className="w-[493px] h-[44px] border-b border-[#FFFFFF33]">
+    <nav className="w-[420px] h-[44px] border-b border-[#FFFFFF33]">
       <Tabs defaultValue="feed" className="w-full h-full">
         <TabsList className="inline-flex items-start gap-[13px] bg-transparent h-auto p-0 border-0">
           {navigationTabs.map((tab) => (

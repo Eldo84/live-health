@@ -42,7 +42,7 @@ export const SidebarMenuSection = (): JSX.Element => {
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <nav className="flex flex-col w-[182px] items-center gap-[22px] pt-4 pb-6 px-0 bg-[#2a4149] border-r [border-right-style:solid] border-[#eaebf024]">
+    <nav className="flex flex-col w-[160px] items-center gap-[22px] pt-4 pb-6 px-0 bg-[#2a4149] border-r [border-right-style:solid] border-[#eaebf024]">
       <div className="flex flex-col items-start gap-[5px] flex-1 self-stretch w-full">
         <Button
           variant="ghost"
@@ -85,7 +85,7 @@ export const SidebarMenuSection = (): JSX.Element => {
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div className="flex flex-col w-[182px] items-start gap-2 pl-6 pr-0 py-0">
+            <div className="flex flex-col w-[160px] items-start gap-2 pl-6 pr-0 py-0">
               <button
                 onClick={() => navigate("/dashboard")}
                 className="flex items-start gap-3.5 w-full text-left hover:opacity-80 transition-opacity"

@@ -270,7 +270,7 @@ export const NewsSection = (): JSX.Element => {
   };
 
   return (
-    <div className="w-[300px] rounded-lg border border-[#EAEBF024] bg-[#FFFFFF14] shadow-lg flex flex-col overflow-hidden" style={{ height: '380px' }}>
+    <div className="w-[240px] rounded-lg border border-[#EAEBF024] bg-[#FFFFFF14] shadow-lg flex flex-col overflow-hidden" style={{ height: '380px', boxSizing: 'border-box' }}>
       <div className="px-4 pt-4 pb-3 border-b border-[#EAEBF024]/50">
         <h2 className="[font-family:'Roboto',Helvetica] font-bold text-white text-base tracking-[-0.2px]">
           Outbreak News
@@ -298,7 +298,7 @@ export const NewsSection = (): JSX.Element => {
                     <span className="text-[10px] text-[#a7a7a7]">
                       {formatTimeAgo(article.published_at)}
                     </span>
-                    <span className="text-[10px] text-[#67DBE2] font-medium">
+                    <span className="text-[10px] text-[#67DBE2] font-medium truncate max-w-[100px]">
                       {article.source.name}
                     </span>
                   </div>

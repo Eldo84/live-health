@@ -68,7 +68,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
       }`}
       style={{
         top: "100px",
-        left: "120px",
+        left: "90px",
         width: "320px",
       }}
     >

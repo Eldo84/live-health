@@ -8,7 +8,7 @@ export const AppLayout = (): JSX.Element => {
   const { isFullscreen } = useFullscreen();
   
   return (
-    <div className={`bg-[#2a4149] w-full min-w-[1440px] flex flex-col overflow-x-hidden ${isFullscreen ? 'h-screen' : 'min-h-screen'}`}>
+    <div className={`bg-[#2a4149] w-full min-w-[1280px] flex flex-col overflow-x-hidden ${isFullscreen ? 'h-screen' : 'min-h-screen'}`}>
       {!isFullscreen && <HeaderSection />}
       <div className={`flex overflow-hidden ${isFullscreen ? 'flex-1 h-full' : 'flex-1'}`}>
         <SidebarMenuSection />

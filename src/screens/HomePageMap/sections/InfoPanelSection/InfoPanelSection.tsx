@@ -37,7 +37,7 @@ export const InfoPanelSection = (): JSX.Element => {
 
       <div className="absolute h-[106px] top-[232px] right-0 w-[370px] bg-[#54eef799] rounded-[185.21px/53px] blur-[220.55px]" />
 
-      <footer className="flex flex-col w-full h-full items-center px-0 py-[40px] bg-[#35484f] relative">
+      <footer className="flex flex-col w-full h-full items-center px-0 pt-[80px] pb-[80px] md:pb-[80px] bg-[#35484f] relative">
         <div className="flex flex-col w-[1258px] h-[276px] items-start gap-[48px] px-[60px] py-0">
           <div className="flex items-start justify-between w-[1138px] h-[180px]">
             <div className="flex flex-col w-[249px] gap-[10px]">
