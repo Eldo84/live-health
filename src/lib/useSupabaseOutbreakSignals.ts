@@ -27,6 +27,103 @@ const DATE_RANGE_MS: Record<string, number> = {
   "1y": 365 * 24 * 60 * 60 * 1000,
 };
 
+// Category name mappings for variations (e.g., "veterinary outbreak" -> "Veterinary Outbreaks")
+const CATEGORY_VARIATIONS: Record<string, string> = {
+  "veterinary outbreak": "Veterinary Outbreaks",
+  "veterinary outbreaks": "Veterinary Outbreaks",
+  "zoonotic outbreak": "Zoonotic Outbreaks",
+  "zoonotic outbreaks": "Zoonotic Outbreaks",
+  "emerging & re-emerging disease outbreaks": "Emerging Infectious Diseases",
+  "emerging and re-emerging disease outbreaks": "Emerging Infectious Diseases",
+};
+
+// Normalize category name for comparison (case-insensitive, handles variations)
+function normalizeCategoryForComparison(category: string | null | undefined): string {
+  if (!category) return "";
+  
+  const trimmed = category.trim();
+  const lower = trimmed.toLowerCase();
+  
+  // Check variations mapping first
+  if (CATEGORY_VARIATIONS[lower]) {
+    return CATEGORY_VARIATIONS[lower];
+  }
+  
+  // Handle case-insensitive matching for known categories
+  const knownCategories = [
+    "Foodborne Outbreaks",
+    "Waterborne Outbreaks",
+    "Vector-Borne Outbreaks",
+    "Airborne Outbreaks",
+    "Contact Transmission",
+    "Healthcare-Associated Infections",
+    "Zoonotic Outbreaks",
+    "Sexually Transmitted Infections",
+    "Vaccine-Preventable Diseases",
+    "Emerging Infectious Diseases",
+    "Veterinary Outbreaks",
+    "Neurological Outbreaks",
+    "Respiratory Outbreaks",
+    "Other"
+  ];
+  
+  // Find case-insensitive match
+  for (const knownCategory of knownCategories) {
+    if (knownCategory.toLowerCase() === lower) {
+      return knownCategory;
+    }
+  }
+  
+  // Handle partial matches (e.g., "veterinary" should match "Veterinary Outbreaks")
+  for (const knownCategory of knownCategories) {
+    const knownLower = knownCategory.toLowerCase();
+    // Check if the category contains the key word or vice versa
+    if (lower.includes(knownLower.replace(" outbreaks", "")) || 
+        knownLower.includes(lower.replace(" outbreak", "").replace(" outbreaks", ""))) {
+      // Special handling for veterinary/zoonotic
+      if (lower.includes("veterinary") && knownCategory === "Veterinary Outbreaks") {
+        return "Veterinary Outbreaks";
+      }
+      if (lower.includes("zoonotic") && knownCategory === "Zoonotic Outbreaks") {
+        return "Zoonotic Outbreaks";
+      }
+    }
+  }
+  
+  // Return original if no match found
+  return trimmed;
+}
+
+// Check if two category names match (handles variations and case)
+function categoriesMatch(category1: string | null | undefined, category2: string | null | undefined): boolean {
+  if (!category1 || !category2) return false;
+  
+  const normalized1 = normalizeCategoryForComparison(category1);
+  const normalized2 = normalizeCategoryForComparison(category2);
+  
+  // Exact match after normalization
+  if (normalized1 === normalized2) return true;
+  
+  // Case-insensitive match after normalization
+  if (normalized1.toLowerCase() === normalized2.toLowerCase()) return true;
+  
+  // Check if both contain the same keyword (for veterinary/zoonotic variations)
+  const lower1 = category1.toLowerCase();
+  const lower2 = category2.toLowerCase();
+  
+  // Special handling for veterinary: "veterinary outbreak" should match "Veterinary Outbreaks"
+  if (lower1.includes("veterinary") && lower2.includes("veterinary")) {
+    return true;
+  }
+  
+  // Special handling for zoonotic: "zoonotic outbreak" should match "Zoonotic Outbreaks"
+  if (lower1.includes("zoonotic") && lower2.includes("zoonotic")) {
+    return true;
+  }
+  
+  return false;
+}
+
 export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
   const [allSignals, setAllSignals] = useState<OutbreakSignal[]>([]); // Store ALL signals
   const [signals, setSignals] = useState<OutbreakSignal[]>([]); // Filtered signals
@@ -75,7 +172,34 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
 
     // Filter by category (client-side)
     if (filters?.category) {
-      filtered = filtered.filter(s => s.category === filters.category);
+      // Normalize the filter category to handle variations
+      const normalizedFilterCategory = normalizeCategoryForComparison(filters.category);
+      
+      // Special handling for "Veterinary Outbreaks" and "Zoonotic Outbreaks" categories:
+      // Include all diseases with matching disease_type, regardless of their category
+      // This ensures all veterinary/zoonotic diseases show up when filtering by these categories
+      const isVeterinaryFilter = normalizedFilterCategory === "Veterinary Outbreaks" || 
+                                  filters.category.toLowerCase().includes("veterinary");
+      const isZoonoticFilter = normalizedFilterCategory === "Zoonotic Outbreaks" || 
+                               filters.category.toLowerCase().includes("zoonotic");
+      
+      if (isVeterinaryFilter || isZoonoticFilter) {
+        const targetDiseaseType = isVeterinaryFilter ? "veterinary" : "zoonotic";
+        filtered = filtered.filter(s => {
+          const signalDiseaseType = (s as any).diseaseType;
+          const signalCategory = s.category;
+          
+          // Include if:
+          // 1. Category matches (with normalization) OR
+          // 2. Disease type matches
+          return categoriesMatch(signalCategory, filters.category) || signalDiseaseType === targetDiseaseType;
+        });
+      } else {
+        // For other categories, use normalized comparison
+        filtered = filtered.filter(s => {
+          return categoriesMatch(s.category, filters.category);
+        });
+      }
     }
 
     // Filter by country (client-side)
@@ -156,7 +280,33 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
     // Filter by disease type (client-side)
     if (filters?.diseaseType && filters.diseaseType !== "all") {
       filtered = filtered.filter(s => {
-        const diseaseType = (s as any).diseaseType;
+        let diseaseType = (s as any).diseaseType;
+        const detectedDiseaseName = (s as any).detectedDiseaseName;
+        
+        // For "OTHER" diseases (indicated by presence of detected_disease_name),
+        // infer type from detected_disease_name if available
+        if (detectedDiseaseName) {
+          const lowerName = detectedDiseaseName.toLowerCase();
+          // Veterinary keywords
+          const veterinaryKeywords = [
+            "cattle", "livestock", "animal", "livestock disease", "animal disease",
+            "swine", "pig", "poultry", "chicken", "bird", "goat", "sheep", "cow",
+            "veterinary", "herd", "flock", "livestock outbreak", "animal outbreak"
+          ];
+          // Zoonotic keywords (affects both)
+          const zoonoticKeywords = [
+            "avian influenza", "bird flu", "rabies", "anthrax", "leptospirosis",
+            "q fever", "rift valley fever", "brucellosis", "salmonella"
+          ];
+          
+          // Check for zoonotic first (more specific)
+          if (zoonoticKeywords.some(keyword => lowerName.includes(keyword))) {
+            diseaseType = "zoonotic";
+          } else if (veterinaryKeywords.some(keyword => lowerName.includes(keyword))) {
+            diseaseType = "veterinary";
+          }
+        }
+        
         if (filters.diseaseType === "human") {
           return diseaseType === "human" || diseaseType === null || diseaseType === undefined; // Default to human if not set
         } else if (filters.diseaseType === "veterinary") {

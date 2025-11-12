@@ -38,6 +38,13 @@ export async function loadAllDiseaseCSVs(): Promise<{
   return { human, veterinary };
 }
 
+const HEALTH_MINISTRY_SPREADSHEET_CSV_URL =
+  "https://docs.google.com/spreadsheets/d/1HU-AANvAkXXLqga2rsSMyy5Hhn3_uJ2ewVZ1UrNbC30/export?format=csv&gid=1200992810";
+
+export function loadHealthMinistryCSV(): Promise<string> {
+  return loadSheetCSV(HEALTH_MINISTRY_SPREADSHEET_CSV_URL);
+}
+
 export async function csvToJson(csvText: string) {
   return await csv().fromString(csvText);
 }

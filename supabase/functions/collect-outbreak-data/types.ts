@@ -21,6 +21,7 @@ export interface NormalizedArticle {
   detected_disease_name?: string; // Actual disease name when disease is "OTHER" (not in CSV)
   disease_type?: "human" | "veterinary" | "zoonotic"; // AI-detected disease type (optional)
   case_count_mentioned?: number;
+  mortality_count_mentioned?: number; // Number of deaths/mortalities mentioned in the article
   confidence_score?: number; // 0-1, default 0.5
 }
 

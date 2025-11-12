@@ -236,8 +236,45 @@ export async function getOrCreateDisease({
     
     // If disease is "OTHER" and still not in any spreadsheet, create/use OTHER disease with detected name
     if (isOther && !diseaseInfo) {
-      // Use AI-detected disease_type if provided, otherwise default to "human"
-      const diseaseType = aiDetectedDiseaseType || "human";
+      // Helper function to infer disease type from detected disease name
+      const inferDiseaseType = (detectedName?: string): "human" | "veterinary" | "zoonotic" => {
+        if (aiDetectedDiseaseType) {
+          return aiDetectedDiseaseType;
+        }
+        
+        if (!detectedName) {
+          return "human";
+        }
+        
+        const lowerName = detectedName.toLowerCase();
+        // Veterinary keywords
+        const veterinaryKeywords = [
+          "cattle", "livestock", "animal", "livestock disease", "animal disease",
+          "swine", "pig", "poultry", "chicken", "bird", "goat", "sheep", "cow",
+          "veterinary", "herd", "flock", "livestock outbreak", "animal outbreak"
+        ];
+        
+        // Zoonotic keywords (affects both)
+        const zoonoticKeywords = [
+          "avian influenza", "bird flu", "rabies", "anthrax", "leptospirosis",
+          "q fever", "rift valley fever", "brucellosis", "salmonella"
+        ];
+        
+        // Check for zoonotic first (more specific)
+        if (zoonoticKeywords.some(keyword => lowerName.includes(keyword))) {
+          return "zoonotic";
+        }
+        
+        // Check for veterinary
+        if (veterinaryKeywords.some(keyword => lowerName.includes(keyword))) {
+          return "veterinary";
+        }
+        
+        return "human";
+      };
+      
+      // Determine disease type: use AI-detected if available, otherwise infer from detected disease name
+      const diseaseType = inferDiseaseType(detectedDiseaseName);
       
       let { data: otherDisease } = await supabase
         .from("diseases")
@@ -261,13 +298,39 @@ export async function getOrCreateDisease({
           .select()
           .single();
         otherDisease = newOtherDisease;
-      } else if (aiDetectedDiseaseType && otherDisease.disease_type !== aiDetectedDiseaseType) {
-        // Update disease_type if AI detected a different type
-        await supabase
-          .from("diseases")
-          .update({ disease_type: aiDetectedDiseaseType })
-          .eq("id", otherDisease.id);
-        otherDisease.disease_type = aiDetectedDiseaseType;
+      } else if (diseaseType !== otherDisease.disease_type) {
+        // Check if existing description contains zoonotic keywords
+        const description = otherDisease.description || "";
+        const zoonoticKeywords = [
+          "avian influenza", "bird flu", "rabies", "anthrax", "leptospirosis",
+          "q fever", "rift valley fever", "brucellosis", "salmonella"
+        ];
+        const hasZoonoticInDescription = zoonoticKeywords.some(keyword => 
+          description.toLowerCase().includes(keyword)
+        );
+        
+        // If description has zoonotic diseases, prefer zoonotic
+        const finalDiseaseType = hasZoonoticInDescription ? "zoonotic" : diseaseType;
+        
+        // Update disease_type if we detected/inferred a different type
+        // Prefer more specific types: zoonotic > veterinary > human
+        const typePriority: Record<"human" | "veterinary" | "zoonotic", number> = {
+          human: 1,
+          veterinary: 2,
+          zoonotic: 3,
+        };
+        
+        const currentPriority = typePriority[otherDisease.disease_type as "human" | "veterinary" | "zoonotic"] || 1;
+        const newPriority = typePriority[finalDiseaseType];
+        
+        // Only update if the new type is more specific (higher priority)
+        if (newPriority > currentPriority) {
+          await supabase
+            .from("diseases")
+            .update({ disease_type: finalDiseaseType })
+            .eq("id", otherDisease.id);
+          otherDisease.disease_type = finalDiseaseType;
+        }
       }
       
       // Update description if we have a detected disease name
@@ -572,30 +635,81 @@ export async function storeArticlesAndSignals({
     .from("news_sources")
     .select("id, name");
 
+  // Create a mapping of article source names to database source names for better matching
+  // This handles abbreviations and variations
+  const sourceMapping: Record<string, string[]> = {
+    "who": ["who - world health organization", "world health organization"],
+    "cdc": ["cdc - centers for disease control", "centers for disease control"],
+    "bbc health": ["bbc health"],
+    "promed-mail": ["promed-mail", "promed mail"],
+    "google news": ["google news"],
+    "reuters health": ["reuters health", "reuters"],
+  };
+
   for (const article of matchedArticles) {
     const countryInfo = getCountryInfo(article.location?.country ?? "");
 
     // Match source first (needed for storing article regardless of location)
+    const articleSource = (article.source as string).toLowerCase().trim();
     let source = sources?.find((s: any) => {
-      const sourceLower = (article.source as string).toLowerCase();
-      const dbNameLower = s.name.toLowerCase();
-      return (
-        dbNameLower.includes(sourceLower) ||
-        sourceLower.includes(dbNameLower.split(" ")[0])
-      );
+      const dbNameLower = s.name.toLowerCase().trim();
+      
+      // Check exact match first
+      if (dbNameLower === articleSource) {
+        return true;
+      }
+      
+      // Check if database name contains article source (e.g., "CDC - Centers..." contains "cdc")
+      if (dbNameLower.includes(articleSource)) {
+        return true;
+      }
+      
+      // Check if article source contains first word of database name
+      const dbFirstWord = dbNameLower.split(" ")[0];
+      if (articleSource.includes(dbFirstWord) && dbFirstWord.length > 2) {
+        return true;
+      }
+      
+      // Use source mapping for known abbreviations
+      const mappedNames = sourceMapping[articleSource];
+      if (mappedNames) {
+        return mappedNames.some(mapped => dbNameLower.includes(mapped) || mapped.includes(dbNameLower));
+      }
+      
+      // Handle WHO specifically (common abbreviation)
+      if (articleSource === "who" && dbNameLower.includes("world health")) {
+        return true;
+      }
+      
+      // Handle CDC specifically
+      if (articleSource === "cdc" && dbNameLower.includes("centers for disease control")) {
+        return true;
+      }
+      
+      return false;
     });
 
     // if no source, fallback to a source named "Unknown"
     if (!source) {
+      console.warn(`Source not found for article source: "${article.source}" (article title: ${article.title.substring(0, 50)})`);
       source = sources?.find((s: any) =>
         s.name.toLowerCase().includes("unknown")
       );
+      if (source) {
+        console.log(`Using "Unknown" source as fallback for "${article.source}"`);
+      }
     }
 
     // if still no source, skip the article
     if (!source) {
+      console.error(`No source found and no "Unknown" source available. Skipping article: ${article.title.substring(0, 50)}`);
       skippedNoSource++;
       continue;
+    }
+    
+    // Log successful source matching for debugging (only for non-Google News to reduce noise)
+    if (article.source !== "Google News") {
+      console.log(`[SOURCE MATCH] Matched source "${article.source}" to database source "${source.name}" for article: "${article.title.substring(0, 60)}"`);
     }
 
     // Geocode city if available (only if we have country info)
@@ -638,44 +752,59 @@ export async function storeArticlesAndSignals({
 
     // Store article regardless of whether it has location or not
     // Articles without locations will appear in news section but won't create signals
+    const articleData = {
+      source_id: source.id,
+      title: article.title,
+      content: article.content,
+      url: article.url,
+      published_at: article.publishedAt,
+      location_extracted: countryInfo
+        ? {
+            country: countryInfo.country,
+            city: article.location?.city,
+            lat: cityCoords ? cityCoords[0] : countryInfo.latitude,
+            lng: cityCoords ? cityCoords[1] : countryInfo.longitude,
+          }
+        : null,
+      diseases_mentioned: article.diseases,
+      sentiment_score: -0.5,
+      is_verified: false,
+    };
+    
+    // Store article using upsert (will update if URL already exists)
+    // This ensures that if an authoritative source article comes in with the same URL as a Google News article,
+    // the source_id will be updated to the authoritative source
     const { data: newsArticle, error: articleError } = await supabase
       .from("news_articles")
-      .upsert(
-        {
-          source_id: source.id,
-          title: article.title,
-          content: article.content,
-          url: article.url,
-          published_at: article.publishedAt,
-          location_extracted: countryInfo
-            ? {
-                country: countryInfo.country,
-                city: article.location?.city,
-                lat: cityCoords ? cityCoords[0] : countryInfo.latitude,
-                lng: cityCoords ? cityCoords[1] : countryInfo.longitude,
-              }
-            : null,
-          diseases_mentioned: article.diseases,
-          sentiment_score: -0.5,
-          is_verified: false,
-        },
-        { onConflict: "url", ignoreDuplicates: false }
-      )
+      .upsert(articleData, { onConflict: "url", ignoreDuplicates: false })
       .select()
       .maybeSingle();
 
     if (articleError) {
-      console.error(`Error storing article: ${articleError.message}`);
+      console.error(`[ERROR] Error storing article from "${article.source}": ${articleError.message}`);
+      console.error(`[ERROR] Article title: ${article.title.substring(0, 60)}`);
+      console.error(`[ERROR] Article URL: ${article.url}`);
+      console.error(`[ERROR] Full error:`, articleError);
       continue;
     }
 
-    if (!newsArticle || articleError) {
+    if (!newsArticle) {
       console.error(
-        `Error storing article: ${
-          articleError || "Unknown error, no news article returned"
-        }`
+        `[ERROR] No article returned after upsert for "${article.source}": "${article.title.substring(0, 60)}"`
       );
+      console.error(`[ERROR] URL: ${article.url}`);
       continue;
+    }
+    
+    // Verify source_id was set correctly and log for authoritative sources
+    if (article.source !== "Google News") {
+      const sourceMatches = newsArticle.source_id === source.id;
+      if (sourceMatches) {
+        console.log(`[STORED] Successfully stored ${article.source} article: "${article.title.substring(0, 60)}" (ID: ${newsArticle.id})`);
+      } else {
+        console.warn(`[WARNING] Source mismatch for ${article.source} article: expected source_id ${source.id}, got ${newsArticle.source_id}`);
+        console.warn(`[WARNING] Article: "${article.title.substring(0, 60)}" (URL: ${article.url})`);
+      }
     }
 
     // Track articles without location for reporting
@@ -725,7 +854,7 @@ export async function storeArticlesAndSignals({
             .eq("city", normalizedCityForCheck)
             .gte(
               "detected_at",
-              new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+              new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
             )
             .maybeSingle();
           
@@ -740,6 +869,7 @@ export async function storeArticlesAndSignals({
           // If no exact city match, we can create a new signal (even if country-level signal exists)
         } else {
           // For country-level data: check for any duplicate (same disease + country)
+          // Reduced from 7 days to 2 days to allow new signals for ongoing outbreaks
           const { data: countryMatch } = await supabase
             .from("outbreak_signals")
             .select("id, city, latitude, longitude")
@@ -747,7 +877,7 @@ export async function storeArticlesAndSignals({
             .eq("country_id", dbCountry.id)
             .gte(
               "detected_at",
-              new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+              new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
             )
             .maybeSingle();
           
@@ -775,7 +905,8 @@ export async function storeArticlesAndSignals({
             : article.confidence_score && article.confidence_score > 0.6
             ? "medium"
             : "low";
-        const caseCount = article.case_count_mentioned ?? 0;
+        const caseCount = article.case_count_mentioned ?? null;
+        const mortalityCount = article.mortality_count_mentioned ?? null;
 
         // Use city coordinates if available, otherwise fallback to country coordinates
         // Note: countryInfo is guaranteed to exist here because we're inside the dbCountry check
@@ -797,6 +928,7 @@ export async function storeArticlesAndSignals({
           longitude: finalLongitude,
           confidence_score: article.confidence_score ?? 0.5,
           case_count_mentioned: caseCount,
+          mortality_count_mentioned: mortalityCount,
           severity_assessment: severity,
           is_new_outbreak: true,
           detected_at: article.publishedAt,

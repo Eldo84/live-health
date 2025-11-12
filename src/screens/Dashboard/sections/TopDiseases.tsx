@@ -51,43 +51,45 @@ export const TopDiseases = ({ timeRange, searchQuery = "" }: TopDiseasesProps): 
           Ranked by current case count
         </p>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent>
         {loading ? (
-          <div className="flex items-center justify-center py-8">
+          <div className="flex items-center justify-center h-[350px]">
             <Loader2 className="w-6 h-6 text-[#66dbe1] animate-spin" />
           </div>
         ) : filteredDiseases.length === 0 ? (
-          <div className="flex items-center justify-center py-8">
+          <div className="flex items-center justify-center h-[350px]">
             <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm">
               {searchQuery ? `No diseases found for "${searchQuery}"` : "No disease data available"}
             </p>
           </div>
         ) : (
-          filteredDiseases.map((disease, index) => (
-            <div key={index} className="flex items-center justify-between pb-4 border-b border-[#ffffff1a] last:border-0 last:pb-0">
-              <div className="flex items-center gap-3 flex-1">
-                <div className="w-2 h-12 rounded-full" style={{ backgroundColor: disease.color }} />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-sm">
-                      {disease.name}
-                    </span>
-                    <Badge className={`${severityConfig[disease.severity].bg} ${severityConfig[disease.severity].text} border-0 text-xs`}>
-                      {severityConfig[disease.severity].label}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="[font-family:'Roboto',Helvetica] font-medium text-[#ebebeb99] text-xs">
-                      {disease.cases.toLocaleString()} cases
-                    </span>
-                    <span className={`[font-family:'Roboto',Helvetica] font-medium text-xs ${disease.growth.startsWith('+') ? 'text-[#f87171]' : 'text-[#4ade80]'}`}>
-                      {disease.growth}
-                    </span>
+          <div className="space-y-3 max-h-[350px] overflow-y-auto">
+            {filteredDiseases.slice(0, 6).map((disease, index) => (
+              <div key={index} className="flex items-center justify-between pb-3 border-b border-[#ffffff1a] last:border-0 last:pb-0">
+                <div className="flex items-center gap-3 flex-1">
+                  <div className="w-2 h-10 rounded-full" style={{ backgroundColor: disease.color }} />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-sm">
+                        {disease.name}
+                      </span>
+                      <Badge className={`${severityConfig[disease.severity].bg} ${severityConfig[disease.severity].text} border-0 text-xs`}>
+                        {severityConfig[disease.severity].label}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="[font-family:'Roboto',Helvetica] font-medium text-[#ebebeb99] text-xs">
+                        {disease.cases.toLocaleString()} cases
+                      </span>
+                      <span className={`[font-family:'Roboto',Helvetica] font-medium text-xs ${disease.growth.startsWith('+') ? 'text-[#f87171]' : 'text-[#4ade80]'}`}>
+                        {disease.growth}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))
+            ))}
+          </div>
         )}
       </CardContent>
     </Card>

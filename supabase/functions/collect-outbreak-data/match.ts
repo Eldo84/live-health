@@ -44,7 +44,7 @@ CRITICAL MATCHING RULES:
 5. Match diseases by checking the spreadsheets - use the Disease names and Keywords columns to find matches
 6. Create signals for ALL disease outbreaks (human, veterinary, and zoonotic) - the frontend will filter them
 
-The user will provide a json array of news report titles and their ids (eg. "1 => New York Times: COVID-19 outbreak in New York"), which you need to classify into outbreak signals.
+The user will provide a json array of news reports with their ids, titles, and content (eg. "1 => Title: COVID-19 outbreak in New York | Content: [article content]"), which you need to classify into outbreak signals.
 Outbreak signals are signals that indicate a new outbreak of a disease in a specific country and/or city.
 Each news report should be classified into one or more outbreak signals, depending on the locations mentioned in the news report.
 
@@ -54,6 +54,11 @@ IMPORTANT: If the news report mentions a disease that is NOT in either CSV, you 
 
 If a news report mentions mulitple countries or cities, you should create multiple outbreak signals, one for each country or city. With the same id as the news report.
 
+CRITICAL: You MUST extract numerical data from the article CONTENT, not just the title. Look for:
+- Case counts: numbers followed by words like "cases", "infected", "sickened", "hospitalized", "affected"
+- Deaths/mortality: numbers followed by words like "deaths", "died", "fatalities", "mortality", "killed"
+- Extract the actual numbers mentioned in the article content. If no numbers are mentioned, use null.
+
 You are required to match the following fields for each news report:
 - id: string - the same id of the news report from the user's input array. This field is required.
 - diseases: string[] - the diseases that the news report matches from the "Disease" (first) column of the CSV content above. If the disease mentioned is NOT in the CSV, use "OTHER" but try to identify the actual disease name mentioned. This field is required.
@@ -61,7 +66,8 @@ You are required to match the following fields for each news report:
 - disease_type: string - OPTIONAL field. If you can determine the disease type, provide "human", "veterinary", or "zoonotic". If unsure, omit this field and it will be determined from spreadsheet matching. This field is optional.
 - country: string - a valid country name from the countries list below. Try to find the most relevant country for the news report. If you cannot determine the country (even from the news provider), you may set this to "null". This field should be a valid country name from the countries list below, or "null" if no country can be determined.
 - city: string - the city/state/province of the outbreak, if any. Even if the news report doesn't mention a city, you should try to find the most relevant city for the news report. If you can't find a city, you should set the city to null. This field is optional.
-- case_count_mentioned: number - the number of cases mentioned in the news report. If the news report doesn't mention a number of cases, you should set the case_count_mentioned to null. This field is optional.
+- case_count_mentioned: number - the number of cases mentioned in the news report CONTENT. Extract this from the article body, not just the title. Look for phrases like "X cases", "X people infected", "X hospitalized". If the news report doesn't mention a number of cases, you should set the case_count_mentioned to null. This field is optional.
+- mortality_count_mentioned: number - the number of deaths/mortalities mentioned in the news report CONTENT. Extract this from the article body. Look for phrases like "X deaths", "X died", "X fatalities", "X killed". If the news report doesn't mention deaths, you should set the mortality_count_mentioned to null. This field is optional.
 - confidence_score: number - the confidence score for the match, between 0 and 1. This field is required.
 
 Countries list:
@@ -72,17 +78,20 @@ ${JSON.stringify(getAllCountryNames())}
 The response should be a valid json array (wrapped in square brackets) of outbreak signals formatted in a long string with "=>" as a separator.
 
 The format should be:
-"id => diseases ( | separated) => detected_disease_name => disease_type => country => city => case_count_mentioned => confidence_score"
+"id => diseases ( | separated) => detected_disease_name => disease_type => country => city => case_count_mentioned => mortality_count_mentioned => confidence_score"
 
 If detected_disease_name is not applicable (disease is in CSV), use "null" for that field.
 If disease_type cannot be determined, use "null" for that field (it will be determined from spreadsheet matching).
+If case_count_mentioned is not mentioned in the article, use "null" for that field.
+If mortality_count_mentioned is not mentioned in the article, use "null" for that field.
 
 Example:
 [
-"1 => COVID-19 | Influenza => null => human => United States => New York => 100 => 0.5",
-"2 => Rabies => null => zoonotic => United Kingdom => null => null => 0.8",
-"3 => OTHER => Rift Valley Fever => zoonotic => Senegal => null => 42 => 0.9",
-"4 => OTHER => Goat Plague => veterinary => Uganda => Kikuube District => null => 0.7"
+"1 => COVID-19 | Influenza => null => human => United States => New York => 100 => 5 => 0.5",
+"2 => Rabies => null => zoonotic => United Kingdom => null => null => null => 0.8",
+"3 => OTHER => Rift Valley Fever => zoonotic => Senegal => null => 42 => 3 => 0.9",
+"4 => OTHER => Goat Plague => veterinary => Uganda => Kikuube District => null => null => 0.7",
+"5 => Dengue => null => human => Bangladesh => Dhaka => 310 => 310 => 0.95"
 ]
 
 `;
@@ -97,12 +106,25 @@ export async function deepseekMatchArticles(opts: {
     loadVeterinaryDiseaseCSV(),
   ]);
 
+  // Prepare article data with title and content (limit content to 2000 chars to avoid token limits)
+  // Strip HTML tags and clean up whitespace for better AI processing
+  const articleData = articles.map((a) => {
+    let contentPreview = a.content || "";
+    // Remove HTML tags
+    contentPreview = contentPreview.replace(/<[^>]*>/g, " ");
+    // Replace multiple spaces/newlines with single space
+    contentPreview = contentPreview.replace(/\s+/g, " ").trim();
+    // Limit to 2000 characters
+    contentPreview = contentPreview.substring(0, 2000);
+    return `${a.id} => Title: ${a.title} | Content: ${contentPreview || "No content available"}`;
+  });
+
   const completion = await openai.chat.completions.create({
     messages: [
       { role: "system", content: generateSystemPrompt(humanDiseaseCSV, veterinaryDiseaseCSV) },
       {
         role: "user",
-        content: JSON.stringify(articles.map((a) => `${a.id} => ${a.title}`)),
+        content: JSON.stringify(articleData),
       },
     ],
     model: "deepseek-chat",
@@ -140,8 +162,8 @@ export async function deepseekMatchArticles(opts: {
     .filter((match) => typeof match === "string") // Only process string matches
     .map((match) => {
       const parts = match.split(" => ");
-      // Handle both old format (6 parts) and new format (7 parts with detected_disease_name)
-      // Parse fields: id => diseases => detected_disease_name => disease_type => country => city => case_count_mentioned => confidence_score
+      // Parse fields: id => diseases => detected_disease_name => disease_type => country => city => case_count_mentioned => mortality_count_mentioned => confidence_score
+      // Handle different formats for backward compatibility
       const [
         id,
         diseases,
@@ -150,12 +172,15 @@ export async function deepseekMatchArticles(opts: {
         country,
         city,
         case_count_mentioned,
+        mortality_count_mentioned,
         confidence_score,
-      ] = parts.length === 8 
-        ? parts 
+      ] = parts.length === 9 
+        ? parts // New format with mortality_count_mentioned
+        : parts.length === 8
+        ? [...parts.slice(0, 7), null, parts[7]] // Old format without mortality (add null for mortality)
         : parts.length === 7
-        ? [parts[0], parts[1], null, null, parts[2], parts[3], parts[4], parts[5]] // Old format without disease_type
-        : [parts[0], parts[1], null, null, parts[2], parts[3], parts[4], parts[5]]; // Fallback
+        ? [parts[0], parts[1], null, null, parts[2], parts[3], parts[4], null, parts[5]] // Very old format
+        : [parts[0], parts[1], null, null, parts[2], parts[3], parts[4], null, parts[5]]; // Fallback
 
       const article = articles.find(
         (a) => id && a.id && a.id.toString() === id.toString()
@@ -208,8 +233,11 @@ export async function deepseekMatchArticles(opts: {
         diseases: diseasesArray,
         detected_disease_name: normalizedDetectedDisease,
         disease_type: normalizedDiseaseType,
-        case_count_mentioned: case_count_mentioned
+        case_count_mentioned: case_count_mentioned && case_count_mentioned !== "null"
           ? parseInt(case_count_mentioned)
+          : undefined,
+        mortality_count_mentioned: mortality_count_mentioned && mortality_count_mentioned !== "null"
+          ? parseInt(mortality_count_mentioned)
           : undefined,
         confidence_score: confidence_score ? parseFloat(confidence_score) : 0.5,
       };

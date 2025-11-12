@@ -284,4 +284,68 @@
   .leaflet-marker-icon.leaflet-zoom-animated {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease !important;
   }
+
+  /* Custom popup styling for dashboard map */
+  .custom-popup .leaflet-popup-content-wrapper {
+    background: #ffffff;
+    border-radius: 8px;
+    padding: 0;
+  }
+
+  .custom-popup .leaflet-popup-content {
+    margin: 12px;
+    min-width: 180px;
+  }
+
+  .custom-popup .leaflet-popup-tip {
+    background: #ffffff;
+  }
+
+  /* Fix for popup scrolling - prevent scroll events from affecting map */
+  .leaflet-popup-content-wrapper {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .leaflet-popup-content {
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .popup-scrollable {
+    overscroll-behavior: contain !important;
+    -webkit-overflow-scrolling: touch !important;
+    scroll-behavior: smooth;
+  }
+
+  /* Prevent map interactions when interacting with popup content */
+  .leaflet-popup-content-wrapper * {
+    pointer-events: auto;
+  }
+
+  /* Ensure scrollable popup content doesn't trigger map pan */
+  .leaflet-popup-content-wrapper .popup-scrollable,
+  .leaflet-popup-content .popup-scrollable {
+    touch-action: pan-y;
+    -ms-touch-action: pan-y;
+  }
+
+  /* Custom scrollbar for popup scrollable areas */
+  .popup-scrollable::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .popup-scrollable::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+  }
+
+  .popup-scrollable::-webkit-scrollbar-thumb {
+    background: rgba(103, 219, 226, 0.4);
+    border-radius: 3px;
+  }
+
+  .popup-scrollable::-webkit-scrollbar-thumb:hover {
+    background: rgba(103, 219, 226, 0.6);
+  }
 }

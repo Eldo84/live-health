@@ -86,7 +86,7 @@ export function useDashboardDiseases(timeRange: string) {
 
         currentData.forEach((signal: any) => {
           const disease = Array.isArray(signal.diseases) ? signal.diseases[0] : signal.diseases;
-          if (!disease || !disease.disease_id) return;
+          if (!disease || !signal.disease_id || !disease.name) return;
           
           const diseaseId = signal.disease_id;
           const cases = signal.case_count_mentioned || 0;

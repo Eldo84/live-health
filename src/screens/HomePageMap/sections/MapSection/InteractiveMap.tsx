@@ -6,6 +6,7 @@ import { useSupabaseOutbreakSignals, OutbreakSignal } from "../../../../lib/useS
 import { FilterState } from "../FilterPanel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "../../../../components/ui/dialog";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "../../../../components/ui/collapsible";
+import { useHealthMinistry, extractCountryFromLocation } from "../../../../lib/useHealthMinistry";
 
 const ZoomHandler = ({ onZoomChange }: { onZoomChange: (zoom: number) => void }) => {
   const map = useMap();
@@ -569,6 +570,109 @@ const MapTileLayer = ({ mapType }: { mapType: MapType }) => {
   );
 };
 
+// Component to display health ministry contact info (reusable)
+const HealthMinistryContact = ({ ministry, loading }: { ministry: any; loading: boolean }) => {
+  if (loading) {
+    return (
+      <div className="mt-3 pt-3 border-t border-[#67DBE2]/20">
+        {/* <div className="text-xs text-white/60">Loading contact info...</div> */}
+      </div>
+    );
+  }
+  
+  if (!ministry) return null;
+  
+  return (
+    // <div className="mt-3 pt-3 border-t border-[#67DBE2]/20">
+    //   <div className="text-xs font-semibold text-[#67DBE2] mb-1">Health Ministry Contact</div>
+    //   <div className="text-xs text-white/90">{ministry.ministry_name}</div>
+    //   {ministry.phone_number && (
+    //     <div className="text-xs text-white/80 mt-1">
+    //       <strong>Phone:</strong> <a href={`tel:${ministry.phone_number}`} className="text-[#67DBE2] hover:underline">{ministry.phone_number}</a>
+    //     </div>
+    //   )}
+    //   {ministry.email_address && (
+    //     <div className="text-xs text-white/80 mt-1">
+    //       <strong>Email:</strong> <a href={`mailto:${ministry.email_address}`} className="text-[#67DBE2] hover:underline break-all">{ministry.email_address}</a>
+    //     </div>
+    //   )}
+    // </div>
+
+  <div>
+
+  </div>
+  );
+};
+
+// Component for collapsible diseases list
+const CollapsibleDiseasesList = ({ diseases }: { diseases: string[] }) => {
+  const [showAllDiseases, setShowAllDiseases] = React.useState(false);
+  const displayDiseases = showAllDiseases ? diseases : diseases.slice(0, 3);
+  const hasMore = diseases.length > 3;
+  
+  if (diseases.length === 0) return null;
+  
+  return (
+    <div className="text-[10px] mb-1">
+      <strong>Diseases ({diseases.length}):</strong>{' '}
+      <span className="text-white/80">
+        {displayDiseases.join(', ')}
+        {hasMore && !showAllDiseases && '...'}
+      </span>
+      {hasMore && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowAllDiseases(!showAllDiseases);
+          }}
+          className="ml-1 text-[#67DBE2] hover:underline text-[10px]"
+        >
+          {showAllDiseases ? 'show less' : 'show all'}
+        </button>
+      )}
+    </div>
+  );
+};
+
+// Component for grouped outbreaks health ministry
+const GroupedOutbreakHealthMinistry = ({ countryName }: { countryName: string }) => {
+  const { ministry, loading } = useHealthMinistry(countryName);
+  return <HealthMinistryContact ministry={ministry} loading={loading} />;
+};
+
+// Component to display outbreak popup content with health ministry contact info
+const OutbreakPopupContent = ({ outbreak }: { outbreak: OutbreakSignal | any }) => {
+  const countryName = extractCountryFromLocation(outbreak.location);
+  const { ministry, loading } = useHealthMinistry(countryName);
+  
+  return (
+    <div className="p-2 min-w-[200px]">
+      <div className="mb-1 font-semibold">{outbreak.disease}</div>
+      <div className="text-xs">
+        <strong>Location:</strong> {outbreak.location}
+        {outbreak.city && (
+          <span className="ml-1 px-1.5 py-0.5 bg-[#67DBE2]/20 text-[#67DBE2] rounded text-[10px] font-medium">
+            City-Level
+          </span>
+        )}
+      </div>
+      <div className="text-xs"><strong>Category:</strong> {outbreak.category}</div>
+      {(outbreak as OutbreakSignal).source && (
+        <div className="text-xs"><strong>Source:</strong> <span className="text-[#67DBE2]">{(outbreak as OutbreakSignal).source}</span></div>
+      )}
+      <div className="text-xs"><strong>Date:</strong> {outbreak.date ? new Date(outbreak.date).toLocaleDateString() : 'N/A'}</div>
+      {outbreak.url && (
+        <a href={outbreak.url} target="_blank" rel="noopener noreferrer" className="text-xs text-[#67DBE2] hover:underline mt-1 block">
+          Read article →
+        </a>
+      )}
+      
+      {/* Health Ministry Contact Information */}
+      <HealthMinistryContact ministry={ministry} loading={loading && !!countryName} />
+    </div>
+  );
+};
+
 interface InteractiveMapProps {
   filters?: FilterState | null;
   isFullscreen?: boolean;
@@ -648,6 +752,40 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
     }
   }, [signals.length, zoomTarget, isUserLocation]);
 
+  // Prevent map interactions when scrolling inside Leaflet popups
+  React.useEffect(() => {
+    const handleWheel = (e: WheelEvent) => {
+      // Check if the event target is inside a Leaflet popup
+      const target = e.target as HTMLElement;
+      if (target.closest('.leaflet-popup-content-wrapper') || 
+          target.closest('.popup-scrollable') ||
+          target.closest('.leaflet-popup')) {
+        // Stop the event from propagating to the map
+        e.stopPropagation();
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      // Check if the event target is inside a Leaflet popup
+      const target = e.target as HTMLElement;
+      if (target.closest('.leaflet-popup-content-wrapper') || 
+          target.closest('.popup-scrollable') ||
+          target.closest('.leaflet-popup')) {
+        // Stop the event from propagating to the map
+        e.stopPropagation();
+      }
+    };
+
+    // Use capture phase to catch events before they reach the map
+    document.addEventListener('wheel', handleWheel, { capture: true, passive: false });
+    document.addEventListener('touchmove', handleTouchMove, { capture: true, passive: false });
+
+    return () => {
+      document.removeEventListener('wheel', handleWheel, { capture: true });
+      document.removeEventListener('touchmove', handleTouchMove, { capture: true });
+    };
+  }, []);
+
   // Transform signals to points format (for compatibility with existing code)
   const points = signals.map(s => ({
     id: s.id,
@@ -673,41 +811,90 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
     "Sexually Transmitted Infections": "#ec4899",
     "Vaccine-Preventable Diseases": "#3b82f6",
     "Emerging Infectious Diseases": "#f59e0b",
+    "Veterinary Outbreaks": "#8b5cf6",
+    "Neurological Outbreaks": "#dc2626", // Different red shade to distinguish from Healthcare-Associated Infections
+    "Respiratory Outbreaks": "#9333ea", // Different purple shade to distinguish from Airborne Outbreaks
     "Other": "#4eb7bd"
   };
 
-  // Normalize category name to match legend colors (case-insensitive, trim whitespace)
+  // Category name mappings for variations and composite categories
+  const CATEGORY_MAPPINGS: Record<string, string> = {
+    "veterinary outbreak": "Veterinary Outbreaks",
+    "veterinary outbreaks": "Veterinary Outbreaks",
+    "emerging & re-emerging disease outbreaks": "Emerging Infectious Diseases",
+    "emerging and re-emerging disease outbreaks": "Emerging Infectious Diseases",
+  };
+
+  // Normalize category name to match legend colors
+  // Handles composite categories (comma-separated), case variations, and mappings
   const normalizeCategoryName = (category: string | null | undefined): string => {
     if (!category) return "Other";
-    const normalized = category.trim();
-    // Try exact match first
+    
+    let normalized = category.trim();
+    
+    // Handle composite categories (e.g., "Foodborne Outbreaks, Waterborne Outbreaks")
+    // Extract the first category from comma-separated list
+    if (normalized.includes(',')) {
+      const firstCategory = normalized.split(',')[0].trim();
+      normalized = firstCategory;
+    }
+    
+    // Check exact match first
     if (CATEGORY_COLORS[normalized]) return normalized;
-    // Try case-insensitive match
+    
+    // Check case-insensitive match
     const lower = normalized.toLowerCase();
     for (const key in CATEGORY_COLORS) {
       if (key.toLowerCase() === lower) return key;
     }
+    
+    // Check category mappings (handles variations like "veterinary outbreak" -> "Veterinary Outbreaks")
+    if (CATEGORY_MAPPINGS[lower]) {
+      return CATEGORY_MAPPINGS[lower];
+    }
+    
+    // Try partial matching for composite categories that might contain known categories
+    // e.g., "Foodborne Outbreaks, Neurological Outbreaks" -> try to find "Foodborne Outbreaks" or "Neurological Outbreaks"
+    for (const key in CATEGORY_COLORS) {
+      if (lower.includes(key.toLowerCase()) || key.toLowerCase().includes(lower)) {
+        return key;
+      }
+    }
+    
+    // For composite categories, try to extract any known category name
+    const allCategoryNames = Object.keys(CATEGORY_COLORS);
+    for (const knownCategory of allCategoryNames) {
+      if (category.toLowerCase().includes(knownCategory.toLowerCase())) {
+        return knownCategory;
+      }
+    }
+    
     // Return original if no match found
     return normalized;
   };
 
   // Get color for a category, with fallback
+  // Uses database color if available, otherwise uses hardcoded colors
   const getCategoryColor = (category: string | null | undefined): string => {
+    if (!category) return CATEGORY_COLORS["Other"];
+    
     const normalized = normalizeCategoryName(category);
     const color = CATEGORY_COLORS[normalized] || CATEGORY_COLORS["Other"];
-    // Debug: log if using fallback color
-    if (!CATEGORY_COLORS[normalized] && category && category !== "Other") {
+    
+    // Debug: log if using fallback color (only in development)
+    if (!CATEGORY_COLORS[normalized] && category && category !== "Other" && process.env.NODE_ENV === 'development') {
       console.warn(`Category "${category}" (normalized: "${normalized}") not found in legend colors, using fallback color`);
     }
+    
     return color;
   };
 
   // Get severity color based on outbreak count
-  // Low: < 20 (green), Medium: 20-99 (yellow), High: >= 100 (red)
+  // Low: < 10 (green), Medium: >= 10 and < 50 (yellow), High: >= 50 (red)
   const getSeverityColor = (outbreakCount: number): string => {
-    if (outbreakCount >= 100) {
+    if (outbreakCount >= 50) {
       return "#ef4444"; // High severity - red
-    } else if (outbreakCount >= 20) {
+    } else if (outbreakCount >= 10) {
       return "#fbbf24"; // Medium severity - yellow
     } else {
       return "#10b981"; // Low severity - green
@@ -1307,26 +1494,7 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
                       </div>
                     </Tooltip>
                     <Popup>
-                      <div className="p-2 min-w-[200px]">
-                        <div className="mb-1 font-semibold">{outbreak.disease}</div>
-                        <div className="text-xs">
-                          <strong>Location:</strong> {outbreak.location}
-                          {outbreak.city && (
-                            <span className="ml-1 px-1.5 py-0.5 bg-[#67DBE2]/20 text-[#67DBE2] rounded text-[10px] font-medium">
-                              City-Level
-                            </span>
-                          )}
-                        </div>
-                        <div className="text-xs"><strong>Category:</strong> {outbreak.category}</div>
-                        {outbreak.source && (
-                          <div className="text-xs"><strong>Source:</strong> <span className="text-[#67DBE2]">{outbreak.source}</span></div>
-                        )}
-                        {outbreak.url && (
-                          <a href={outbreak.url} target="_blank" rel="noopener noreferrer" className="text-xs text-[#67DBE2] hover:underline mt-1 block">
-                            Read article →
-                          </a>
-                        )}
-                      </div>
+                      <OutbreakPopupContent outbreak={outbreak} />
                     </Popup>
                   </Marker>
                 );
@@ -1512,27 +1680,7 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
                           </div>
                         </Tooltip>
                         <Popup>
-                          <div className="p-2 min-w-[200px]">
-                            <div className="mb-1 font-semibold">{outbreak.disease}</div>
-                            <div className="text-xs">
-                              <strong>Location:</strong> {locationName}
-                              {isCityLevel && (
-                                <span className="ml-2 px-2 py-1 bg-[#67DBE2]/20 text-[#67DBE2] rounded text-xs font-medium">
-                                  City-Level
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-xs"><strong>Category:</strong> {outbreak.category}</div>
-                            {(outbreak as OutbreakSignal).source && (
-                              <div className="text-xs"><strong>Source:</strong> <span className="text-[#67DBE2]">{(outbreak as OutbreakSignal).source}</span></div>
-                            )}
-                            <div className="text-xs"><strong>Date:</strong> {outbreak.date ? new Date(outbreak.date).toLocaleDateString() : 'N/A'}</div>
-                            {outbreak.url && (
-                              <a href={outbreak.url} target="_blank" rel="noopener noreferrer" className="text-xs text-[#67DBE2] hover:underline mt-1 block">
-                                Read article →
-                              </a>
-                            )}
-                          </div>
+                          <OutbreakPopupContent outbreak={outbreak} />
                         </Popup>
                       </Marker>
                     );
@@ -1571,39 +1719,74 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
                           <div className="text-xs"><strong>Categories:</strong> {uniqueCategories.slice(0, 3).join(', ')}{uniqueCategories.length > 3 ? '...' : ''}</div>
                         </div>
                       </Tooltip>
-                      <Popup>
-                        <div className="p-2 min-w-[200px] max-h-[400px] overflow-y-auto">
-                          <div className="mb-2 font-semibold text-base">
-                            {locationName}
-                            {isCityLevel && (
-                              <span className="ml-2 px-2 py-1 bg-[#67DBE2]/20 text-[#67DBE2] rounded text-xs font-medium">
-                                City-Level Outbreak
-                              </span>
-                            )}
+                      <Popup closeOnClick={false} autoClose={false}>
+                        <div 
+                          className="p-1.5 min-w-[200px] max-h-[400px] flex flex-col"
+                          onMouseDown={(e) => {
+                            // Prevent map drag when clicking inside popup
+                            e.stopPropagation();
+                          }}
+                        >
+                          {/* Fixed Header Section - Compact */}
+                          <div className="flex-shrink-0 mb-1">
+                            <div className="mb-1 font-semibold text-sm flex items-center gap-1 flex-wrap">
+                              <span>{locationName}</span>
+                              {isCityLevel && (
+                                <span className="px-1.5 py-0.5 bg-[#67DBE2]/20 text-[#67DBE2] rounded text-[10px] font-medium">
+                                  City
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-yellow-400 mb-1">
+                              ⚠ {totalCount} outbreak{totalCount !== 1 ? 's' : ''}
+                            </div>
+                            <CollapsibleDiseasesList diseases={uniqueDiseases} />
                           </div>
-                          <div className="text-xs text-yellow-400 mb-3">
-                            <strong>⚠ {totalCount} total outbreak{totalCount !== 1 ? 's' : ''} at this location</strong>
-                          </div>
-                          <div className="text-xs mb-2">
-                            <strong>Diseases ({uniqueDiseases.length}):</strong> {uniqueDiseases.join(', ')}
-                          </div>
-                            <div className="space-y-2 mt-3 border-t border-gray-600 pt-2">
+                          
+                          {/* Scrollable Outbreaks List */}
+                          <div 
+                            className="flex-1 overflow-y-auto popup-scrollable min-h-0 border-t border-gray-600 pt-1.5"
+                            onWheel={(e) => {
+                              // Prevent scroll events from propagating to map
+                              e.stopPropagation();
+                            }}
+                            onTouchMove={(e) => {
+                              // Prevent touch scroll events from propagating to map
+                              e.stopPropagation();
+                            }}
+                            style={{
+                              overscrollBehavior: 'contain',
+                              WebkitOverflowScrolling: 'touch',
+                              maxHeight: '240px',
+                              minHeight: '180px'
+                            }}
+                          >
+                            <div className="space-y-1.5 pr-1">
                               {outbreaks.map((outbreak: OutbreakSignal, idx: number) => (
-                                <div key={idx} className="text-xs border-b border-gray-700 pb-2 last:border-0">
-                                  <div className="font-semibold">{outbreak.disease}</div>
-                                  <div><strong>Location:</strong> {outbreak.location}</div>
-                                  <div><strong>Category:</strong> {outbreak.category}</div>
+                                <div key={idx} className="text-xs border-b border-gray-700 pb-1.5 last:border-0">
+                                  <div className="font-semibold mb-0.5">{outbreak.disease}</div>
+                                  <div className="text-white/70"><strong>Location:</strong> {outbreak.location}</div>
+                                  <div className="text-white/70"><strong>Category:</strong> {outbreak.category}</div>
                                   {outbreak.source && (
-                                    <div><strong>Source:</strong> <span className="text-[#67DBE2]">{outbreak.source}</span></div>
+                                    <div className="text-white/70"><strong>Source:</strong> <span className="text-[#67DBE2]">{outbreak.source}</span></div>
                                   )}
-                                  <div><strong>Date:</strong> {outbreak.date ? new Date(outbreak.date).toLocaleDateString() : 'N/A'}</div>
+                                  <div className="text-white/70"><strong>Date:</strong> {outbreak.date ? new Date(outbreak.date).toLocaleDateString() : 'N/A'}</div>
                                   {outbreak.url && (
-                                    <a href={outbreak.url} target="_blank" rel="noopener noreferrer" className="text-[#67DBE2] hover:underline">
+                                    <a href={outbreak.url} target="_blank" rel="noopener noreferrer" className="text-[#67DBE2] hover:underline text-[11px] mt-0.5 inline-block">
                                     Read article →
                                   </a>
                                 )}
                               </div>
                             ))}
+                            </div>
+                          </div>
+                          
+                          {/* Fixed Health Ministry Contact Section */}
+                          <div className="flex-shrink-0 mt-2 border-t border-gray-600 pt-1.5">
+                            {outbreaks.length > 0 && (() => {
+                              const firstCountry = extractCountryFromLocation(outbreaks[0].location);
+                              return firstCountry ? <GroupedOutbreakHealthMinistry countryName={firstCountry} /> : null;
+                            })()}
                           </div>
                         </div>
                       </Popup>

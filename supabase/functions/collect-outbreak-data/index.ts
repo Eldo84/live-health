@@ -111,6 +111,23 @@ Deno.serve(async (req: Request) => {
     console.log(`Outbreak signals created: ${signalCount}`);
     console.log("========================");
 
+    // Trigger AI prediction generation if new signals were created
+    // Do this asynchronously so it doesn't block the response
+    if (signalCount > 0) {
+      console.log(`Triggering AI prediction generation (${signalCount} new signals detected)...`);
+      // Fire and forget - don't wait for it to complete
+      fetch(`${supabaseUrl}/functions/v1/generate-ai-predictions?refresh=true`, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${supabaseKey}`,
+          "Content-Type": "application/json",
+        },
+      }).catch((err) => {
+        console.error("Failed to trigger prediction generation (non-blocking):", err);
+        // Don't throw - this is a background task
+      });
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -118,6 +135,7 @@ Deno.serve(async (req: Request) => {
         signalsCreated: signalCount,
         totalArticlesFetched: articles.length,
         articlesMatched: matchedArticles.length,
+        predictionsTriggered: signalCount > 0,
       }),
       {
         status: 200,

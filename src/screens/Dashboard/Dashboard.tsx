@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/ui/tabs";
@@ -20,9 +21,28 @@ import { SpreadsheetImport } from "../../components/SpreadsheetImport";
 import { CityExtractionStatus } from "./sections/CityExtractionStatus";
 
 export const Dashboard = (): JSX.Element => {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [timeRange, setTimeRange] = useState("7d");
   const [activeView, setActiveView] = useState("overview");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Read tab from URL parameter and set active view
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (tabParam) {
+      // Validate tab value
+      const validTabs = ["overview", "analytics", "predictions", "categories", "health-index", "data"];
+      if (validTabs.includes(tabParam)) {
+        setActiveView(tabParam);
+      }
+    }
+  }, [searchParams]);
+
+  // Update URL when activeView changes (but not from URL param)
+  const handleTabChange = (value: string) => {
+    setActiveView(value);
+    setSearchParams({ tab: value }, { replace: true });
+  };
 
   return (
     <div className="w-full min-h-screen bg-[#2a4149] p-6">
@@ -84,7 +104,7 @@ export const Dashboard = (): JSX.Element => {
           </div>
         </div>
 
-        <Tabs value={activeView} onValueChange={setActiveView} className="mt-6">
+        <Tabs value={activeView} onValueChange={handleTabChange} className="mt-6">
           <TabsList className="bg-[#ffffff14] border border-[#eaebf024] mb-6">
             <TabsTrigger value="overview" className="data-[state=active]:bg-[#4eb7bd] data-[state=active]:text-white text-[#ebebeb]">
               Overview
@@ -119,8 +139,8 @@ export const Dashboard = (): JSX.Element => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <GlobalHealthMap />
-              <RegionalBreakdown />
+              <GlobalHealthMap timeRange={timeRange} />
+              <RegionalBreakdown timeRange={timeRange} />
             </div>
 
             <CityExtractionStatus />

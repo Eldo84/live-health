@@ -1,7 +1,7 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader } from "../../../components/ui/card";
 import { Badge } from "../../../components/ui/badge";
-import { TrendingUp, MapPin, AlertTriangle } from "lucide-react";
+import { TrendingUp, MapPin, AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 
 interface Prediction {
   disease: string;
@@ -14,59 +14,6 @@ interface Prediction {
   color: string;
 }
 
-const predictions: Prediction[] = [
-  {
-    disease: "Ebola",
-    location: "Democratic Republic of Congo",
-    type: "Case Forecast",
-    prediction: "580 predicted cases in next 7 days",
-    confidence: 87,
-    riskLevel: "critical",
-    targetDate: "Nov 5, 2024",
-    color: "#f87171",
-  },
-  {
-    disease: "Ebola",
-    location: "Kinshasa & Goma",
-    type: "Geographic Spread",
-    prediction: "72% probability of spread to neighboring regions",
-    confidence: 82,
-    riskLevel: "high",
-    targetDate: "Nov 12, 2024",
-    color: "#f87171",
-  },
-  {
-    disease: "Malaria",
-    location: "Nigeria",
-    type: "Risk Assessment",
-    prediction: "High risk level (0.78) due to climate and mosquito density",
-    confidence: 84,
-    riskLevel: "high",
-    targetDate: "Nov 28, 2024",
-    color: "#fbbf24",
-  },
-  {
-    disease: "COVID-19",
-    location: "Brazil",
-    type: "Case Forecast",
-    prediction: "210 predicted cases with 8% growth rate",
-    confidence: 91,
-    riskLevel: "medium",
-    targetDate: "Nov 5, 2024",
-    color: "#66dbe1",
-  },
-  {
-    disease: "Cholera",
-    location: "Yemen",
-    type: "Geographic Spread",
-    prediction: "68% probability of spread to Hodeidah region",
-    confidence: 80,
-    riskLevel: "high",
-    targetDate: "Nov 5, 2024",
-    color: "#a78bfa",
-  },
-];
-
 const riskConfig = {
   critical: { bg: "bg-[#f8717133]", text: "text-[#f87171]", label: "Critical" },
   high: { bg: "bg-[#fbbf2433]", text: "text-[#fbbf24]", label: "High Risk" },
@@ -75,6 +22,66 @@ const riskConfig = {
 };
 
 export const AIPredictions = (): JSX.Element => {
+  const [predictions, setPredictions] = useState<Prediction[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [isCached, setIsCached] = useState(false);
+
+  const fetchPredictions = async (forceRefresh = false) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      if (!supabaseUrl || !supabaseKey) {
+        throw new Error("Missing Supabase configuration");
+      }
+
+      const url = `${supabaseUrl}/functions/v1/generate-ai-predictions${forceRefresh ? '?refresh=true' : ''}`;
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "Authorization": `Bearer ${supabaseKey}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `Failed to fetch predictions: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.error && data.predictions?.length === 0) {
+        // API key not configured - show helpful message
+        setError("AI predictions are not configured. Please set DEEPSEEK_API_KEY in Edge Function secrets.");
+        setPredictions([]);
+        setIsCached(false);
+      } else if (data.predictions && Array.isArray(data.predictions)) {
+        setPredictions(data.predictions);
+        setLastUpdated(new Date());
+        setIsCached(data.cached === true);
+      } else {
+        setPredictions([]);
+        setIsCached(false);
+      }
+    } catch (err) {
+      console.error("Error fetching AI predictions:", err);
+      setError(err instanceof Error ? err.message : "Failed to load predictions");
+      setPredictions([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPredictions();
+  }, []);
+
   return (
     <Card className="bg-[#ffffff14] border-[#eaebf024]">
       <CardHeader className="pb-4">
@@ -85,7 +92,7 @@ export const AIPredictions = (): JSX.Element => {
               AI-Powered Predictions
             </h3>
             <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm mt-1">
-              Machine learning forecasts for outbreak patterns and spread
+              AI-generated predictions updated automatically when new outbreak data is received
             </p>
           </div>
           <div className="flex items-center gap-2 bg-[#66dbe133] px-3 py-2 rounded-lg">
@@ -97,7 +104,74 @@ export const AIPredictions = (): JSX.Element => {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {predictions.map((pred, index) => {
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 text-[#66dbe1] animate-spin mb-4" />
+            <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm mb-2">
+              {isCached ? "Loading predictions..." : "Generating new predictions with DeepSeek..."}
+            </p>
+            {!isCached && (
+              <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb66] text-xs">
+                This may take 15-20 seconds. Predictions are usually pre-generated and load instantly.
+              </p>
+            )}
+          </div>
+        ) : error ? (
+          <div className="p-4 bg-[#f871711a] border border-[#f8717133] rounded-lg">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-[#f87171] mt-0.5 flex-shrink-0" />
+              <div className="flex-1">
+                <h4 className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-sm mb-1">
+                  Unable to Load Predictions
+                </h4>
+                <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb] text-xs leading-relaxed mb-3">
+                  {error}
+                </p>
+                <button
+                  onClick={() => fetchPredictions(false)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-[#66dbe1] hover:bg-[#4eb7bd] text-white rounded-md text-xs font-medium transition-colors"
+                >
+                  <RefreshCw className="w-3 h-3" />
+                  Retry
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : predictions.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12">
+            <AlertTriangle className="w-8 h-8 text-[#ebebeb99] mb-4" />
+            <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm mb-3">
+              No predictions available. This may be due to insufficient outbreak data.
+            </p>
+            <button
+              onClick={() => fetchPredictions(false)}
+              className="flex items-center gap-2 px-4 py-2 bg-[#66dbe1] hover:bg-[#4eb7bd] text-white rounded-md text-sm font-medium transition-colors"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Refresh
+            </button>
+          </div>
+        ) : (
+          <>
+            {lastUpdated && (
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#ffffff1a]">
+                <div className="flex items-center gap-2">
+                  <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-xs">
+                    Last updated: {lastUpdated.toLocaleTimeString()}
+                  </p>
+                </div>
+                <button
+                  onClick={() => fetchPredictions(true)}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-[#ffffff14] hover:bg-[#ffffff24] border border-[#ffffff1a] rounded-md text-xs font-medium text-[#ebebeb] transition-colors"
+                  disabled={loading}
+                  title="Force refresh (bypass cache)"
+                >
+                  <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
+                  {isCached ? 'Refresh' : 'Regenerate'}
+                </button>
+              </div>
+            )}
+            {predictions.map((pred, index) => {
           const config = riskConfig[pred.riskLevel];
           return (
             <div
@@ -144,7 +218,7 @@ export const AIPredictions = (): JSX.Element => {
               <div className="flex items-center justify-between pt-3 border-t border-[#ffffff1a]">
                 <div className="flex items-center gap-2">
                   <span className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-xs">
-                    Model: LSTM-v2.1 / GeoSpatial-v1.5
+                    Model: DeepSeek Chat
                   </span>
                 </div>
                 <div className="[font-family:'Roboto',Helvetica] font-medium text-[#66dbe1] text-xs">
@@ -154,6 +228,8 @@ export const AIPredictions = (): JSX.Element => {
             </div>
           );
         })}
+          </>
+        )}
 
         <div className="mt-6 p-4 bg-[#66dbe11a] border border-[#66dbe133] rounded-lg">
           <div className="flex items-start gap-3">
@@ -163,9 +239,10 @@ export const AIPredictions = (): JSX.Element => {
                 About AI Predictions
               </h4>
               <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb] text-xs leading-relaxed">
-                Our AI models analyze structured and unstructured data from news sources, health reports,
-                and historical outbreak patterns to forecast geographic spread, risk levels, and potential impact.
-                These predictions enable proactive response and preparedness planning.
+                Our AI models powered by DeepSeek automatically analyze recent outbreak signals, disease patterns, and geographic data
+                to generate predictions about case forecasts, geographic spread, and risk assessments. Predictions are automatically
+                regenerated when new outbreak data is collected (every 6 hours) and stored for instant access. This enables proactive
+                response and preparedness planning based on the latest data from the past 30 days.
               </p>
             </div>
           </div>

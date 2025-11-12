@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 interface NewsArticle {
   id: string;
@@ -19,8 +19,8 @@ export const NewsSection = (): JSX.Element => {
   // Fetch news articles function
   const fetchNews = async () => {
     try {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
+      const supabaseKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
 
       if (!supabaseUrl || !supabaseKey) {
         throw new Error("Missing Supabase configuration");
@@ -38,12 +38,17 @@ export const NewsSection = (): JSX.Element => {
       oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
       const oneMonthAgoISO = oneMonthAgo.toISOString();
       
+      // Fetch articles from the last month, sorted by date (newest first)
+      // We fetch a reasonable number to ensure we capture articles from all sources
+      // If CDC publishes a new article today, it will be in the results and sorted by date naturally
       const queryParams = new URLSearchParams();
+      // PostgREST join syntax: news_sources!source_id(name) - returns nested object with source name
       queryParams.set('select', '*,news_sources!source_id(name)');
-      // Filter: only articles published in the last 1 month (PostgREST syntax: column.gte.value)
       queryParams.set('published_at', `gte.${oneMonthAgoISO}`);
-      queryParams.set('order', 'published_at.desc'); // Most recently published first
-      queryParams.set('limit', '200'); // Reduced from 500 to save bandwidth
+      queryParams.set('order', 'published_at.desc');
+      // Fetch enough articles to span the time range where all sources have articles
+      // This ensures we get CDC/WHO/BBC articles even if Google News has many recent articles
+      queryParams.set('limit', '500');
       
       const query = `${supabaseUrl}/rest/v1/news_articles?${queryParams.toString()}`;
 
@@ -64,26 +69,58 @@ export const NewsSection = (): JSX.Element => {
 
       const data: any[] = await response.json();
       console.log('Fetched news articles:', data.length, 'items');
-      console.log('Date filter:', threeMonthsAgoISO);
+      console.log('Date filter (1 month):', oneMonthAgoISO);
+      console.log('Date filter (3 months):', threeMonthsAgoISO);
       
       // Debug: Check sources in the response
       const sourcesInResponse = new Set<string>();
+      const sourceCountsInResponse = new Map<string, number>();
       data.forEach((item: any) => {
+        let sourceName = 'Unknown';
         if (item.news_sources) {
           if (Array.isArray(item.news_sources) && item.news_sources.length > 0) {
-            sourcesInResponse.add(item.news_sources[0]?.name || 'Unknown');
+            sourceName = item.news_sources[0]?.name || 'Unknown';
           } else if (typeof item.news_sources === 'object' && item.news_sources.name) {
-            sourcesInResponse.add(item.news_sources.name);
+            sourceName = item.news_sources.name;
           }
         }
+        sourcesInResponse.add(sourceName);
+        sourceCountsInResponse.set(sourceName, (sourceCountsInResponse.get(sourceName) || 0) + 1);
       });
       console.log('Sources in API response:', Array.from(sourcesInResponse));
+      console.log('Source counts in API response:', Object.fromEntries(sourceCountsInResponse));
+      
+      // Debug: Check for CDC/WHO/BBC articles specifically
+      const authoritativeArticles = data.filter((item: any) => {
+        let sourceName = '';
+        if (item.news_sources) {
+          if (Array.isArray(item.news_sources) && item.news_sources.length > 0) {
+            sourceName = item.news_sources[0]?.name || '';
+          } else if (typeof item.news_sources === 'object' && item.news_sources.name) {
+            sourceName = item.news_sources.name;
+          }
+        }
+        const nameLower = sourceName.toLowerCase();
+        return nameLower.includes('cdc') || 
+               nameLower.includes('who') || 
+               nameLower.includes('bbc health') ||
+               nameLower.includes('world health organization') ||
+               nameLower.includes('centers for disease control');
+      });
+      console.log('Authoritative articles in API response:', authoritativeArticles.length);
+      if (authoritativeArticles.length > 0) {
+        console.log('Authoritative article samples:', authoritativeArticles.slice(0, 5).map((a: any) => ({
+          title: a.title?.substring(0, 60),
+          published_at: a.published_at,
+          source: Array.isArray(a.news_sources) ? a.news_sources[0]?.name : a.news_sources?.name
+        })));
+      }
       
       if (data.length > 0) {
         console.log('Sample article dates:', data.slice(0, 3).map((a: any) => ({
           title: a.title?.substring(0, 50),
           published_at: a.published_at,
-          source: a.news_sources?.name || (Array.isArray(a.news_sources) ? a.news_sources[0]?.name : 'Unknown')
+          source: Array.isArray(a.news_sources) ? a.news_sources[0]?.name : a.news_sources?.name
         })));
       }
       
@@ -99,6 +136,7 @@ export const NewsSection = (): JSX.Element => {
       // Transform data to handle nested source object and clean HTML
       let transformed: NewsArticle[] = data.map((item: any) => {
         // Handle both nested object and array formats from PostgREST
+        // PostgREST returns joined data as: { news_sources: { name: "..." } }
         let sourceName = 'Unknown Source';
         if (item.news_sources) {
           if (Array.isArray(item.news_sources) && item.news_sources.length > 0) {
@@ -106,6 +144,16 @@ export const NewsSection = (): JSX.Element => {
           } else if (typeof item.news_sources === 'object' && item.news_sources.name) {
             sourceName = item.news_sources.name;
           }
+        }
+        
+        // Debug: Log if source is missing or unknown
+        if (sourceName === 'Unknown Source' && item.source_id) {
+          console.warn('Article missing source name:', {
+            id: item.id,
+            title: item.title?.substring(0, 50),
+            source_id: item.source_id,
+            news_sources: item.news_sources
+          });
         }
         
         return {
@@ -127,6 +175,19 @@ export const NewsSection = (): JSX.Element => {
         return publishedDate >= threeMonthsAgo;
       });
       
+      // Source priority: authoritative sources should be preferred over Google News
+      // Higher number = higher priority
+      const getSourcePriority = (sourceName: string): number => {
+        const name = sourceName.toLowerCase();
+        if (name.includes('world health organization') || name === 'who') return 100;
+        if (name.includes('cdc') || name.includes('centers for disease control')) return 90;
+        if (name.includes('promed')) return 85;
+        if (name.includes('bbc health')) return 80;
+        if (name.includes('reuters')) return 75;
+        if (name.includes('google news')) return 50;
+        return 60; // Default priority for unknown sources
+      };
+      
       // Normalize title for comparison (removes source suffixes and normalizes)
       const normalizeTitle = (title: string): string => {
         return title
@@ -140,31 +201,107 @@ export const NewsSection = (): JSX.Element => {
           .trim();
       };
       
-      // Remove duplicates based on article URL and normalized title (keep most recent version)
+      // Sort articles by source priority FIRST (authoritative sources first)
+      // This ensures authoritative sources are processed before Google News
+      // Then within each priority level, sort by date (newer first)
+      transformed.sort((a, b) => {
+        const priorityA = getSourcePriority(a.source.name);
+        const priorityB = getSourcePriority(b.source.name);
+        if (priorityA !== priorityB) {
+          return priorityB - priorityA; // Higher priority first
+        }
+        // If same priority, sort by date (newer first)
+        return new Date(b.published_at).getTime() - new Date(a.published_at).getTime();
+      });
+      
+      // Debug: Log the first 20 articles after sorting to verify source diversity
+      console.log('First 20 articles after priority sorting:', transformed.slice(0, 20).map(a => ({
+        source: a.source.name,
+        priority: getSourcePriority(a.source.name),
+        title: a.title.substring(0, 50),
+        published_at: a.published_at
+      })));
+      
+      // Helper function to calculate title similarity (simple word overlap)
+      function calculateTitleSimilarity(title1: string, title2: string): number {
+        const words1 = new Set(title1.split(/\s+/).filter(w => w.length > 2));
+        const words2 = new Set(title2.split(/\s+/).filter(w => w.length > 2));
+        if (words1.size === 0 && words2.size === 0) return 1;
+        if (words1.size === 0 || words2.size === 0) return 0;
+        const intersection = new Set([...words1].filter(w => words2.has(w)));
+        const union = new Set([...words1, ...words2]);
+        return intersection.size / union.size;
+      }
+      
+      // Remove duplicates based on article URL (exact duplicates only)
+      // We'll keep ALL articles from authoritative sources, even if Google News has similar titles
       const uniqueArticlesByUrl = new Map<string, NewsArticle>();
-      const uniqueArticlesByTitle = new Map<string, NewsArticle>();
+      const finalArticles: NewsArticle[] = [];
       
       transformed.forEach(article => {
-        const normalizedTitle = normalizeTitle(article.title);
+        const sourcePriority = getSourcePriority(article.source.name);
+        const isAuthoritativeSource = sourcePriority >= 75; // WHO, CDC, ProMED, BBC, Reuters
         
-        // First check by URL
-        if (!uniqueArticlesByUrl.has(article.url) || 
-            new Date(article.published_at) > new Date(uniqueArticlesByUrl.get(article.url)!.published_at)) {
-          uniqueArticlesByUrl.set(article.url, article);
+        // Debug: Log CDC articles specifically
+        if (article.source.name.toLowerCase().includes('cdc') || 
+            article.source.name.toLowerCase().includes('centers for disease control')) {
+          console.log('Processing CDC article:', {
+            title: article.title.substring(0, 60),
+            source: article.source.name,
+            priority: sourcePriority,
+            isAuthoritative: isAuthoritativeSource,
+            published_at: article.published_at
+          });
         }
         
-        // Then check by normalized title (to catch same story from different sources)
-        if (!uniqueArticlesByTitle.has(normalizedTitle) || 
-            new Date(article.published_at) > new Date(uniqueArticlesByTitle.get(normalizedTitle)!.published_at)) {
-          uniqueArticlesByTitle.set(normalizedTitle, article);
+        // For authoritative sources, always include them (no title-based deduplication)
+        if (isAuthoritativeSource) {
+          // Only check URL duplicates for authoritative sources
+          if (!uniqueArticlesByUrl.has(article.url)) {
+            uniqueArticlesByUrl.set(article.url, article);
+            finalArticles.push(article);
+          } else {
+            // If URL exists, keep the one with higher priority or more recent date
+            const existing = uniqueArticlesByUrl.get(article.url)!;
+            const existingPriority = getSourcePriority(existing.source.name);
+            if (sourcePriority > existingPriority || 
+                (sourcePriority === existingPriority && 
+                 new Date(article.published_at) > new Date(existing.published_at))) {
+              // Replace in map and update in finalArticles
+              uniqueArticlesByUrl.set(article.url, article);
+              const existingIndex = finalArticles.findIndex(a => a.url === article.url);
+              if (existingIndex >= 0) {
+                finalArticles[existingIndex] = article;
+              } else {
+                finalArticles.push(article);
+              }
+            }
+          }
+        } else {
+          // For Google News and other non-authoritative sources, do title-based deduplication
+          // But only remove if an authoritative source already has a similar article
+          const normalizedTitle = normalizeTitle(article.title);
+          const hasAuthoritativeDuplicate = finalArticles.some(existing => {
+            const existingPriority = getSourcePriority(existing.source.name);
+            if (existingPriority < 75) return false; // Not authoritative
+            const existingNormalized = normalizeTitle(existing.title);
+            // Check if titles are very similar (at least 80% match)
+            const similarity = calculateTitleSimilarity(normalizedTitle, existingNormalized);
+            return similarity > 0.8;
+          });
+          
+          // Only add Google News article if no authoritative source has a similar article
+          if (!hasAuthoritativeDuplicate) {
+            // Check URL duplicates
+            if (!uniqueArticlesByUrl.has(article.url)) {
+              uniqueArticlesByUrl.set(article.url, article);
+              finalArticles.push(article);
+            }
+          }
         }
       });
       
-      // Use title-based deduplication as the primary deduplication method
-      // This ensures we only show one article per story, even if it comes from multiple sources
-      const finalArticles = Array.from(uniqueArticlesByTitle.values());
-      
-      // Sort by published_at desc (most recently published first) - simple and straightforward
+      // Sort by date (newest first)
       finalArticles.sort((a, b) => 
         new Date(b.published_at).getTime() - new Date(a.published_at).getTime()
       );
@@ -177,8 +314,26 @@ export const NewsSection = (): JSX.Element => {
       });
       console.log('Final articles:', finalArticles.length);
       console.log('Sources in final list:', Object.fromEntries(sourceCounts));
-      console.log('First 10 article sources:', finalArticles.slice(0, 10).map(a => a.source.name));
-      console.log('Last 10 article sources:', finalArticles.slice(-10).map(a => a.source.name));
+      
+      // Show the first 20 articles to verify source diversity
+      const first20Sources = finalArticles.slice(0, 20).map(a => a.source.name);
+      console.log('First 20 article sources:', first20Sources);
+      
+      // Debug: Check for CDC articles specifically in final list
+      const cdcArticles = finalArticles.filter(a => 
+        a.source.name.toLowerCase().includes('cdc') || 
+        a.source.name.toLowerCase().includes('centers for disease control')
+      );
+      console.log('CDC articles in final list:', cdcArticles.length);
+      if (cdcArticles.length > 0) {
+        console.log('CDC article samples:', cdcArticles.slice(0, 3).map(a => ({
+          title: a.title.substring(0, 60),
+          published_at: a.published_at,
+          source: a.source.name
+        })));
+      } else {
+        console.warn('⚠️ No CDC articles in final list!');
+      }
       
       return finalArticles;
     } catch (e: any) {

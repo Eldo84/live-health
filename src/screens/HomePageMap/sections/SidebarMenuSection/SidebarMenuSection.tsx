@@ -21,9 +21,9 @@ const menuItems = [
     dropdownIcon: "/group-1589.png",
     isActive: false,
     subItems: [
-      { label: "Disease Outbreak" },
-      { label: "AI Powered Prediction" },
-      { label: "Global Population Health Index" },
+      { label: "Disease Outbreak", tab: "overview" },
+      { label: "AI Powered Prediction", tab: "predictions" },
+      { label: "Global Population Health Index", tab: "health-index" },
     ],
   },
   {
@@ -86,30 +86,31 @@ export const SidebarMenuSection = (): JSX.Element => {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div className="flex flex-col w-[160px] items-start gap-2 pl-6 pr-0 py-0">
-              <button
-                onClick={() => navigate("/dashboard")}
-                className="flex items-start gap-3.5 w-full text-left hover:opacity-80 transition-opacity"
-              >
-                <div className="flex items-center justify-center w-[5px] h-[22px]">
-                  <div className="w-[5px] h-1.5 bg-[#ffffff80] rounded-[5px]" />
-                </div>
-                <span className={`flex-1 [font-family:'Inter',Helvetica] font-semibold text-xs tracking-[-0.10px] leading-[22px] ${isActive("/dashboard") ? "text-[#66dbe1]" : "text-[#ffffff80]"}`}>
-                  Disease Outbreak
-                </span>
-              </button>
-              {menuItems[1].subItems?.slice(1).map((subItem, index) => (
-                <button
-                  key={index}
-                  className="flex items-start gap-3.5 w-full text-left hover:opacity-80 transition-opacity"
-                >
-                  <div className="flex items-center justify-center w-[5px] h-[22px]">
-                    <div className="w-[5px] h-1.5 bg-[#ffffff80] rounded-[5px]" />
-                  </div>
-                  <span className="flex-1 [font-family:'Inter',Helvetica] font-semibold text-[#ffffff80] text-xs tracking-[-0.10px] leading-[22px]">
-                    {subItem.label}
-                  </span>
-                </button>
-              ))}
+              {menuItems[1].subItems?.map((subItem, index) => {
+                const isDashboardActive = isActive("/dashboard");
+                const currentTab = new URLSearchParams(location.search).get("tab");
+                // First item (Disease Outbreak/overview) is active if no tab param or tab=overview
+                const isActiveItem = isDashboardActive && (
+                  index === 0 
+                    ? (!currentTab || currentTab === "overview")
+                    : currentTab === subItem.tab
+                );
+                
+                return (
+                  <button
+                    key={index}
+                    onClick={() => navigate(`/dashboard?tab=${subItem.tab}`)}
+                    className="flex items-start gap-3.5 w-full text-left hover:opacity-80 transition-opacity"
+                  >
+                    <div className="flex items-center justify-center w-[5px] h-[22px]">
+                      <div className="w-[5px] h-1.5 bg-[#ffffff80] rounded-[5px]" />
+                    </div>
+                    <span className={`flex-1 [font-family:'Inter',Helvetica] font-semibold text-xs tracking-[-0.10px] leading-[22px] ${isActiveItem ? "text-[#66dbe1]" : "text-[#ffffff80]"}`}>
+                      {subItem.label}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </CollapsibleContent>
         </Collapsible>
