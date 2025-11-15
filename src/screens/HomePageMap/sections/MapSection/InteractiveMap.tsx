@@ -583,24 +583,22 @@ const HealthMinistryContact = ({ ministry, loading }: { ministry: any; loading: 
   if (!ministry) return null;
   
   return (
-    // <div className="mt-3 pt-3 border-t border-[#67DBE2]/20">
-    //   <div className="text-xs font-semibold text-[#67DBE2] mb-1">Health Ministry Contact</div>
-    //   <div className="text-xs text-white/90">{ministry.ministry_name}</div>
-    //   {ministry.phone_number && (
-    //     <div className="text-xs text-white/80 mt-1">
-    //       <strong>Phone:</strong> <a href={`tel:${ministry.phone_number}`} className="text-[#67DBE2] hover:underline">{ministry.phone_number}</a>
-    //     </div>
-    //   )}
-    //   {ministry.email_address && (
-    //     <div className="text-xs text-white/80 mt-1">
-    //       <strong>Email:</strong> <a href={`mailto:${ministry.email_address}`} className="text-[#67DBE2] hover:underline break-all">{ministry.email_address}</a>
-    //     </div>
-    //   )}
-    // </div>
+    <div className="mt-3 pt-3 border-t border-[#67DBE2]/20">
+      <div className="text-xs font-semibold text-[#67DBE2] mb-1">Health Ministry Contact</div>
+      <div className="text-xs text-white/90">{ministry.ministry_name}</div>
+      {ministry.phone_number && (
+        <div className="text-xs text-white/80 mt-1">
+          <strong>Phone:</strong> <a href={`tel:${ministry.phone_number}`} className="text-[#67DBE2] hover:underline">{ministry.phone_number}</a>
+        </div>
+      )}
+      {ministry.email_address && (
+        <div className="text-xs text-white/80 mt-1">
+          <strong>Email:</strong> <a href={`mailto:${ministry.email_address}`} className="text-[#67DBE2] hover:underline break-all">{ministry.email_address}</a>
+        </div>
+      )}
+    </div>
 
-  <div>
-
-  </div>
+  
   );
 };
 
@@ -687,6 +685,7 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
   const { signals, loading, error } = useSupabaseOutbreakSignals(filters || null);
   const [zoom, setZoom] = useState(2);
   const [isLegendOpen, setIsLegendOpen] = useState(true);
+  const [isCategoryLegendOpen, setIsCategoryLegendOpen] = useState(false);
   const [isMapControlsOpen, setIsMapControlsOpen] = useState(true);
   const [mapType, setMapType] = useState<MapType>('imagery');
   const [shouldFitBounds, setShouldFitBounds] = useState(true);
@@ -798,6 +797,8 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
     position: s.position,
     date: s.date,
     url: s.url,
+    // Preserve originalCategoryName if it exists (for composite category handling)
+    originalCategoryName: (s as any).originalCategoryName,
   }));
 
   const CATEGORY_COLORS: Record<string, string> = {
@@ -809,11 +810,15 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
     "Healthcare-Associated Infections": "#ef4444",
     "Zoonotic Outbreaks": "#10b981",
     "Sexually Transmitted Infections": "#ec4899",
+    "Sexually Transmitted Outbreaks": "#ec4899", // Alias for Sexually Transmitted Infections
     "Vaccine-Preventable Diseases": "#3b82f6",
     "Emerging Infectious Diseases": "#f59e0b",
+    "Emerging & Re-Emerging Disease Outbreaks": "#f59e0b", // Alias for Emerging Infectious Diseases
     "Veterinary Outbreaks": "#8b5cf6",
     "Neurological Outbreaks": "#dc2626", // Different red shade to distinguish from Healthcare-Associated Infections
     "Respiratory Outbreaks": "#9333ea", // Different purple shade to distinguish from Airborne Outbreaks
+    "Bloodborne Outbreaks": "#dc2626", // Same as Neurological (red)
+    "Gastrointestinal Outbreaks": "#f97316", // Orange shade
     "Other": "#4eb7bd"
   };
 
@@ -823,6 +828,7 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
     "veterinary outbreaks": "Veterinary Outbreaks",
     "emerging & re-emerging disease outbreaks": "Emerging Infectious Diseases",
     "emerging and re-emerging disease outbreaks": "Emerging Infectious Diseases",
+    "sexually transmitted outbreaks": "Sexually Transmitted Infections",
   };
 
   // Normalize category name to match legend colors
@@ -831,6 +837,7 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
     if (!category) return "Other";
     
     let normalized = category.trim();
+    const originalCategory = normalized; // Keep original for composite matching
     
     // Handle composite categories (e.g., "Foodborne Outbreaks, Waterborne Outbreaks")
     // Extract the first category from comma-separated list
@@ -853,6 +860,24 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
       return CATEGORY_MAPPINGS[lower];
     }
     
+    // Special handling for "veterinary outbreak" (lowercase) - common in database
+    if (lower === "veterinary outbreak" || lower === "veterinary outbreaks") {
+      return "Veterinary Outbreaks";
+    }
+    
+    // Special handling for "Emerging & Re-Emerging Disease Outbreaks" variations
+    if (lower.includes("emerging") && (lower.includes("re-emerging") || lower.includes("reemerging"))) {
+      return "Emerging Infectious Diseases";
+    }
+    
+    // Special handling for "Sexually Transmitted Outbreaks" vs "Sexually Transmitted Infections"
+    if (lower.includes("sexually transmitted")) {
+      if (lower.includes("outbreak")) {
+        return "Sexually Transmitted Infections"; // Map to standard name
+      }
+      return "Sexually Transmitted Infections";
+    }
+    
     // Try partial matching for composite categories that might contain known categories
     // e.g., "Foodborne Outbreaks, Neurological Outbreaks" -> try to find "Foodborne Outbreaks" or "Neurological Outbreaks"
     for (const key in CATEGORY_COLORS) {
@@ -861,10 +886,11 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
       }
     }
     
-    // For composite categories, try to extract any known category name
+    // For composite categories, try to extract any known category name from the original
     const allCategoryNames = Object.keys(CATEGORY_COLORS);
+    const originalLower = originalCategory.toLowerCase();
     for (const knownCategory of allCategoryNames) {
-      if (category.toLowerCase().includes(knownCategory.toLowerCase())) {
+      if (originalLower.includes(knownCategory.toLowerCase())) {
         return knownCategory;
       }
     }
@@ -917,6 +943,84 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
     className: 'smooth-marker-icon',
   });
 
+  // Create user location icon (blue pin with pulsing effect using CSS)
+  const createUserLocationIcon = (size: number = 32) => {
+    const html = `
+      <div style="position: relative; width: ${size}px; height: ${size}px; display: flex; align-items: center; justify-content: center;">
+        <style>
+          @keyframes pulse {
+            0%, 100% {
+              transform: translate(-50%, -50%) scale(1);
+              opacity: 0.3;
+            }
+            50% {
+              transform: translate(-50%, -50%) scale(1.4);
+              opacity: 0.1;
+            }
+          }
+          .user-location-pulse {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: ${size}px;
+            height: ${size}px;
+            border-radius: 50%;
+            background: #3b82f6;
+            border: 2px solid #3b82f6;
+            animation: pulse 2s ease-in-out infinite;
+            transform-origin: center center;
+          }
+          .user-location-middle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: ${size - 8}px;
+            height: ${size - 8}px;
+            border-radius: 50%;
+            background: #3b82f6;
+            opacity: 0.5;
+            border: 1.5px solid #60a5fa;
+          }
+          .user-location-inner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: ${size - 16}px;
+            height: ${size - 16}px;
+            border-radius: 50%;
+            background: #60a5fa;
+            border: 2px solid #ffffff;
+          }
+          .user-location-dot {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #ffffff;
+            z-index: 10;
+          }
+        </style>
+        <div class="user-location-pulse"></div>
+        <div class="user-location-middle"></div>
+        <div class="user-location-inner"></div>
+        <div class="user-location-dot"></div>
+      </div>
+    `;
+    return new DivIcon({
+      html,
+      className: 'user-location-marker',
+      iconSize: [size, size],
+      iconAnchor: [size/2, size/2],
+      popupAnchor: [0, -size/2],
+    });
+  };
+
   // Compute simple grid aggregation for pies at low zoom
   const getCellKey = (lat: number, lng: number, step: number) => {
     const latKey = Math.floor(lat / step) * step;
@@ -945,17 +1049,37 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
       cells[key].latSum += p.position[0];
       cells[key].lngSum += p.position[1];
       cells[key].count += 1;
-      cells[key].byCategory[p.category] = (cells[key].byCategory[p.category] || 0) + 1;
+      
+      // Handle composite categories - check if we have the original category name
+      const originalCategory = (p as any).originalCategoryName || p.category;
+      let categoriesToCount: string[] = [];
+      
+      // If original category is composite (contains comma), split it and normalize each part
+      if (originalCategory && originalCategory.includes(',')) {
+        const parts = originalCategory.split(',').map((cat: string) => cat.trim()).filter(Boolean);
+        categoriesToCount = parts.map((cat: string) => normalizeCategoryName(cat));
+      } else {
+        // Single category - normalize it
+        categoriesToCount = [normalizeCategoryName(p.category)];
+      }
+      
+      // Count each category (handles composite categories by counting each part)
+      categoriesToCount.forEach(cat => {
+        cells[key].byCategory[cat] = (cells[key].byCategory[cat] || 0) + 1;
+        
+        // Track diseases by category
+        if (!cells[key].diseasesByCategory[cat]) {
+          cells[key].diseasesByCategory[cat] = [];
+        }
+        if (p.disease && !cells[key].diseasesByCategory[cat].includes(p.disease)) {
+          cells[key].diseasesByCategory[cat].push(p.disease);
+        }
+      });
+      
       if (p.disease && !cells[key].diseases.includes(p.disease)) {
         cells[key].diseases.push(p.disease);
       }
-      // Track diseases by category
-      if (!cells[key].diseasesByCategory[p.category]) {
-        cells[key].diseasesByCategory[p.category] = [];
-      }
-      if (p.disease && !cells[key].diseasesByCategory[p.category].includes(p.disease)) {
-        cells[key].diseasesByCategory[p.category].push(p.disease);
-      }
+      
       // Store the full point data
       cells[key].points.push(p);
     }
@@ -1460,6 +1584,43 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
         />
         <MapResizeHandler />
         <MapControls mapType={mapType} onMapTypeChange={setMapType} isOpen={isMapControlsOpen} onOpenChange={setIsMapControlsOpen} isFullscreen={isFullscreen} />
+        
+        {/* User Location Marker - Show when user location is detected */}
+        {isUserLocation && zoomTarget && (
+          <Marker
+            position={zoomTarget}
+            icon={createUserLocationIcon(32)}
+            zIndexOffset={1000}
+          >
+            <Tooltip 
+              permanent={false}
+              direction="top"
+              offset={[0, -10]}
+            >
+              <div className="p-2 min-w-[150px]">
+                <div className="mb-1 font-semibold text-[#3b82f6]">Your Location</div>
+                <div className="text-xs text-white/90">
+                  <strong>Coordinates:</strong> {zoomTarget[0].toFixed(4)}, {zoomTarget[1].toFixed(4)}
+                </div>
+              </div>
+            </Tooltip>
+            <Popup>
+              <div className="p-2 min-w-[200px]">
+                <div className="mb-2 font-semibold text-[#3b82f6]">📍 Your Current Location</div>
+                <div className="text-xs mb-1">
+                  <strong>Latitude:</strong> {zoomTarget[0].toFixed(6)}
+                </div>
+                <div className="text-xs mb-1">
+                  <strong>Longitude:</strong> {zoomTarget[1].toFixed(6)}
+                </div>
+                <div className="text-xs text-white/70 mt-2">
+                  This is your detected location. The map is centered on this point.
+                </div>
+              </div>
+            </Popup>
+          </Marker>
+        )}
+        
         {
           // Low zoom: show aggregated pies grouped by category (skip single-point cells, show them as pins)
           zoom <= 5 ? (
@@ -1801,6 +1962,64 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
           )
         }
       </MapContainer>
+      
+      {/* Outbreak Categories Legend - Below Map */}
+      <Collapsible 
+        open={isCategoryLegendOpen} 
+        onOpenChange={setIsCategoryLegendOpen} 
+        className={`absolute z-[1200] overflow-hidden transition-all duration-300 ${
+          isFullscreen ? 'bottom-12 left-4' : 'bottom-4 left-4'
+        }`}
+        style={{
+          borderTopLeftRadius: '10px',
+          borderTopRightRadius: '10px',
+          background: '#315C64B2',
+          border: '1px solid #EAEBF024',
+          boxShadow: '0px 1px 2px 0px #1018280A',
+          maxWidth: '300px',
+          maxHeight: '400px',
+        }}
+      >
+        <CollapsibleTrigger asChild>
+          <div className="w-full hover:bg-[#305961]/50 transition-colors cursor-pointer">
+            <div className="px-3 py-2 border-b border-[#EAEBF024]/20 flex items-center justify-between gap-2">
+              <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-white text-xs tracking-[-0.10px] leading-4">
+                Outbreak Categories
+              </h3>
+              <div className="w-4 h-4 p-0 flex-shrink-0 flex items-center justify-center">
+                <img
+                  className="w-4 h-4 transition-transform duration-200"
+                  alt="Dropdown"
+                  src="/group-938.svg"
+                  style={{ transform: isCategoryLegendOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                />
+              </div>
+            </div>
+          </div>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="px-3 py-2 overflow-y-auto" style={{ maxHeight: '350px' }}>
+            <div className="flex flex-col gap-2">
+              {Object.entries(CATEGORY_COLORS).map(([category, color]) => (
+                <div key={category} className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <div 
+                      className="w-3 h-3 rounded flex-shrink-0" 
+                      style={{ backgroundColor: color }}
+                    />
+                    <span 
+                      className="[font-family:'Roboto',Helvetica] font-medium text-[10px] text-white tracking-[-0.10px] leading-3 truncate"
+                      title={category}
+                    >
+                      {category}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
     </div>
 
     {/* Outbreak Details Dialog - Outside MapContainer */}

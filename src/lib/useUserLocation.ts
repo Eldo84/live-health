@@ -30,13 +30,13 @@ export function useUserLocation(autoRequest = true) {
     setError(null);
 
     try {
-      // Request location with timeout
+      // Request location with high accuracy enabled for precise positioning
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(
           resolve,
           reject,
           {
-            enableHighAccuracy: true,
+            enableHighAccuracy: true, // Use GPS for more accurate location
             timeout: 10000, // 10 seconds timeout
             maximumAge: 300000, // 5 minutes cache
           }

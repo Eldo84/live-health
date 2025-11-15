@@ -35,6 +35,8 @@ const CATEGORY_VARIATIONS: Record<string, string> = {
   "zoonotic outbreaks": "Zoonotic Outbreaks",
   "emerging & re-emerging disease outbreaks": "Emerging Infectious Diseases",
   "emerging and re-emerging disease outbreaks": "Emerging Infectious Diseases",
+  "sexually transmitted outbreaks": "Sexually Transmitted Infections",
+  "sexually transmitted infections": "Sexually Transmitted Infections",
 };
 
 // Normalize category name for comparison (case-insensitive, handles variations)
@@ -87,6 +89,44 @@ function normalizeCategoryForComparison(category: string | null | undefined): st
       if (lower.includes("zoonotic") && knownCategory === "Zoonotic Outbreaks") {
         return "Zoonotic Outbreaks";
       }
+      // Special handling for sexually transmitted variations
+      if (lower.includes("sexually transmitted") && knownCategory === "Sexually Transmitted Infections") {
+        return "Sexually Transmitted Infections";
+      }
+    }
+  }
+  
+  // Handle composite categories that start with known categories
+  // e.g., "Sexually Transmitted Outbreaks, Bloodborne Outbreaks" -> "Sexually Transmitted Infections"
+  if (trimmed.includes(',')) {
+    const firstCategory = trimmed.split(',')[0].trim();
+    const firstLower = firstCategory.toLowerCase();
+    
+    // Check variations mapping for the first category
+    if (CATEGORY_VARIATIONS[firstLower]) {
+      return CATEGORY_VARIATIONS[firstLower];
+    }
+    
+    // Handle specific composite category patterns
+    if (firstLower.includes("sexually transmitted")) {
+      return "Sexually Transmitted Infections";
+    }
+    if (firstLower.includes("veterinary")) {
+      return "Veterinary Outbreaks";
+    }
+    if (firstLower.includes("zoonotic")) {
+      return "Zoonotic Outbreaks";
+    }
+    if (firstLower.includes("emerging") && (firstLower.includes("re-emerging") || firstLower.includes("reemerging"))) {
+      return "Emerging Infectious Diseases";
+    }
+    
+    // For other composite categories, check if first part matches a known category
+    for (const knownCategory of knownCategories) {
+      const knownLower = knownCategory.toLowerCase();
+      if (firstLower === knownLower || firstLower.includes(knownLower.replace(" outbreaks", "").replace(" infections", ""))) {
+        return knownCategory;
+      }
     }
   }
   
@@ -94,8 +134,19 @@ function normalizeCategoryForComparison(category: string | null | undefined): st
   return trimmed;
 }
 
+// Extract all categories from a composite category string
+function extractCategories(category: string): string[] {
+  if (!category) return [];
+  // Split by comma and normalize each part
+  return category.split(',').map(cat => {
+    const trimmed = cat.trim();
+    const normalized = normalizeCategoryForComparison(trimmed);
+    return normalized;
+  }).filter(Boolean);
+}
+
 // Check if two category names match (handles variations and case)
-function categoriesMatch(category1: string | null | undefined, category2: string | null | undefined): boolean {
+export function categoriesMatch(category1: string | null | undefined, category2: string | null | undefined): boolean {
   if (!category1 || !category2) return false;
   
   const normalized1 = normalizeCategoryForComparison(category1);
@@ -106,6 +157,16 @@ function categoriesMatch(category1: string | null | undefined, category2: string
   
   // Case-insensitive match after normalization
   if (normalized1.toLowerCase() === normalized2.toLowerCase()) return true;
+  
+  // Handle composite categories - check if any part of category1 matches category2
+  if (category1.includes(',')) {
+    const categories1 = extractCategories(category1);
+    if (categories1.includes(normalized2)) return true;
+  }
+  if (category2.includes(',')) {
+    const categories2 = extractCategories(category2);
+    if (categories2.includes(normalized1)) return true;
+  }
   
   // Check if both contain the same keyword (for veterinary/zoonotic variations)
   const lower1 = category1.toLowerCase();
@@ -119,6 +180,22 @@ function categoriesMatch(category1: string | null | undefined, category2: string
   // Special handling for zoonotic: "zoonotic outbreak" should match "Zoonotic Outbreaks"
   if (lower1.includes("zoonotic") && lower2.includes("zoonotic")) {
     return true;
+  }
+  
+  // Special handling for sexually transmitted: "Sexually Transmitted Outbreaks" should match "Sexually Transmitted Infections"
+  if (lower1.includes("sexually transmitted") && lower2.includes("sexually transmitted")) {
+    return true;
+  }
+  
+  // Special handling for emerging diseases
+  if (lower1.includes("emerging") && lower2.includes("emerging")) {
+    // Check if both are about re-emerging or both are about emerging infectious diseases
+    const bothReEmerging = (lower1.includes("re-emerging") || lower1.includes("reemerging")) && 
+                           (lower2.includes("re-emerging") || lower2.includes("reemerging"));
+    const bothEmerging = lower1.includes("infectious") && lower2.includes("infectious");
+    if (bothReEmerging || bothEmerging || (lower1.includes("re-emerging") && lower2.includes("infectious"))) {
+      return true;
+    }
   }
   
   return false;
@@ -171,35 +248,17 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
     }
 
     // Filter by category (client-side)
+    // Category filter is separate from disease type filter - only filter by category name
     if (filters?.category) {
-      // Normalize the filter category to handle variations
-      const normalizedFilterCategory = normalizeCategoryForComparison(filters.category);
-      
-      // Special handling for "Veterinary Outbreaks" and "Zoonotic Outbreaks" categories:
-      // Include all diseases with matching disease_type, regardless of their category
-      // This ensures all veterinary/zoonotic diseases show up when filtering by these categories
-      const isVeterinaryFilter = normalizedFilterCategory === "Veterinary Outbreaks" || 
-                                  filters.category.toLowerCase().includes("veterinary");
-      const isZoonoticFilter = normalizedFilterCategory === "Zoonotic Outbreaks" || 
-                               filters.category.toLowerCase().includes("zoonotic");
-      
-      if (isVeterinaryFilter || isZoonoticFilter) {
-        const targetDiseaseType = isVeterinaryFilter ? "veterinary" : "zoonotic";
-        filtered = filtered.filter(s => {
-          const signalDiseaseType = (s as any).diseaseType;
-          const signalCategory = s.category;
-          
-          // Include if:
-          // 1. Category matches (with normalization) OR
-          // 2. Disease type matches
-          return categoriesMatch(signalCategory, filters.category) || signalDiseaseType === targetDiseaseType;
-        });
-      } else {
-        // For other categories, use normalized comparison
-        filtered = filtered.filter(s => {
-          return categoriesMatch(s.category, filters.category);
-        });
-      }
+      filtered = filtered.filter(s => {
+        // Check both normalized category and original category name for composite categories
+        const originalCategory = (s as any).originalCategoryName;
+        if (originalCategory && originalCategory !== s.category) {
+          // If we have the original category (which might be composite), check it too
+          return categoriesMatch(originalCategory, filters.category) || categoriesMatch(s.category, filters.category);
+        }
+        return categoriesMatch(s.category, filters.category);
+      });
     }
 
     // Filter by country (client-side)
@@ -282,6 +341,8 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
       filtered = filtered.filter(s => {
         let diseaseType = (s as any).diseaseType;
         const detectedDiseaseName = (s as any).detectedDiseaseName;
+        const signalCategory = s.category?.toLowerCase() || '';
+        const originalCategory = ((s as any).originalCategoryName || s.category || '').toLowerCase();
         
         // For "OTHER" diseases (indicated by presence of detected_disease_name),
         // infer type from detected_disease_name if available
@@ -307,12 +368,23 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
           }
         }
         
+        // Also check category to match disease type
+        // If category indicates veterinary/zoonotic, include it even if disease_type doesn't match
+        const hasVeterinaryCategory = signalCategory.includes("veterinary") || originalCategory.includes("veterinary");
+        const hasZoonoticCategory = signalCategory.includes("zoonotic") || originalCategory.includes("zoonotic");
+        
         if (filters.diseaseType === "human") {
+          // Human: exclude veterinary and zoonotic (by type or category)
+          if (diseaseType === "veterinary" || diseaseType === "zoonotic" || hasVeterinaryCategory || hasZoonoticCategory) {
+            return false;
+          }
           return diseaseType === "human" || diseaseType === null || diseaseType === undefined; // Default to human if not set
         } else if (filters.diseaseType === "veterinary") {
-          return diseaseType === "veterinary";
+          // Veterinary: include if disease_type is veterinary OR category is veterinary
+          return diseaseType === "veterinary" || hasVeterinaryCategory;
         } else if (filters.diseaseType === "zoonotic") {
-          return diseaseType === "zoonotic";
+          // Zoonotic: include if disease_type is zoonotic OR category is zoonotic
+          return diseaseType === "zoonotic" || hasZoonoticCategory;
         }
         return true;
       });
@@ -516,6 +588,10 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
               ? diseaseCategoryMap[diseaseId] 
               : { name: "Other", color: "#66dbe1" };
             
+            // Normalize category name to handle variations (e.g., "veterinary outbreak" -> "Veterinary Outbreaks")
+            // This ensures consistent filtering regardless of how the category is stored in the database
+            const normalizedCategoryName = normalizeCategoryForComparison(category.name);
+            
             // Get pathogen from mapping
             const pathogen = diseaseId && diseasePathogenMap[diseaseId] 
               ? diseasePathogenMap[diseaseId] 
@@ -578,7 +654,7 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
               disease: displayDiseaseName,
               location: locationString,
               city: cityName || undefined, // Use normalized city name
-              category: category.name,
+              category: normalizedCategoryName,
               pathogen: pathogen,
               keywords: signal.detected_disease_name || disease?.name || "", // Use detected_disease_name for better search
               position: [lat, lng] as [number, number],
@@ -590,10 +666,11 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
               confidence: signal.confidence_score,
             };
             
-            // Add country name, detected_disease_name, and disease_type to the signal for filtering (store in a way we can access it)
+            // Add country name, detected_disease_name, disease_type, and original category name to the signal for filtering
             (outbreakSignal as any).countryName = signalCountryName;
             (outbreakSignal as any).detectedDiseaseName = signal.detected_disease_name;
             (outbreakSignal as any).diseaseType = diseaseType;
+            (outbreakSignal as any).originalCategoryName = category.name; // Store original for composite category matching
             
             return outbreakSignal;
             } catch (signalError: any) {

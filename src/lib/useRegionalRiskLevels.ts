@@ -25,18 +25,43 @@ export interface CountryRiskPoint {
   region: string;
 }
 
-// Map countries to continents manually since continent data isn't populated
+// Map countries to continents manually as fallback (when continent data isn't in database)
+// Note: This should ideally use the continent field from the countries table
 const COUNTRY_TO_CONTINENT: Record<string, string> = {
+  // North America
   "United States": "Americas",
   "Canada": "Americas",
   "Mexico": "Americas",
+  // Central America
+  "Guatemala": "Americas",
+  "Belize": "Americas",
+  "El Salvador": "Americas",
+  "Honduras": "Americas",
+  "Nicaragua": "Americas",
+  "Costa Rica": "Americas",
+  "Panama": "Americas",
+  // Caribbean
+  "Cuba": "Americas",
+  "Jamaica": "Americas",
+  "Haiti": "Americas",
+  "Dominican Republic": "Americas",
+  "Puerto Rico": "Americas",
+  "Trinidad and Tobago": "Americas",
+  // South America
   "Brazil": "Americas",
   "Argentina": "Americas",
   "Chile": "Americas",
   "Colombia": "Americas",
   "Peru": "Americas",
   "Venezuela": "Americas",
-  "Cuba": "Americas",
+  "Ecuador": "Americas",
+  "Bolivia": "Americas",
+  "Paraguay": "Americas",
+  "Uruguay": "Americas",
+  "Guyana": "Americas",
+  "Suriname": "Americas",
+  "French Guiana": "Americas",
+  // Europe
   "United Kingdom": "Europe",
   "Ireland": "Europe",
   "France": "Europe",
@@ -47,6 +72,7 @@ const COUNTRY_TO_CONTINENT: Record<string, string> = {
   "Italy": "Europe",
   "Poland": "Europe",
   "Russia": "Europe",
+  // Asia
   "China": "Asia",
   "India": "Asia",
   "Japan": "Asia",
@@ -60,8 +86,10 @@ const COUNTRY_TO_CONTINENT: Record<string, string> = {
   "Indonesia": "Asia",
   "Philippines": "Asia",
   "Vietnam": "Asia",
+  // Oceania
   "Australia": "Oceania",
   "New Zealand": "Oceania",
+  // Africa
   "Nigeria": "Africa",
   "South Africa": "Africa",
   "South Sudan": "Africa",
@@ -72,8 +100,38 @@ const COUNTRY_TO_CONTINENT: Record<string, string> = {
   "Tanzania": "Africa",
 };
 
-function getContinent(countryName: string): string {
-  return COUNTRY_TO_CONTINENT[countryName] || "Other";
+// Get continent from country data (prefer database value, fallback to manual mapping)
+function getContinent(countryName: string, countryContinent?: string): string {
+  // Use continent from database if available and valid (not "Unknown")
+  if (countryContinent) {
+    // Normalize common variations
+    const normalized = countryContinent.trim();
+    
+    // Skip if continent is "Unknown" or empty - use fallback instead
+    if (normalized === "" || normalized.toLowerCase() === "unknown") {
+      // Fall through to manual mapping
+    } else if (normalized === "North America" || normalized === "South America" || normalized === "Central America") {
+      return "Americas";
+    } else {
+      // Return the continent from database (should be one of: Africa, Asia, Europe, Americas, Oceania)
+      return normalized;
+    }
+  }
+  
+  // Fallback to manual mapping (case-insensitive match for better compatibility)
+  const countryLower = countryName.toLowerCase();
+  for (const [key, value] of Object.entries(COUNTRY_TO_CONTINENT)) {
+    if (key.toLowerCase() === countryLower) {
+      return value;
+    }
+  }
+  
+  // If still no match, return "Other" (never return "Unknown")
+  // Log in development to help identify missing countries
+  if (process.env.NODE_ENV === 'development') {
+    console.warn(`No continent mapping found for country: "${countryName}" (continent from DB: "${countryContinent || 'null'}"), using "Other"`);
+  }
+  return "Other";
 }
 
 function calculateRiskLevel(
@@ -140,10 +198,11 @@ export function useRegionalRiskLevels(timeRange: string = "30d") {
         startDate.setDate(startDate.getDate() - days);
 
         // Fetch outbreak signals with country data and coordinates
+        // IMPORTANT: Include continent field from countries table to properly categorize regions
         const params = new URLSearchParams();
         params.set(
           "select",
-          "id,case_count_mentioned,severity_assessment,country_id,latitude,longitude,countries!country_id(name)"
+          "id,case_count_mentioned,severity_assessment,country_id,latitude,longitude,countries!country_id(name,continent)"
         );
         params.set("detected_at", `gte.${startDate.toISOString()}`);
 
@@ -160,8 +219,13 @@ export function useRegionalRiskLevels(timeRange: string = "30d") {
         }
 
         const signals: any[] = await response.json();
+        
+        // Debug: Log sample signal to check structure
+        if (process.env.NODE_ENV === 'development' && signals.length > 0) {
+          console.log('Sample signal structure:', JSON.stringify(signals[0], null, 2));
+        }
 
-        // Group by country
+        // Group by country (store continent info with each country)
         const countryData = new Map<
           string,
           {
@@ -169,6 +233,7 @@ export function useRegionalRiskLevels(timeRange: string = "30d") {
             totalCases: number;
             maxSeverity: number;
             coordinates: Array<[number, number]>;
+            continent?: string; // Store continent for each country
           }
         >();
 
@@ -179,6 +244,12 @@ export function useRegionalRiskLevels(timeRange: string = "30d") {
           if (!country || !country.name) return;
 
           const countryName = country.name;
+          const countryContinent = country.continent; // Get continent from database
+          
+          // Debug logging (only in development)
+          if (process.env.NODE_ENV === 'development' && countryContinent === "Unknown") {
+            console.warn(`Country "${countryName}" has continent="Unknown" in database, using fallback mapping`);
+          }
           const cases = signal.case_count_mentioned || 0;
           const severity = signal.severity_assessment || "low";
           const severityNum =
@@ -196,6 +267,7 @@ export function useRegionalRiskLevels(timeRange: string = "30d") {
               totalCases: 0,
               maxSeverity: 0,
               coordinates: [],
+              continent: countryContinent, // Store continent
             });
           }
 
@@ -203,6 +275,10 @@ export function useRegionalRiskLevels(timeRange: string = "30d") {
           data.outbreakCount++;
           data.totalCases += cases;
           data.maxSeverity = Math.max(data.maxSeverity, severityNum);
+          // Update continent if we get a value (may not have been set initially)
+          if (countryContinent && !data.continent) {
+            data.continent = countryContinent;
+          }
           
           // Collect coordinates if available
           if (signal.latitude && signal.longitude) {
@@ -218,7 +294,13 @@ export function useRegionalRiskLevels(timeRange: string = "30d") {
         const regionData = new Map<string, RegionalRiskData>();
 
         countryData.forEach((countryStats, countryName) => {
-          const continent = getContinent(countryName);
+          // Use continent from database if available, otherwise fallback to mapping
+          const continent = getContinent(countryName, countryStats.continent);
+          
+          // Debug logging (only in development)
+          if (process.env.NODE_ENV === 'development' && continent === "Unknown") {
+            console.warn(`Country "${countryName}" mapped to continent="Unknown". Continent from DB: "${countryStats.continent}", Using manual mapping fallback.`);
+          }
           const countryRisk = calculateRiskLevel(
             countryStats.outbreakCount,
             countryStats.totalCases,

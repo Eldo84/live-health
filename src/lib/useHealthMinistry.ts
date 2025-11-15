@@ -97,3 +97,11 @@ export function extractCountryFromLocation(location: string): string | null {
   return parts.length > 1 ? parts[parts.length - 1] : parts[0];
 }
 
+
+
+
+
+
+
+
+

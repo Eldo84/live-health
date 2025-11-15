@@ -1,5 +1,6 @@
 import "leaflet/dist/leaflet.css";
 import React from "react";
+import { createPortal } from "react-dom";
 import { NavigationTabsSection } from "./sections/NavigationTabsSection";
 import { InteractiveMap } from "./sections/MapSection/InteractiveMap";
 import { NewsSection } from "./sections/NewsSection";
@@ -7,11 +8,12 @@ import { SponsoredSection } from "./sections/SponsoredSection";
 import { FilterState } from "./sections/FilterPanel";
 import { Input } from "../../components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
-import { useSupabaseOutbreakSignals } from "../../lib/useSupabaseOutbreakSignals";
+import { useSupabaseOutbreakSignals, categoriesMatch } from "../../lib/useSupabaseOutbreakSignals";
+import { useOutbreakCategories } from "../../lib/useOutbreakCategories";
 import { detectCountryInText, geocodeLocation } from "../../lib/geocode";
 import { geocodeWithOpenCage } from "../../lib/opencage";
 import { useUserLocation } from "../../lib/useUserLocation";
-import { Maximize2, Minimize2, X, RefreshCcw, Utensils, Droplet, Bug, Wind, Handshake, Hospital, PawPrint, Heart, Shield, AlertTriangle, MapPin } from "lucide-react";
+import { Maximize2, Minimize2, X, RefreshCcw, Utensils, Droplet, Bug, Wind, Handshake, Hospital, PawPrint, Heart, Shield, AlertTriangle, MapPin, Brain, Syringe, Activity } from "lucide-react";
 import { useFullscreen } from "../../contexts/FullscreenContext";
 
 // Removed demo outbreaks; using data-driven InteractiveMap
@@ -25,6 +27,7 @@ export const HomePageMap = (): JSX.Element => {
     diseaseType: "all", // Default to show all disease types
   });
   const [hoveredCategory, setHoveredCategory] = React.useState<string | null>(null);
+  const [hoveredCategoryPosition, setHoveredCategoryPosition] = React.useState<{ x: number; y: number } | null>(null);
   const [zoomTarget, setZoomTarget] = React.useState<[number, number] | null>(null);
   const { isFullscreen: isMapFullscreen, setIsFullscreen: setIsMapFullscreen } = useFullscreen();
   const mapContainerRef = React.useRef<HTMLDivElement>(null);
@@ -41,6 +44,9 @@ export const HomePageMap = (): JSX.Element => {
   // Fetch signals to calculate category stats (use filters but don't filter by category for stats)
   const statsFilters = { ...filters, category: null };
   const { signals } = useSupabaseOutbreakSignals(statsFilters);
+  
+  // Fetch categories from database
+  const { categories: dbCategories } = useOutbreakCategories();
 
   // Extract available countries from signals for search matching
   const availableCountries = React.useMemo(() => {
@@ -282,27 +288,171 @@ export const HomePageMap = (): JSX.Element => {
     }
   }, [filters.dateRange]);
 
-  const diseaseCategories = [
-    { name: "Foodborne Outbreaks", color: "#f87171", icon: Utensils },
-    { name: "Waterborne Outbreaks", color: "#66dbe1", icon: Droplet },
-    { name: "Vector-Borne Outbreaks", color: "#fbbf24", icon: Bug },
-    { name: "Airborne Outbreaks", color: "#a78bfa", icon: Wind },
-    { name: "Contact Transmission", color: "#fb923c", icon: Handshake },
-    { name: "Healthcare-Associated Infections", color: "#ef4444", icon: Hospital },
-    { name: "Zoonotic Outbreaks", color: "#10b981", icon: PawPrint },
-    { name: "Sexually Transmitted Infections", color: "#ec4899", icon: Heart },
-    { name: "Vaccine-Preventable Diseases", color: "#3b82f6", icon: Shield },
-    { name: "Emerging Infectious Diseases", color: "#f59e0b", icon: AlertTriangle },
-  ];
+  // Map icon names from database to icon components
+  const iconMap: Record<string, React.ComponentType<any>> = {
+    'utensils': Utensils,
+    'droplet': Droplet,
+    'bug': Bug,
+    'wind': Wind,
+    'handshake': Handshake,
+    'hospital': Hospital,
+    'paw-print': PawPrint,
+    'heart': Heart,
+    'shield': Shield,
+    'alert-triangle': AlertTriangle,
+    'brain': Brain,
+    'syringe': Syringe,
+    'activity': Activity,
+  };
+
+  // Normalize category name to handle variations and duplicates
+  const normalizeCategoryForDisplay = (categoryName: string): string => {
+    const nameLower = categoryName.toLowerCase().trim();
+    
+    // Handle composite categories - extract first category
+    if (categoryName.includes(',')) {
+      const firstCategory = categoryName.split(',')[0].trim();
+      return normalizeCategoryForDisplay(firstCategory); // Recursively normalize
+    }
+    
+    // Normalize variations - handle duplicates FIRST before capitalization
+    // Veterinary variations
+    if (nameLower === 'veterinary outbreak' || nameLower === 'veterinary outbreaks') {
+      return 'Veterinary Outbreaks';
+    }
+    
+    // Sexually transmitted variations
+    if (nameLower.includes('sexually transmitted')) {
+      // Normalize both "Infections" and "Outbreaks" to "Infections"
+      if (nameLower.includes('infection')) {
+        return 'Sexually Transmitted Infections';
+      }
+      return 'Sexually Transmitted Infections'; // Default to Infections
+    }
+    
+    // Emerging diseases variations
+    if (nameLower.includes('emerging')) {
+      if (nameLower.includes('infectious diseases')) {
+        return 'Emerging Infectious Diseases';
+      }
+      if (nameLower.includes('re-emerging') || nameLower.includes('reemerging')) {
+        return 'Emerging Infectious Diseases';
+      }
+      // If it just says "emerging" without more context, assume "Emerging Infectious Diseases"
+      return 'Emerging Infectious Diseases';
+    }
+    
+    // Standard base categories - capitalize properly
+    const standardCategories: Record<string, string> = {
+      'foodborne outbreaks': 'Foodborne Outbreaks',
+      'waterborne outbreaks': 'Waterborne Outbreaks',
+      'vector-borne outbreaks': 'Vector-Borne Outbreaks',
+      'airborne outbreaks': 'Airborne Outbreaks',
+      'contact transmission': 'Contact Transmission',
+      'healthcare-associated infections': 'Healthcare-Associated Infections',
+      'zoonotic outbreaks': 'Zoonotic Outbreaks',
+      'vaccine-preventable diseases': 'Vaccine-Preventable Diseases',
+      'respiratory outbreaks': 'Respiratory Outbreaks',
+      'neurological outbreaks': 'Neurological Outbreaks',
+      'bloodborne outbreaks': 'Bloodborne Outbreaks',
+      'gastrointestinal outbreaks': 'Gastrointestinal Outbreaks',
+      'other': 'Other',
+    };
+    
+    // Check if it matches a standard category
+    if (standardCategories[nameLower]) {
+      return standardCategories[nameLower];
+    }
+    
+    // Capitalize first letter of each word for consistency (fallback)
+    return categoryName
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+  };
+
+  // Transform database categories to component format with icons, removing duplicates
+  const diseaseCategories = React.useMemo(() => {
+    // Map to store unique normalized categories
+    const categoryMap = new Map<string, {
+      id: string;
+      name: string;
+      color: string;
+      icon: React.ComponentType<any>;
+      originalName: string; // Keep original for reference
+    }>();
+    
+    // Process each category and deduplicate by normalized name
+    dbCategories.forEach(cat => {
+      // Normalize the category name (handles composites, variations, etc.)
+      const normalizedName = normalizeCategoryForDisplay(cat.name);
+      
+      // Skip if we already have this normalized category
+      if (categoryMap.has(normalizedName)) {
+        const existing = categoryMap.get(normalizedName)!;
+        // Prefer the exact match if available (better capitalization)
+        // Or prefer the one without commas if both are similar
+        const isExactMatch = cat.name === normalizedName;
+        const existingIsExact = existing.originalName === normalizedName;
+        const hasComma = cat.name.includes(',');
+        const existingHasComma = existing.originalName.includes(',');
+        
+        // Keep this one if: it's an exact match and existing isn't, OR
+        // this one has no comma and existing has comma
+        if (!((isExactMatch && !existingIsExact) || (!hasComma && existingHasComma))) {
+          return; // Skip duplicate - keep existing
+        }
+        // Otherwise, continue to replace with better version
+      }
+      
+      // Map icon name from database to icon component, with fallbacks
+      let IconComponent: React.ComponentType<any> = AlertTriangle; // Default icon
+      
+      if (cat.icon) {
+        const iconKey = cat.icon.toLowerCase().replace(/\s+/g, '-');
+        IconComponent = iconMap[iconKey] || AlertTriangle;
+      } else {
+        // Fallback: try to infer icon from normalized category name
+        const nameLower = normalizedName.toLowerCase();
+        if (nameLower.includes('food')) IconComponent = Utensils;
+        else if (nameLower.includes('water')) IconComponent = Droplet;
+        else if (nameLower.includes('vector')) IconComponent = Bug;
+        else if (nameLower.includes('airborne') || nameLower.includes('respiratory')) IconComponent = Wind;
+        else if (nameLower.includes('contact')) IconComponent = Handshake;
+        else if (nameLower.includes('healthcare') || nameLower.includes('hospital')) IconComponent = Hospital;
+        else if (nameLower.includes('zoonotic') || nameLower.includes('veterinary')) IconComponent = PawPrint;
+        else if (nameLower.includes('sexually')) IconComponent = Heart;
+        else if (nameLower.includes('vaccine')) IconComponent = Shield;
+        else if (nameLower.includes('emerging')) IconComponent = AlertTriangle;
+        else if (nameLower.includes('neurological')) IconComponent = Brain;
+        else if (nameLower.includes('blood')) IconComponent = Syringe;
+        else if (nameLower.includes('gastrointestinal')) IconComponent = Activity;
+      }
+      
+      categoryMap.set(normalizedName, {
+        id: cat.id,
+        name: normalizedName, // Use normalized name for display
+        color: cat.color || '#66dbe1',
+        icon: IconComponent,
+        originalName: cat.name, // Keep original for reference
+      });
+    });
+    
+    // Convert map to array, remove originalName field, and sort by name
+    return Array.from(categoryMap.values())
+      .map(({ originalName, ...cat }) => cat) // Remove originalName from output
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [dbCategories]);
 
   // Handle category selection from disease category icons
   const handleCategoryClick = (categoryName: string) => {
     setFilters(prev => ({
       ...prev,
       category: prev.category === categoryName ? null : categoryName,
-      // Clear country and disease search when selecting a category
+      // Clear country, disease search, and disease type filter when selecting a category
       country: null,
       diseaseSearch: "",
+      diseaseType: "all", // Reset disease type filter when category is selected
     }));
     setZoomTarget(null);
     setIsUserLocationZoom(false);
@@ -313,7 +463,16 @@ export const HomePageMap = (): JSX.Element => {
     const stats: Record<string, { cases: number; severity: string }> = {};
     
     diseaseCategories.forEach(category => {
-      const categorySignals = signals.filter(s => s.category === category.name);
+      // Match categories using the same logic as the filter
+      const categorySignals = signals.filter(s => {
+        // Check both normalized category and original category name for composite categories
+        const originalCategory = (s as any).originalCategoryName;
+        if (originalCategory && originalCategory !== s.category) {
+          // If we have the original category (which might be composite), check it too
+          return categoriesMatch(originalCategory, category.name) || categoriesMatch(s.category, category.name);
+        }
+        return categoriesMatch(s.category, category.name);
+      });
       const cases = categorySignals.length;
       
       // Calculate severity based on case count and severity assessments
@@ -337,13 +496,19 @@ export const HomePageMap = (): JSX.Element => {
   }, [signals]);
 
   // Handle mouse enter for tooltip
-  const handleMouseEnter = (categoryName: string) => {
+  const handleMouseEnter = (categoryName: string, event: React.MouseEvent<HTMLDivElement>) => {
     setHoveredCategory(categoryName);
+    const rect = event.currentTarget.getBoundingClientRect();
+    setHoveredCategoryPosition({
+      x: rect.left + rect.width / 2,
+      y: rect.top,
+    });
   };
 
   // Handle mouse leave
   const handleMouseLeave = () => {
     setHoveredCategory(null);
+    setHoveredCategoryPosition(null);
   };
 
   // Toggle fullscreen mode
@@ -593,7 +758,19 @@ export const HomePageMap = (): JSX.Element => {
             {/* Disease Type Filter */}
             <select
               value={filters.diseaseType || "all"}
-              onChange={(e) => setFilters(prev => ({ ...prev, diseaseType: e.target.value === "all" ? "all" : e.target.value as "human" | "veterinary" | "zoonotic" }))}
+              onChange={(e) => {
+                const newValue = e.target.value === "all" ? "all" : e.target.value as "human" | "veterinary" | "zoonotic";
+                setFilters(prev => ({ 
+                  ...prev, 
+                  diseaseType: newValue,
+                  category: null, // Clear category filter when disease type is selected
+                }));
+                // Reset map when "All Types" is selected
+                if (newValue === "all") {
+                  setZoomTarget(null);
+                  setIsUserLocationZoom(false);
+                }
+              }}
               className="h-[40px] px-2.5 bg-[#FFFFFF24] rounded-[6px] border border-solid border-[#DAE0E633] text-[#EBEBEB] text-xs [font-family:'Roboto',Helvetica] font-medium tracking-[-0.10px] shadow-[0px_1px_2px_#1018280A] focus:outline-none focus:ring-2 focus:ring-[#67DBE2]/50 [&>option]:bg-[#2a4149] [&>option]:text-white"
               style={{ width: '140px', minWidth: '140px', flexShrink: 0, marginLeft: '10px' }}
             >
@@ -664,25 +841,58 @@ export const HomePageMap = (): JSX.Element => {
           <SponsoredSection />
         </div>
 
-        {/* Disease Category Icons - Bottom Left, Under Map */}
+        {/* Disease Category Icons - Left Side, Scrollable */}
+        <style>{`
+          .category-icons-scrollable::-webkit-scrollbar {
+            height: 6px;
+          }
+          .category-icons-scrollable::-webkit-scrollbar-track {
+            background: #2a4149;
+            border-radius: 3px;
+          }
+          .category-icons-scrollable::-webkit-scrollbar-thumb {
+            background: #67DBE2;
+            border-radius: 3px;
+          }
+          .category-icons-scrollable::-webkit-scrollbar-thumb:hover {
+            background: #5bc5cb;
+          }
+        `}</style>
         <div 
           className={`absolute z-[1000] transition-all duration-300 ${isMapFullscreen || isDialogOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
           style={{
             top: isMapFullscreen ? 'auto' : categoryTop,
             left: '90px',
-            width: isMapFullscreen ? 'auto' : 'min(790px, calc(100vw - 550px - 90px))',
+            right: isMapFullscreen ? 'auto' : '260px', // Leave space for right sidebar (240px + 20px margin)
             height: '44px',
+            overflow: 'visible', // Allow tooltips to show outside container
           }}
         >
-          <div className="flex items-center h-full gap-[18px] flex-wrap">
+          {/* Scrollable container for icons */}
+          <div 
+            className="category-icons-scrollable h-full"
+            style={{
+              overflowX: 'auto',
+              overflowY: 'hidden', // Keep hidden for scrolling, but tooltips will escape via parent
+              scrollbarWidth: 'thin',
+              scrollbarColor: '#67DBE2 #2a4149',
+              paddingRight: '20px', // Add padding to prevent icons from being cut off at the end
+              paddingLeft: '0',
+              position: 'relative', // Ensure positioning context
+            }}
+          >
+          <div className="flex items-center h-full gap-[18px] flex-nowrap" style={{ minWidth: 'max-content', paddingLeft: '0', paddingRight: '10px' }}>
             {diseaseCategories.map((category) => {
-              const stats = categoryStats[category.name] || { cases: 0, severity: 'Low' };
               return (
-                <div key={category.name} className="relative flex flex-col items-center">
+                <div 
+                  key={category.name} 
+                  className="relative flex flex-col items-center flex-shrink-0" 
+                  style={{ minWidth: '44px' }}
+                  onMouseEnter={(e) => handleMouseEnter(category.name, e)}
+                  onMouseLeave={handleMouseLeave}
+                >
                   <button
                     onClick={() => handleCategoryClick(category.name)}
-                    onMouseEnter={() => handleMouseEnter(category.name)}
-                    onMouseLeave={handleMouseLeave}
                     className="flex items-center justify-center rounded-full cursor-pointer transition-all duration-200 relative"
                     style={{
                       width: '44px',
@@ -719,49 +929,57 @@ export const HomePageMap = (): JSX.Element => {
                       })}
                     </div>
                   </button>
-                  
-                  {/* Tooltip */}
-                  {hoveredCategory === category.name && (
-                    <div
-                      className="absolute z-[2000] pointer-events-none"
-                      style={{
-                        bottom: '100%',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        marginBottom: '10px',
-                      }}
-                    >
-                      <div className="bg-white text-gray-800 rounded-md shadow-lg border border-gray-200 p-3 min-w-[200px]">
-                        <div className="mb-2 font-semibold text-sm text-gray-900 border-b border-gray-200 pb-1">
-                          {category.name}
-                        </div>
-                        <div className="text-xs mb-1">
-                          <strong className="text-gray-700">Cases:</strong> <span className="text-gray-900">{stats.cases.toLocaleString()}</span>
-                        </div>
-                        <div className="text-xs">
-                          <strong className="text-gray-700">Severity:</strong> <span className={`font-semibold ${
-                            stats.severity === 'Critical' ? 'text-red-600' :
-                            stats.severity === 'High' ? 'text-orange-600' :
-                            stats.severity === 'Medium' ? 'text-yellow-600' :
-                            'text-green-600'
-                          }`}>{stats.severity}</span>
-                        </div>
-                      </div>
-                      {/* Tooltip arrow */}
-                      <div
-                        className="absolute left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent"
-                        style={{
-                          borderTopColor: '#ffffff',
-                          bottom: '-8px',
-                        }}
-                      />
-                    </div>
-                  )}
                 </div>
               );
             })}
           </div>
+          </div>
         </div>
+        
+        {/* Tooltip Portal - Render tooltip outside scrollable container */}
+        {hoveredCategory && hoveredCategoryPosition && (() => {
+          const category = diseaseCategories.find(c => c.name === hoveredCategory);
+          if (!category) return null;
+          const stats = categoryStats[category.name] || { cases: 0, severity: 'Low' };
+          
+          return createPortal(
+            <div
+              className="fixed z-[2000] pointer-events-none"
+              style={{
+                left: `${hoveredCategoryPosition.x}px`,
+                top: `${hoveredCategoryPosition.y - 10}px`,
+                transform: 'translate(-50%, -100%)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              <div className="bg-white text-gray-800 rounded-md shadow-lg border border-gray-200 p-3 min-w-[200px]">
+                <div className="mb-2 font-semibold text-sm text-gray-900 border-b border-gray-200 pb-1">
+                  {category.name}
+                </div>
+                <div className="text-xs mb-1">
+                  <strong className="text-gray-700">Cases:</strong> <span className="text-gray-900">{stats.cases.toLocaleString()}</span>
+                </div>
+                <div className="text-xs">
+                  <strong className="text-gray-700">Severity:</strong> <span className={`font-semibold ${
+                    stats.severity === 'Critical' ? 'text-red-600' :
+                    stats.severity === 'High' ? 'text-orange-600' :
+                    stats.severity === 'Medium' ? 'text-yellow-600' :
+                    'text-green-600'
+                  }`}>{stats.severity}</span>
+                </div>
+              </div>
+              {/* Tooltip arrow */}
+              <div
+                className="absolute left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent"
+                style={{
+                  borderTopColor: '#ffffff',
+                  bottom: '-8px',
+                }}
+              />
+            </div>,
+            document.body
+          );
+        })()}
       </div>
     </div>
   );

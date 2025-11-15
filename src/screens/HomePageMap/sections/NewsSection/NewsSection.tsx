@@ -43,13 +43,16 @@ export const NewsSection = (): JSX.Element => {
       // If CDC publishes a new article today, it will be in the results and sorted by date naturally
       const queryParams = new URLSearchParams();
       // PostgREST join syntax: news_sources!source_id(name) - returns nested object with source name
-      queryParams.set('select', '*,news_sources!source_id(name)');
+      // Also join outbreak_signals to prioritize articles with signals
+      queryParams.set('select', '*,news_sources!source_id(name),outbreak_signals(count)');
+      // PostgREST filter syntax: use the operator in the parameter name, not the value
       queryParams.set('published_at', `gte.${oneMonthAgoISO}`);
       queryParams.set('order', 'published_at.desc');
-      // Fetch enough articles to span the time range where all sources have articles
+      // Increased limit to 1000 to ensure articles with signals aren't cut off
       // This ensures we get CDC/WHO/BBC articles even if Google News has many recent articles
-      queryParams.set('limit', '500');
+      queryParams.set('limit', '1000');
       
+      // Build the query URL - PostgREST expects filters in the format: column=operator.value
       const query = `${supabaseUrl}/rest/v1/news_articles?${queryParams.toString()}`;
 
       const response = await fetch(query, {
@@ -301,7 +304,7 @@ export const NewsSection = (): JSX.Element => {
         }
       });
       
-      // Sort by date (newest first)
+      // Sort by date (newest first) - all articles sorted together
       finalArticles.sort((a, b) => 
         new Date(b.published_at).getTime() - new Date(a.published_at).getTime()
       );
@@ -326,13 +329,34 @@ export const NewsSection = (): JSX.Element => {
       );
       console.log('CDC articles in final list:', cdcArticles.length);
       if (cdcArticles.length > 0) {
-        console.log('CDC article samples:', cdcArticles.slice(0, 3).map(a => ({
+        console.log('CDC article samples:', cdcArticles.slice(0, 5).map(a => ({
           title: a.title.substring(0, 60),
           published_at: a.published_at,
           source: a.source.name
         })));
       } else {
         console.warn('⚠️ No CDC articles in final list!');
+        // Debug: Check if CDC articles were in the original data but filtered out
+        const cdcInOriginal = data.filter((item: any) => {
+          let sourceName = '';
+          if (item.news_sources) {
+            if (Array.isArray(item.news_sources) && item.news_sources.length > 0) {
+              sourceName = item.news_sources[0]?.name || '';
+            } else if (typeof item.news_sources === 'object' && item.news_sources.name) {
+              sourceName = item.news_sources.name;
+            }
+          }
+          const nameLower = sourceName.toLowerCase();
+          return nameLower.includes('cdc') || nameLower.includes('centers for disease control');
+        });
+        console.warn('CDC articles in original API response:', cdcInOriginal.length);
+        if (cdcInOriginal.length > 0) {
+          console.warn('CDC articles that were filtered out:', cdcInOriginal.slice(0, 3).map((a: any) => ({
+            title: a.title?.substring(0, 60),
+            published_at: a.published_at,
+            source: Array.isArray(a.news_sources) ? a.news_sources[0]?.name : a.news_sources?.name
+          })));
+        }
       }
       
       return finalArticles;

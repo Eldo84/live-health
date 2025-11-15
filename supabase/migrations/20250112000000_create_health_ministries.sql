@@ -35,3 +35,11 @@ CREATE POLICY "Allow public read access to health_ministries"
   FOR SELECT
   USING (true);
 
+
+
+
+
+
+
+
+
