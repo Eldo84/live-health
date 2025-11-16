@@ -16,7 +16,7 @@ interface TimeRange {
   label: string;
 }
 
-export function useDashboardStats(timeRange: string) {
+export function useDashboardStats(timeRange: string, countryId?: string | null) {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +58,11 @@ export function useDashboardStats(timeRange: string) {
         currentParams.set('detected_at', `gte.${startDate.toISOString()}`);
         currentParams.set('order', 'detected_at.desc');
         
+        // Add country filter if provided
+        if (countryId) {
+          currentParams.set('country_id', `eq.${countryId}`);
+        }
+        
         const currentUrl = `${supabaseUrl}/rest/v1/outbreak_signals?${currentParams.toString()}`;
         const currentResponse = await fetch(currentUrl, {
           headers: {
@@ -77,6 +82,11 @@ export function useDashboardStats(timeRange: string) {
         previousParams.set('select', 'id,case_count_mentioned,detected_at,country_id,severity_assessment');
         previousParams.set('detected_at', `gte.${previousStartDate.toISOString()}`);
         previousParams.set('order', 'detected_at.desc');
+        
+        // Add country filter if provided
+        if (countryId) {
+          previousParams.set('country_id', `eq.${countryId}`);
+        }
         
         const previousUrl = `${supabaseUrl}/rest/v1/outbreak_signals?${previousParams.toString()}`;
         const previousResponse = await fetch(previousUrl, {
@@ -168,7 +178,7 @@ export function useDashboardStats(timeRange: string) {
     return () => {
       active = false;
     };
-  }, [timeRange]);
+  }, [timeRange, countryId]);
 
   return { stats, loading, error };
 }

@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardHeader } from "../../components/ui/card";
 import { Input } from "../../components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/ui/tabs";
-import { X } from "lucide-react";
+import { X, ChevronDown } from "lucide-react";
 import { NavigationTabsSection } from "../HomePageMap/sections/NavigationTabsSection";
 import { StatsOverview } from "./sections/StatsOverview";
 import { DiseaseOutbreakChart } from "./sections/DiseaseOutbreakChart";
@@ -19,12 +19,18 @@ import { GlobalHealthIndex } from "./sections/GlobalHealthIndex";
 import { OutbreakCategories } from "./sections/OutbreakCategories";
 import { SpreadsheetImport } from "../../components/SpreadsheetImport";
 import { CityExtractionStatus } from "./sections/CityExtractionStatus";
+import { useCountries } from "../../lib/useCountries";
 
 export const Dashboard = (): JSX.Element => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [timeRange, setTimeRange] = useState("7d");
   const [activeView, setActiveView] = useState("overview");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
+  const [countrySearchQuery, setCountrySearchQuery] = useState("");
+  const [isCountryDropdownOpen, setIsCountryDropdownOpen] = useState(false);
+  const countryDropdownRef = useRef<HTMLDivElement>(null);
+  const { countries, loading: countriesLoading } = useCountries();
 
   // Read tab from URL parameter and set active view
   useEffect(() => {
@@ -43,6 +49,49 @@ export const Dashboard = (): JSX.Element => {
     setActiveView(value);
     setSearchParams({ tab: value }, { replace: true });
   };
+
+  // Filter countries based on search query
+  const filteredCountries = React.useMemo(() => {
+    if (!countrySearchQuery.trim()) return countries;
+    const query = countrySearchQuery.toLowerCase().trim();
+    return countries.filter(country => 
+      country.name.toLowerCase().includes(query)
+    );
+  }, [countries, countrySearchQuery]);
+
+  // Get selected country name
+  const selectedCountryName = React.useMemo(() => {
+    if (!selectedCountry) return "";
+    const country = countries.find(c => c.id === selectedCountry);
+    return country?.name || "";
+  }, [countries, selectedCountry]);
+
+  // Handle country selection
+  const handleCountrySelect = (countryId: string | null, countryName: string = "") => {
+    setSelectedCountry(countryId);
+    setCountrySearchQuery(countryName);
+    setIsCountryDropdownOpen(false);
+  };
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (countryDropdownRef.current && !countryDropdownRef.current.contains(event.target as Node)) {
+        setIsCountryDropdownOpen(false);
+        // Reset search query to selected country name when closing
+        if (selectedCountry) {
+          setCountrySearchQuery(selectedCountryName);
+        } else {
+          setCountrySearchQuery("");
+        }
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [selectedCountry, selectedCountryName]);
 
   return (
     <div className="w-full min-h-screen bg-[#2a4149] p-6">
@@ -80,6 +129,88 @@ export const Dashboard = (): JSX.Element => {
                   >
                     <X className="w-3 h-3" />
                   </button>
+                )}
+              </div>
+
+              <div className="relative min-w-[220px]" ref={countryDropdownRef}>
+                <div className="relative">
+                  <Input
+                    type="text"
+                    placeholder="Search country..."
+                    value={countrySearchQuery}
+                    onChange={(e) => {
+                      setCountrySearchQuery(e.target.value);
+                      setIsCountryDropdownOpen(true);
+                      // Clear selection if user types something different
+                      if (selectedCountry) {
+                        const selectedName = countries.find(c => c.id === selectedCountry)?.name || "";
+                        if (e.target.value !== selectedName) {
+                          setSelectedCountry(null);
+                        }
+                      }
+                    }}
+                    onFocus={() => setIsCountryDropdownOpen(true)}
+                    className="bg-[#ffffff24] border border-[#dae0e633] text-[#ebebeb] text-sm px-3 py-2 pr-8 h-[42px] placeholder:text-[#ebebeb99] focus-visible:ring-2 focus-visible:ring-[#4eb7bd]/50"
+                    disabled={countriesLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsCountryDropdownOpen(!isCountryDropdownOpen);
+                      if (!isCountryDropdownOpen && !countrySearchQuery) {
+                        setCountrySearchQuery(selectedCountryName);
+                      }
+                    }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-[#ebebeb99] hover:text-[#ebebeb] transition-colors"
+                    disabled={countriesLoading}
+                  >
+                    <ChevronDown className={`w-4 h-4 transition-transform ${isCountryDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {countrySearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCountrySearchQuery("");
+                        setSelectedCountry(null);
+                        setIsCountryDropdownOpen(false);
+                      }}
+                      className="absolute right-8 top-1/2 -translate-y-1/2 text-[#ebebeb99] hover:text-[#ebebeb] transition-colors"
+                      aria-label="Clear country search"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+                {isCountryDropdownOpen && (
+                  <div className="absolute z-50 w-full mt-1 bg-[#2a4149] border border-[#dae0e633] rounded-md shadow-lg max-h-[300px] overflow-y-auto">
+                    <button
+                      type="button"
+                      onClick={() => handleCountrySelect(null, "")}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-[#ffffff14] transition-colors ${
+                        !selectedCountry ? 'bg-[#4eb7bd33] text-[#66dbe1]' : 'text-[#ebebeb]'
+                      }`}
+                    >
+                      All Countries
+                    </button>
+                    {filteredCountries.length === 0 ? (
+                      <div className="px-3 py-2 text-sm text-[#ebebeb99]">
+                        No countries found
+                      </div>
+                    ) : (
+                      filteredCountries.map((country) => (
+                        <button
+                          key={country.id}
+                          type="button"
+                          onClick={() => handleCountrySelect(country.id, country.name)}
+                          className={`w-full text-left px-3 py-2 text-sm hover:bg-[#ffffff14] transition-colors ${
+                            selectedCountry === country.id ? 'bg-[#4eb7bd33] text-[#66dbe1]' : 'text-[#ebebeb]'
+                          }`}
+                        >
+                          {country.name}
+                        </button>
+                      ))
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -127,34 +258,34 @@ export const Dashboard = (): JSX.Element => {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-6 mt-0">
-            <StatsOverview timeRange={timeRange} searchQuery={searchQuery} />
+            <StatsOverview timeRange={timeRange} searchQuery={searchQuery} countryId={selectedCountry} />
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
-                <DiseaseOutbreakChart timeRange={timeRange} searchQuery={searchQuery} />
+                <DiseaseOutbreakChart timeRange={timeRange} searchQuery={searchQuery} countryId={selectedCountry} />
               </div>
               <div>
-                <TopDiseases timeRange={timeRange} searchQuery={searchQuery} />
+                <TopDiseases timeRange={timeRange} searchQuery={searchQuery} countryId={selectedCountry} />
               </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <GlobalHealthMap timeRange={timeRange} />
-              <RegionalBreakdown timeRange={timeRange} />
+              <GlobalHealthMap timeRange={timeRange} countryId={selectedCountry} />
+              <RegionalBreakdown timeRange={timeRange} countryId={selectedCountry} />
             </div>
 
             <CityExtractionStatus />
 
-            <RecentAlerts searchQuery={searchQuery} limit={50} />
+            <RecentAlerts searchQuery={searchQuery} limit={50} countryId={selectedCountry} />
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-6 mt-0">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <DiseaseDistributionPie timeRange={timeRange} searchQuery={searchQuery} />
-              <TrendAnalysis timeRange={timeRange} />
+              <DiseaseDistributionPie timeRange={timeRange} searchQuery={searchQuery} countryId={selectedCountry} />
+              <TrendAnalysis timeRange={timeRange} countryId={selectedCountry} />
             </div>
 
-            <AlertTimeline />
+            <AlertTimeline countryId={selectedCountry} />
           </TabsContent>
 
           <TabsContent value="predictions" className="space-y-6 mt-0">

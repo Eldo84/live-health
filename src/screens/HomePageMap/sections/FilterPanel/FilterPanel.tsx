@@ -10,6 +10,10 @@ export interface FilterState {
   category: string | null;
   diseaseSearch: string;
   diseaseType: "all" | "human" | "veterinary" | "zoonotic" | null; // Filter by disease type
+  nearMe?: {
+    coordinates: [number, number];
+    radiusKm: number;
+  } | null; // Filter by distance from user location
 }
 
 interface FilterPanelProps {

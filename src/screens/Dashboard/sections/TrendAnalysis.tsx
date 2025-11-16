@@ -6,6 +6,7 @@ import { useDashboardChart } from "../../../lib/useDashboardChart";
 
 interface TrendAnalysisProps {
   timeRange: string;
+  countryId?: string | null;
 }
 
 const colorPalette = [
@@ -16,8 +17,8 @@ const colorPalette = [
   { color: "#fb923c", name: "Disease 5" },
 ];
 
-export const TrendAnalysis = ({ timeRange }: TrendAnalysisProps): JSX.Element => {
-  const { chartData, loading, error } = useDashboardChart(timeRange);
+export const TrendAnalysis = ({ timeRange, countryId }: TrendAnalysisProps): JSX.Element => {
+  const { chartData, loading, error } = useDashboardChart(timeRange, countryId);
 
   // Normalize data to 0-100 scale (Google Trends style)
   const normalizedData = useMemo(() => {

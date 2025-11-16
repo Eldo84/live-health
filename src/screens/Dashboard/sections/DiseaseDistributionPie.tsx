@@ -7,10 +7,11 @@ import { useDiseaseDistribution } from "../../../lib/useDiseaseDistribution";
 interface DiseaseDistributionPieProps {
   timeRange: string;
   searchQuery?: string;
+  countryId?: string | null;
 }
 
-export const DiseaseDistributionPie = ({ timeRange, searchQuery = "" }: DiseaseDistributionPieProps): JSX.Element => {
-  const { data, loading, error } = useDiseaseDistribution(timeRange);
+export const DiseaseDistributionPie = ({ timeRange, searchQuery = "", countryId }: DiseaseDistributionPieProps): JSX.Element => {
+  const { data, loading, error } = useDiseaseDistribution(timeRange, countryId);
 
   // Filter data based on search query
   const filteredData = React.useMemo(() => {

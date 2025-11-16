@@ -63,7 +63,7 @@ const MapResizeHandler = () => {
   return null;
 };
 
-const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false }: { points: Array<{ position: [number, number] }>; initialFit: boolean; zoomTarget?: [number, number] | null; isUserLocation?: boolean }) => {
+const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoomLevel = 10 }: { points: Array<{ position: [number, number] }>; initialFit: boolean; zoomTarget?: [number, number] | null; isUserLocation?: boolean; zoomLevel?: number }) => {
   const map = useMap();
   const hasFittedRef = React.useRef(false);
   const lastZoomTargetRef = React.useRef<[number, number] | null>(null);
@@ -75,7 +75,7 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false }: {
   // Helper function to zoom to user location
   const zoomToUserLocation = React.useCallback((target: [number, number], attemptNumber: number = 0) => {
     try {
-      console.log(`🎯 Zoom attempt ${attemptNumber + 1} to user location:`, target);
+      console.log(`🎯 Zoom attempt ${attemptNumber + 1} to user location:`, target, 'zoom level:', zoomLevel);
       
       // Ensure map is ready
       if (!map || !map.getContainer()) {
@@ -99,8 +99,11 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false }: {
       // Invalidate map size to ensure it's properly rendered
       map.invalidateSize();
       
-      // Set view with zoom level 10
-      map.setView([lat, lng], 10, { 
+      // Use zoom level from props (defaults to 10 if not provided)
+      const targetZoom = zoomLevel || 10;
+      
+      // Set view with specified zoom level
+      map.setView([lat, lng], targetZoom, { 
         animate: attemptNumber > 0, // Animate on retries
         duration: 0.5 
       });
@@ -116,10 +119,12 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false }: {
         console.log(`📍 Zoom verification - Center: [${currentCenter.lat}, ${currentCenter.lng}], Zoom: ${currentZoom}, Distance: ${distance}`);
         
         // If we're still far from target, try again (but limit attempts)
-        if ((distance > 0.1 || currentZoom < 8) && attemptNumber < 3) {
+        // Use a threshold based on the target zoom level (allow some tolerance)
+        const minZoomThreshold = Math.max(4, targetZoom - 2);
+        if ((distance > 0.1 || currentZoom < minZoomThreshold) && attemptNumber < 3) {
           console.log(`⚠️ Zoom verification failed, retrying (attempt ${attemptNumber + 1})`);
           setTimeout(() => zoomToUserLocation(target, attemptNumber + 1), 300);
-        } else if (distance <= 0.1 && currentZoom >= 8) {
+        } else if (distance <= 0.1 && currentZoom >= minZoomThreshold) {
           console.log('✅ Successfully zoomed to user location!');
           userLocationZoomedRef.current = true;
         }
@@ -130,7 +135,7 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false }: {
       console.error('Error in zoomToUserLocation:', e);
       return false;
     }
-  }, [map]);
+  }, [map, zoomLevel]);
   
   React.useEffect(() => {
     // PRIORITY 1: If user location is set, ALWAYS zoom to it (highest priority)
@@ -676,11 +681,12 @@ interface InteractiveMapProps {
   isFullscreen?: boolean;
   zoomTarget?: [number, number] | null;
   isUserLocation?: boolean;
+  zoomLevel?: number; // Optional zoom level for user location zoom
   onClearSearch?: () => void;
   onDialogStateChange?: (isOpen: boolean) => void;
 }
 
-export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUserLocation = false, onClearSearch, onDialogStateChange }: InteractiveMapProps): JSX.Element => {
+export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUserLocation = false, zoomLevel = 10, onClearSearch, onDialogStateChange }: InteractiveMapProps): JSX.Element => {
   // Use Supabase data instead of external APIs
   const { signals, loading, error } = useSupabaseOutbreakSignals(filters || null);
   const [zoom, setZoom] = useState(2);
@@ -1580,7 +1586,8 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
           points={filteredPoints} 
           initialFit={shouldFitBounds && filteredPoints.length > 0 && !isUserLocation && !zoomTarget} 
           zoomTarget={zoomTarget} 
-          isUserLocation={isUserLocation} 
+          isUserLocation={isUserLocation}
+          zoomLevel={zoomLevel}
         />
         <MapResizeHandler />
         <MapControls mapType={mapType} onMapTypeChange={setMapType} isOpen={isMapControlsOpen} onOpenChange={setIsMapControlsOpen} isFullscreen={isFullscreen} />

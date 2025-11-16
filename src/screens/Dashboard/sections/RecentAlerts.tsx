@@ -34,10 +34,11 @@ const alertConfig = {
 interface RecentAlertsProps {
   searchQuery?: string;
   limit?: number;
+  countryId?: string | null;
 }
 
-export const RecentAlerts = ({ searchQuery = "", limit = 10 }: RecentAlertsProps): JSX.Element => {
-  const { alerts, loading, error } = useRecentAlerts(limit);
+export const RecentAlerts = ({ searchQuery = "", limit = 10, countryId }: RecentAlertsProps): JSX.Element => {
+  const { alerts, loading, error } = useRecentAlerts(limit, countryId);
 
   // Normalize country name variations for search
   const normalizeCountryName = (countryName: string): string[] => {

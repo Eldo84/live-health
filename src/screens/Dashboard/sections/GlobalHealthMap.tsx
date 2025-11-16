@@ -60,10 +60,11 @@ const createRiskIcon = (riskLevel: "low" | "medium" | "high" | "critical", size:
 
 interface GlobalHealthMapProps {
   timeRange?: string;
+  countryId?: string | null;
 }
 
-export const GlobalHealthMap = ({ timeRange = "30d" }: GlobalHealthMapProps): JSX.Element => {
-  const { points, loading, error } = useCountryRiskPoints(timeRange);
+export const GlobalHealthMap = ({ timeRange = "30d", countryId }: GlobalHealthMapProps): JSX.Element => {
+  const { points, loading, error } = useCountryRiskPoints(timeRange, countryId);
 
   return (
     <Card className="bg-[#ffffff14] border-[#eaebf024]">

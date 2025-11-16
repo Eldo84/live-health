@@ -7,6 +7,7 @@ import { useDashboardDiseases } from "../../../lib/useDashboardDiseases";
 interface TopDiseasesProps {
   timeRange: string;
   searchQuery?: string;
+  countryId?: string | null;
 }
 
 const severityConfig = {
@@ -16,8 +17,8 @@ const severityConfig = {
   low: { label: "Low", bg: "bg-[#4ade8033]", text: "text-[#4ade80]" },
 };
 
-export const TopDiseases = ({ timeRange, searchQuery = "" }: TopDiseasesProps): JSX.Element => {
-  const { diseases, loading, error } = useDashboardDiseases(timeRange);
+export const TopDiseases = ({ timeRange, searchQuery = "", countryId }: TopDiseasesProps): JSX.Element => {
+  const { diseases, loading, error } = useDashboardDiseases(timeRange, countryId);
 
   // Filter diseases based on search query
   const filteredDiseases = React.useMemo(() => {

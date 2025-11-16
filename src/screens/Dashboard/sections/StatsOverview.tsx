@@ -2,7 +2,6 @@ import React from "react";
 import { Card, CardContent } from "../../../components/ui/card";
 import { TrendingUp, TrendingDown, Activity, AlertTriangle, Loader2 } from "lucide-react";
 import { useDashboardStats } from "../../../lib/useDashboardStats";
-import { useDashboardStatsWithFilter } from "../../../lib/useDashboardStatsWithFilter";
 
 interface StatCardProps {
   title: string;
@@ -59,24 +58,11 @@ const StatCard = ({ title, value, change, trend, icon, iconBg, loading }: StatCa
 interface StatsOverviewProps {
   timeRange: string;
   searchQuery?: string;
+  countryId?: string | null;
 }
 
-export const StatsOverview = ({ timeRange, searchQuery = "" }: StatsOverviewProps): JSX.Element => {
-  // Use filtered stats if search query looks like a country name
-  const isCountrySearch = searchQuery.trim().length > 0 && 
-    (searchQuery.toLowerCase().includes('united') || 
-     searchQuery.toLowerCase().includes('states') ||
-     searchQuery.toLowerCase() === 'us' ||
-     searchQuery.toLowerCase() === 'usa');
-  
-  const { stats: statsRegular, loading: loadingRegular } = useDashboardStats(timeRange);
-  const { stats: statsFiltered, loading: loadingFiltered } = useDashboardStatsWithFilter(timeRange, searchQuery);
-  
-  const stats = isCountrySearch ? statsFiltered : statsRegular;
-  const loading = isCountrySearch ? loadingFiltered : loadingRegular;
-  
-  // For non-country searches, we'll just use regular stats
-  const { error } = useDashboardStats(timeRange);
+export const StatsOverview = ({ timeRange, searchQuery = "", countryId }: StatsOverviewProps): JSX.Element => {
+  const { stats, loading, error } = useDashboardStats(timeRange, countryId);
 
   if (error) {
     return (

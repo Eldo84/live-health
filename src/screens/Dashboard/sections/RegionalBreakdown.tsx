@@ -19,10 +19,11 @@ const getRegionColor = (region: string): string => {
 
 interface RegionalBreakdownProps {
   timeRange?: string;
+  countryId?: string | null;
 }
 
-export const RegionalBreakdown = ({ timeRange = "30d" }: RegionalBreakdownProps): JSX.Element => {
-  const { data, loading, error } = useRegionalRiskLevels(timeRange);
+export const RegionalBreakdown = ({ timeRange = "30d", countryId }: RegionalBreakdownProps): JSX.Element => {
+  const { data, loading, error } = useRegionalRiskLevels(timeRange, countryId);
 
   const chartData = useMemo(() => {
     if (!data || data.length === 0) return [];

@@ -16,6 +16,7 @@ import { useDashboardChart } from "../../../lib/useDashboardChart";
 interface DiseaseOutbreakChartProps {
   timeRange: string;
   searchQuery?: string;
+  countryId?: string | null;
 }
 
 const colorPalette = [
@@ -27,8 +28,8 @@ const colorPalette = [
   { color: "#60a5fa", gradientId: "color6" },
 ];
 
-export const DiseaseOutbreakChart = ({ timeRange, searchQuery = "" }: DiseaseOutbreakChartProps): JSX.Element => {
-  const { chartData, loading, error } = useDashboardChart(timeRange);
+export const DiseaseOutbreakChart = ({ timeRange, searchQuery = "", countryId }: DiseaseOutbreakChartProps): JSX.Element => {
+  const { chartData, loading, error } = useDashboardChart(timeRange, countryId);
 
   // Extract unique diseases from data and filter by search query
   const diseases = useMemo(() => {

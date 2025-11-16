@@ -5,7 +5,7 @@ export interface ChartDataPoint {
   [diseaseName: string]: string | number;
 }
 
-export function useDashboardChart(timeRange: string) {
+export function useDashboardChart(timeRange: string, countryId?: string | null) {
   const [chartData, setChartData] = useState<ChartDataPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +41,11 @@ export function useDashboardChart(timeRange: string) {
         params.set('select', 'detected_at,case_count_mentioned,diseases!disease_id(name)');
         params.set('detected_at', `gte.${startDate.toISOString()}`);
         params.set('order', 'detected_at.asc');
+        
+        // Add country filter if provided
+        if (countryId) {
+          params.set('country_id', `eq.${countryId}`);
+        }
         
         const url = `${supabaseUrl}/rest/v1/outbreak_signals?${params.toString()}`;
         const response = await fetch(url, {
@@ -146,7 +151,7 @@ export function useDashboardChart(timeRange: string) {
     return () => {
       active = false;
     };
-  }, [timeRange]);
+  }, [timeRange, countryId]);
 
   return { chartData, loading, error };
 }

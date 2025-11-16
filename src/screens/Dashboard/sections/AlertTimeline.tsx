@@ -44,8 +44,12 @@ const severityColors: Record<string, string> = {
   low: "#4ade80",
 };
 
-export const AlertTimeline = (): JSX.Element => {
-  const { alerts, loading, error } = useRecentAlerts(20);
+interface AlertTimelineProps {
+  countryId?: string | null;
+}
+
+export const AlertTimeline = ({ countryId }: AlertTimelineProps): JSX.Element => {
+  const { alerts, loading, error } = useRecentAlerts(20, countryId);
 
   // Transform alerts to timeline events
   const events = useMemo(() => {

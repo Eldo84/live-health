@@ -166,7 +166,7 @@ function calculateRiskLevel(
   return "low";
 }
 
-export function useRegionalRiskLevels(timeRange: string = "30d") {
+export function useRegionalRiskLevels(timeRange: string = "30d", countryId?: string | null) {
   const [data, setData] = useState<RegionalRiskData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -205,6 +205,11 @@ export function useRegionalRiskLevels(timeRange: string = "30d") {
           "id,case_count_mentioned,severity_assessment,country_id,latitude,longitude,countries!country_id(name,continent)"
         );
         params.set("detected_at", `gte.${startDate.toISOString()}`);
+        
+        // Add country filter if provided
+        if (countryId) {
+          params.set('country_id', `eq.${countryId}`);
+        }
 
         const url = `${supabaseUrl}/rest/v1/outbreak_signals?${params.toString()}`;
         const response = await fetch(url, {
@@ -385,14 +390,14 @@ export function useRegionalRiskLevels(timeRange: string = "30d") {
     return () => {
       active = false;
     };
-  }, [timeRange]);
+  }, [timeRange, countryId]);
 
   return { data, loading, error };
 }
 
 // Hook to get country points for map visualization
-export function useCountryRiskPoints(timeRange: string = "30d") {
-  const { data, loading, error } = useRegionalRiskLevels(timeRange);
+export function useCountryRiskPoints(timeRange: string = "30d", countryId?: string | null) {
+  const { data, loading, error } = useRegionalRiskLevels(timeRange, countryId);
   const [points, setPoints] = useState<CountryRiskPoint[]>([]);
 
   useEffect(() => {

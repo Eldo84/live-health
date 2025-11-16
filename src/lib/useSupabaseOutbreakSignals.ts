@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { FilterState } from "../screens/HomePageMap/sections/FilterPanel";
+import { calculateDistance } from "./utils";
 
 export interface OutbreakSignal {
   id: string;
@@ -336,6 +337,20 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
       }
     }
 
+    // Filter by distance from user location (near me) - client-side
+    if (filters?.nearMe && filters.nearMe.coordinates && filters.nearMe.radiusKm > 0) {
+      const [userLat, userLon] = filters.nearMe.coordinates;
+      const radiusKm = filters.nearMe.radiusKm;
+      
+      filtered = filtered.filter(s => {
+        const [signalLat, signalLon] = s.position;
+        const distance = calculateDistance(userLat, userLon, signalLat, signalLon);
+        return distance <= radiusKm;
+      });
+      
+      console.log(`📍 Filtered by distance: ${filtered.length} signals within ${radiusKm}km`);
+    }
+
     // Filter by disease type (client-side)
     if (filters?.diseaseType && filters.diseaseType !== "all") {
       filtered = filtered.filter(s => {
@@ -392,7 +407,7 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
 
     console.log('✅ Filtered to', filtered.length, 'signals');
     return filtered;
-  }, [allSignals, filters?.category, filters?.country, filters?.diseaseSearch, filters?.diseaseType, loading]);
+  }, [allSignals, filters?.category, filters?.country, filters?.diseaseSearch, filters?.diseaseType, filters?.nearMe, loading]);
   
   // Update signals state when filtered results change
   useEffect(() => {

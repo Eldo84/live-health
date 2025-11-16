@@ -6,7 +6,7 @@ export interface DiseaseDistributionData {
   color: string;
 }
 
-export function useDiseaseDistribution(timeRange: string = "30d") {
+export function useDiseaseDistribution(timeRange: string = "30d", countryId?: string | null) {
   const [data, setData] = useState<DiseaseDistributionData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,6 +41,11 @@ export function useDiseaseDistribution(timeRange: string = "30d") {
         const params = new URLSearchParams();
         params.set('select', 'disease_id,diseases!disease_id(name,color_code)');
         params.set('detected_at', `gte.${startDate.toISOString()}`);
+        
+        // Add country filter if provided
+        if (countryId) {
+          params.set('country_id', `eq.${countryId}`);
+        }
         
         const url = `${supabaseUrl}/rest/v1/outbreak_signals?${params.toString()}`;
         const response = await fetch(url, {
@@ -104,7 +109,7 @@ export function useDiseaseDistribution(timeRange: string = "30d") {
     return () => {
       active = false;
     };
-  }, [timeRange]);
+  }, [timeRange, countryId]);
 
   return { data, loading, error };
 }

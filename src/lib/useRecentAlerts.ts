@@ -11,7 +11,7 @@ export interface RecentAlert {
   url?: string;
 }
 
-export function useRecentAlerts(limit: number = 10) {
+export function useRecentAlerts(limit: number = 10, countryId?: string | null) {
   const [alerts, setAlerts] = useState<RecentAlert[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +34,11 @@ export function useRecentAlerts(limit: number = 10) {
         params.set('select', 'id,detected_at,severity_assessment,case_count_mentioned,diseases!disease_id(name),countries!country_id(name,code),news_articles!article_id(title,url)');
         params.set('order', 'detected_at.desc');
         params.set('limit', String(Math.max(limit, 50))); // Fetch more to allow better filtering
+        
+        // Add country filter if provided
+        if (countryId) {
+          params.set('country_id', `eq.${countryId}`);
+        }
         
         const url = `${supabaseUrl}/rest/v1/outbreak_signals?${params.toString()}`;
         const response = await fetch(url, {
@@ -136,7 +141,7 @@ export function useRecentAlerts(limit: number = 10) {
       active = false;
       clearInterval(intervalId);
     };
-  }, [limit]);
+  }, [limit, countryId]);
 
   return { alerts, loading, error };
 }

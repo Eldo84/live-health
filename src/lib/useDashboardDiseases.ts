@@ -8,7 +8,7 @@ export interface DiseaseStats {
   color: string;
 }
 
-export function useDashboardDiseases(timeRange: string) {
+export function useDashboardDiseases(timeRange: string, countryId?: string | null) {
   const [diseases, setDiseases] = useState<DiseaseStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +47,11 @@ export function useDashboardDiseases(timeRange: string) {
         currentParams.set('select', 'disease_id,case_count_mentioned,diseases!disease_id(name,severity_level,color_code)');
         currentParams.set('detected_at', `gte.${startDate.toISOString()}`);
         
+        // Add country filter if provided
+        if (countryId) {
+          currentParams.set('country_id', `eq.${countryId}`);
+        }
+        
         const currentUrl = `${supabaseUrl}/rest/v1/outbreak_signals?${currentParams.toString()}`;
         const currentResponse = await fetch(currentUrl, {
           headers: {
@@ -65,6 +70,11 @@ export function useDashboardDiseases(timeRange: string) {
         const previousParams = new URLSearchParams();
         previousParams.set('select', 'disease_id,case_count_mentioned,detected_at');
         previousParams.set('detected_at', `gte.${previousStartDate.toISOString()}`);
+        
+        // Add country filter if provided
+        if (countryId) {
+          previousParams.set('country_id', `eq.${countryId}`);
+        }
         
         const previousUrl = `${supabaseUrl}/rest/v1/outbreak_signals?${previousParams.toString()}`;
         const previousResponse = await fetch(previousUrl, {
@@ -157,7 +167,7 @@ export function useDashboardDiseases(timeRange: string) {
     return () => {
       active = false;
     };
-  }, [timeRange]);
+  }, [timeRange, countryId]);
 
   return { diseases, loading, error };
 }

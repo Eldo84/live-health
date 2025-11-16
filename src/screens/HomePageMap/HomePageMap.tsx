@@ -13,8 +13,9 @@ import { useOutbreakCategories } from "../../lib/useOutbreakCategories";
 import { detectCountryInText, geocodeLocation } from "../../lib/geocode";
 import { geocodeWithOpenCage } from "../../lib/opencage";
 import { useUserLocation } from "../../lib/useUserLocation";
-import { Maximize2, Minimize2, X, RefreshCcw, Utensils, Droplet, Bug, Wind, Handshake, Hospital, PawPrint, Heart, Shield, AlertTriangle, MapPin, Brain, Syringe, Activity } from "lucide-react";
+import { Maximize2, Minimize2, X, RefreshCcw, Utensils, Droplet, Bug, Wind, Handshake, Hospital, PawPrint, Heart, Shield, AlertTriangle, MapPin, Brain, Syringe, Activity, AlertCircle, Beaker, Dna, Stethoscope, Cloud, Waves, Sparkles } from "lucide-react";
 import { useFullscreen } from "../../contexts/FullscreenContext";
+import { calculateDistance } from "../../lib/utils";
 
 // Removed demo outbreaks; using data-driven InteractiveMap
 
@@ -37,6 +38,8 @@ export const HomePageMap = (): JSX.Element => {
   const [showLocationError, setShowLocationError] = React.useState(true);
   const [isUserLocationZoom, setIsUserLocationZoom] = React.useState(false);
   const locationAutoAppliedRef = React.useRef(false);
+  const [nearMeRadius, setNearMeRadius] = React.useState<number>(500); // Default 500km
+  const [nearMeCategory, setNearMeCategory] = React.useState<string | null>(null);
   
   // Request user location on mount
   const { location, isRequesting: isRequestingLocation, error: locationError } = useUserLocation(true);
@@ -75,7 +78,10 @@ export const HomePageMap = (): JSX.Element => {
       category: null,
       diseaseSearch: "",
       diseaseType: "all",
+      nearMe: null, // Clear near-me filter on reset
     });
+    // Clear near me category selection
+    setNearMeCategory(null);
     // Clear zoom target and user location zoom to reset map to world view
     setZoomTarget(null);
     setIsUserLocationZoom(false);
@@ -295,14 +301,48 @@ export const HomePageMap = (): JSX.Element => {
     'bug': Bug,
     'wind': Wind,
     'handshake': Handshake,
+    'hand': Handshake,
     'hospital': Hospital,
     'paw-print': PawPrint,
+    'paw': PawPrint,
     'heart': Heart,
     'shield': Shield,
     'alert-triangle': AlertTriangle,
+    'alert-circle': AlertCircle,
     'brain': Brain,
     'syringe': Syringe,
     'activity': Activity,
+    'flask': Beaker,
+    'beaker': Beaker,
+    'virus': Dna,
+    'dna': Dna,
+    'stethoscope': Stethoscope,
+    'cloud': Cloud,
+    'waves': Waves,
+    'sparkles': Sparkles,
+  };
+
+  // Unique icon assignment map to ensure each normalized category gets a unique icon
+  const categoryIconMap: Record<string, React.ComponentType<any>> = {
+    'Foodborne Outbreaks': Utensils,
+    'Waterborne Outbreaks': Droplet,
+    'Vector-Borne Outbreaks': Bug,
+    'Airborne Outbreaks': Wind,
+    'Contact Transmission': Handshake,
+    'Healthcare-Associated Infections': Hospital,
+    'Zoonotic Outbreaks': PawPrint,
+    'Veterinary Outbreaks': PawPrint,
+    'Sexually Transmitted Infections': Heart,
+    'Vaccine-Preventable Diseases': Shield,
+    'Emerging Infectious Diseases': AlertTriangle,
+    'Neurological Outbreaks': Brain,
+    'Bloodborne Outbreaks': Syringe,
+    'Gastrointestinal Outbreaks': Activity,
+    'Respiratory Outbreaks': Cloud,
+    'Skin and Soft Tissue Outbreaks': Stethoscope,
+    'Hemorrhagic Fever Outbreaks': Dna,
+    'Antimicrobial-Resistant Outbreaks': Beaker,
+    'Other': AlertCircle,
   };
 
   // Normalize category name to handle variations and duplicates
@@ -405,34 +445,72 @@ export const HomePageMap = (): JSX.Element => {
         // Otherwise, continue to replace with better version
       }
       
-      // Map icon name from database to icon component, with fallbacks
-      let IconComponent: React.ComponentType<any> = AlertTriangle; // Default icon
+      // Map icon name from database to icon component, ensuring uniqueness
+      let IconComponent: React.ComponentType<any> = AlertCircle; // Default icon
       
-      if (cat.icon) {
+      // First, check if we have a predefined unique icon for this normalized category
+      if (categoryIconMap[normalizedName]) {
+        IconComponent = categoryIconMap[normalizedName];
+      } else if (cat.icon) {
+        // Try to map the database icon name
         const iconKey = cat.icon.toLowerCase().replace(/\s+/g, '-');
-        IconComponent = iconMap[iconKey] || AlertTriangle;
+        IconComponent = iconMap[iconKey] || AlertCircle;
       } else {
         // Fallback: try to infer icon from normalized category name
         const nameLower = normalizedName.toLowerCase();
         if (nameLower.includes('food')) IconComponent = Utensils;
         else if (nameLower.includes('water')) IconComponent = Droplet;
         else if (nameLower.includes('vector')) IconComponent = Bug;
-        else if (nameLower.includes('airborne') || nameLower.includes('respiratory')) IconComponent = Wind;
+        else if (nameLower.includes('airborne')) IconComponent = Wind;
+        else if (nameLower.includes('respiratory')) IconComponent = Cloud;
         else if (nameLower.includes('contact')) IconComponent = Handshake;
         else if (nameLower.includes('healthcare') || nameLower.includes('hospital')) IconComponent = Hospital;
-        else if (nameLower.includes('zoonotic') || nameLower.includes('veterinary')) IconComponent = PawPrint;
+        else if (nameLower.includes('zoonotic')) IconComponent = PawPrint;
+        else if (nameLower.includes('veterinary')) IconComponent = PawPrint;
         else if (nameLower.includes('sexually')) IconComponent = Heart;
         else if (nameLower.includes('vaccine')) IconComponent = Shield;
         else if (nameLower.includes('emerging')) IconComponent = AlertTriangle;
         else if (nameLower.includes('neurological')) IconComponent = Brain;
         else if (nameLower.includes('blood')) IconComponent = Syringe;
         else if (nameLower.includes('gastrointestinal')) IconComponent = Activity;
+        else if (nameLower.includes('skin') || nameLower.includes('soft tissue')) IconComponent = Stethoscope;
+        else if (nameLower.includes('hemorrhagic') || nameLower.includes('fever')) IconComponent = Dna;
+        else if (nameLower.includes('antimicrobial') || nameLower.includes('resistant')) IconComponent = Beaker;
+      }
+      
+      // Use database color, but ensure we have a valid color
+      let categoryColor = cat.color || '#66dbe1';
+      
+      // If color is missing or invalid, assign based on normalized name to match pie chart
+      if (!cat.color || cat.color === '#66dbe1') {
+        // Try to match colors from the pie chart's CATEGORY_COLORS
+        const colorMap: Record<string, string> = {
+          'Foodborne Outbreaks': '#f87171',
+          'Waterborne Outbreaks': '#66dbe1',
+          'Vector-Borne Outbreaks': '#fbbf24',
+          'Airborne Outbreaks': '#a78bfa',
+          'Contact Transmission': '#fb923c',
+          'Healthcare-Associated Infections': '#ef4444',
+          'Zoonotic Outbreaks': '#10b981',
+          'Veterinary Outbreaks': '#8b5cf6',
+          'Sexually Transmitted Infections': '#ec4899',
+          'Vaccine-Preventable Diseases': '#3b82f6',
+          'Emerging Infectious Diseases': '#f59e0b',
+          'Neurological Outbreaks': '#dc2626',
+          'Respiratory Outbreaks': '#9333ea',
+          'Bloodborne Outbreaks': '#dc2626',
+          'Gastrointestinal Outbreaks': '#f97316',
+          'Other': '#4eb7bd',
+        };
+        if (colorMap[normalizedName]) {
+          categoryColor = colorMap[normalizedName];
+        }
       }
       
       categoryMap.set(normalizedName, {
         id: cat.id,
         name: normalizedName, // Use normalized name for display
-        color: cat.color || '#66dbe1',
+        color: categoryColor,
         icon: IconComponent,
         originalName: cat.name, // Keep original for reference
       });
@@ -446,14 +524,22 @@ export const HomePageMap = (): JSX.Element => {
 
   // Handle category selection from disease category icons
   const handleCategoryClick = (categoryName: string) => {
-    setFilters(prev => ({
-      ...prev,
-      category: prev.category === categoryName ? null : categoryName,
-      // Clear country, disease search, and disease type filter when selecting a category
-      country: null,
-      diseaseSearch: "",
-      diseaseType: "all", // Reset disease type filter when category is selected
-    }));
+    setFilters(prev => {
+      const isClearing = prev.category === categoryName;
+      // Clear near me category selection when manually clicking category icon to clear it
+      if (isClearing) {
+        setNearMeCategory(null);
+      }
+      return {
+        ...prev,
+        category: isClearing ? null : categoryName,
+        // Clear country, disease search, disease type filter, and near-me filter when selecting a category
+        country: null,
+        diseaseSearch: "",
+        diseaseType: "all", // Reset disease type filter when category is selected
+        nearMe: null, // Clear near-me filter when manually selecting a category
+      };
+    });
     setZoomTarget(null);
     setIsUserLocationZoom(false);
   };
@@ -494,6 +580,88 @@ export const HomePageMap = (): JSX.Element => {
     
     return stats;
   }, [signals]);
+
+  // Filter categories that have outbreaks within radius of user's location
+  const nearbyCategories = React.useMemo(() => {
+    if (!location?.coordinates || signals.length === 0) {
+      return [];
+    }
+
+    const [userLat, userLon] = location.coordinates;
+    const categoryMap = new Map<string, boolean>();
+
+    // Check each signal to see if it's within radius
+    signals.forEach(signal => {
+      const [signalLat, signalLon] = signal.position;
+      const distance = calculateDistance(userLat, userLon, signalLat, signalLon);
+      
+      if (distance <= nearMeRadius) {
+        // This signal is within radius, mark its category as nearby
+        const categoryName = normalizeCategoryForDisplay(signal.category);
+        categoryMap.set(categoryName, true);
+      }
+    });
+
+    // Return only categories that have at least one nearby outbreak
+    return diseaseCategories
+      .filter(category => categoryMap.has(category.name))
+      .map(category => category.name)
+      .sort();
+  }, [location, signals, nearMeRadius, diseaseCategories]);
+
+  // Calculate zoom level based on radius (larger radius = lower zoom level)
+  // Zoom levels approximate: 10=~50km, 9=~100km, 8=~200km, 7=~500km, 6=~1000km, 5=~2000km, 4=~5000km
+  const getZoomLevelForRadius = (radiusKm: number): number => {
+    if (radiusKm <= 100) return 9;   // ~100km visible - good for local area
+    if (radiusKm <= 500) return 7;   // ~500km visible - good for regional
+    if (radiusKm <= 1000) return 6;  // ~1000km visible - good for country/region
+    return 5; // ~5000km visible - good for continent-wide
+  };
+
+  // Handle near me category selection
+  const handleNearMeCategoryChange = (categoryName: string | null) => {
+    setNearMeCategory(categoryName);
+    if (categoryName && location?.coordinates) {
+      // Apply the selected category to the main filter WITH near-me distance filtering
+      setFilters(prev => ({
+        ...prev,
+        category: categoryName,
+        country: null,
+        diseaseSearch: "",
+        diseaseType: "all",
+        nearMe: {
+          coordinates: location.coordinates,
+          radiusKm: nearMeRadius,
+        },
+      }));
+      // Zoom to user location with appropriate zoom level for the selected radius
+      setZoomTarget(location.coordinates);
+      setIsUserLocationZoom(true);
+    } else {
+      // Clear category filter and near-me filtering
+      setFilters(prev => ({
+        ...prev,
+        category: null,
+        nearMe: null,
+      }));
+      // If clearing, don't reset zoom - let user keep their current view
+    }
+  };
+
+  // Sync nearMeCategory with filters.category when category is changed elsewhere
+  React.useEffect(() => {
+    // If category filter is cleared or changed to something not in nearby categories, clear near me selection
+    if (!filters.category || !nearbyCategories.includes(filters.category)) {
+      if (nearMeCategory) {
+        setNearMeCategory(null);
+        // Also clear nearMe filter if it was set
+        setFilters(prev => prev.nearMe ? { ...prev, nearMe: null } : prev);
+      }
+    } else if (filters.category && nearbyCategories.includes(filters.category)) {
+      // If category matches a nearby category, sync the near me selection
+      setNearMeCategory(prev => prev !== filters.category ? filters.category : prev);
+    }
+  }, [filters.category, nearbyCategories, nearMeCategory]);
 
   // Handle mouse enter for tooltip
   const handleMouseEnter = (categoryName: string, event: React.MouseEvent<HTMLDivElement>) => {
@@ -822,6 +990,7 @@ export const HomePageMap = (): JSX.Element => {
             isFullscreen={isMapFullscreen}
             zoomTarget={zoomTarget}
             isUserLocation={isUserLocationZoom}
+            zoomLevel={isUserLocationZoom && nearMeCategory ? getZoomLevelForRadius(nearMeRadius) : undefined}
             onClearSearch={() => {
               setFilters(prev => ({ ...prev, diseaseSearch: "", country: null }));
               setZoomTarget(null);
@@ -840,6 +1009,70 @@ export const HomePageMap = (): JSX.Element => {
         <div className={`absolute top-[560px] z-[1000] transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} style={{ left: 'calc(90px + min(calc(100vw - 550px), calc(100vw - 260px)) + 10px)', width: '240px' }}>
           <SponsoredSection />
         </div>
+
+        {/* Categories Near Me Dropdown - Above Category Icons */}
+        {location?.coordinates && (
+          <div 
+            className={`absolute z-[1000] transition-all duration-300 ${isMapFullscreen || isDialogOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+            style={{
+              top: isMapFullscreen ? 'auto' : `calc(${categoryTop} - 60px)`,
+              left: '300px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+            }}
+          >
+            <label className="[font-family:'Roboto',Helvetica] text-xs font-semibold text-white whitespace-nowrap">
+              Show Outbreaks Near My Location:
+            </label>
+            <select
+              value={nearMeRadius}
+              onChange={(e) => {
+                const newRadius = Number(e.target.value);
+                setNearMeRadius(newRadius);
+                // If a category is currently selected, update the radius in the filter
+                if (nearMeCategory && location?.coordinates) {
+                  setFilters(prev => ({
+                    ...prev,
+                    nearMe: {
+                      coordinates: location.coordinates,
+                      radiusKm: newRadius,
+                    },
+                  }));
+                } else {
+                  // Clear near me category selection when radius changes and no category selected
+                  setNearMeCategory(null);
+                  handleNearMeCategoryChange(null);
+                }
+              }}
+              className="bg-[#23313c] border border-[#EAEBF024] text-white text-xs h-7 px-2 rounded-md focus:outline-none focus:ring-2 focus:ring-[#67DBE2]/50 [&>option]:bg-[#23313c] [&>option]:text-white"
+              style={{ minWidth: '100px' }}
+            >
+              <option value={100}>100 km</option>
+              <option value={500}>500 km</option>
+              <option value={1000}>1000 km</option>
+              <option value={5000}>5000 km</option>
+            </select>
+            <select
+              value={nearMeCategory || ""}
+              onChange={(e) => handleNearMeCategoryChange(e.target.value || null)}
+              disabled={nearbyCategories.length === 0}
+              className="bg-[#23313c] border border-[#EAEBF024] text-white text-xs h-7 px-2 rounded-md focus:outline-none focus:ring-2 focus:ring-[#67DBE2]/50 [&>option]:bg-[#23313c] [&>option]:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{ minWidth: '200px' }}
+            >
+              <option value="">
+                {nearbyCategories.length === 0 
+                  ? location ? "No outbreaks nearby" : "Loading location..."
+                  : `Select category (${nearbyCategories.length} available)`}
+              </option>
+              {nearbyCategories.map((category) => (
+                <option key={category} value={category}>
+                  {category}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Disease Category Icons - Left Side, Scrollable */}
         <style>{`
@@ -864,7 +1097,8 @@ export const HomePageMap = (): JSX.Element => {
             top: isMapFullscreen ? 'auto' : categoryTop,
             left: '90px',
             right: isMapFullscreen ? 'auto' : '260px', // Leave space for right sidebar (240px + 20px margin)
-            height: '44px',
+            height: '60px',
+            minHeight: '60px',
             overflow: 'visible', // Allow tooltips to show outside container
           }}
         >
@@ -878,10 +1112,12 @@ export const HomePageMap = (): JSX.Element => {
               scrollbarColor: '#67DBE2 #2a4149',
               paddingRight: '20px', // Add padding to prevent icons from being cut off at the end
               paddingLeft: '0',
+              paddingBottom: '12px', // Add space between icons and scrollbar
+              paddingTop: '0',
               position: 'relative', // Ensure positioning context
             }}
           >
-          <div className="flex items-center h-full gap-[18px] flex-nowrap" style={{ minWidth: 'max-content', paddingLeft: '0', paddingRight: '10px' }}>
+          <div className="flex items-center gap-[18px] flex-nowrap" style={{ minWidth: 'max-content', paddingLeft: '0', paddingRight: '10px', paddingBottom: '0', paddingTop: '0', alignItems: 'center', display: 'flex', marginBottom: '0', height: '48px' }}>
             {diseaseCategories.map((category) => {
               return (
                 <div 
