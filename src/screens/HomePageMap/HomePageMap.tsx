@@ -637,6 +637,9 @@ export const HomePageMap = (): JSX.Element => {
       // Zoom to user location with appropriate zoom level for the selected radius
       setZoomTarget(location.coordinates);
       setIsUserLocationZoom(true);
+      
+      // Popup will open automatically via the effect in InteractiveMap
+      // No need to force it - the effect will detect the category change
     } else {
       // Clear category filter and near-me filtering
       setFilters(prev => ({

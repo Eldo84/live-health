@@ -1,12 +1,14 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { MapContainer, TileLayer, Marker, Popup, Tooltip, useMap } from "react-leaflet";
 import { Icon, DivIcon } from "leaflet";
+import type L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { useSupabaseOutbreakSignals, OutbreakSignal } from "../../../../lib/useSupabaseOutbreakSignals";
+import { useSupabaseOutbreakSignals, OutbreakSignal, categoriesMatch } from "../../../../lib/useSupabaseOutbreakSignals";
 import { FilterState } from "../FilterPanel";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "../../../../components/ui/dialog";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "../../../../components/ui/collapsible";
 import { useHealthMinistry, extractCountryFromLocation } from "../../../../lib/useHealthMinistry";
+import { calculateDistance } from "../../../../lib/utils";
 
 const ZoomHandler = ({ onZoomChange }: { onZoomChange: (zoom: number) => void }) => {
   const map = useMap();
@@ -59,6 +61,145 @@ const MapResizeHandler = () => {
       window.removeEventListener('resize', invalidateSize);
     };
   }, [map]);
+  
+  return null;
+};
+
+// Keep popup open and handle close button clicks
+const KeepPopupOpenHandler = ({ markerRef, shouldKeepOpen, userManuallyClosedRef }: { markerRef: React.MutableRefObject<any>, shouldKeepOpen: boolean, userManuallyClosedRef: React.MutableRefObject<boolean> }) => {
+  const map = useMap();
+  const keepOpenIntervalRef = React.useRef<NodeJS.Timeout | null>(null);
+  
+  React.useEffect(() => {
+    if (!shouldKeepOpen) {
+      // Clear interval if popup should not be kept open
+      if (keepOpenIntervalRef.current) {
+        clearInterval(keepOpenIntervalRef.current);
+        keepOpenIntervalRef.current = null;
+      }
+      return;
+    }
+    
+    // Listen for close button clicks
+    const handleCloseButtonClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const closeButton = target.closest('.leaflet-popup-close-button');
+      if (closeButton) {
+        const popupElement = closeButton.closest('.leaflet-popup');
+        if (popupElement && markerRef.current) {
+          try {
+            const markerPopup = markerRef.current.getPopup?.();
+            if (markerPopup) {
+              const markerPopupElement = markerPopup.getElement?.();
+              if (markerPopupElement === popupElement || 
+                  popupElement.contains(markerPopupElement) || 
+                  markerPopupElement?.contains(popupElement)) {
+                // User clicked close button - mark as manually closed
+                userManuallyClosedRef.current = true;
+                // Stop keeping it open
+                if (keepOpenIntervalRef.current) {
+                  clearInterval(keepOpenIntervalRef.current);
+                  keepOpenIntervalRef.current = null;
+                }
+              }
+            }
+          } catch (e) {
+            // Fallback: check by content
+            const popupContent = popupElement.textContent || '';
+            if (popupContent.includes('Outbreaks Near You') || popupContent.includes('Your Current Location')) {
+              userManuallyClosedRef.current = true;
+              if (keepOpenIntervalRef.current) {
+                clearInterval(keepOpenIntervalRef.current);
+                keepOpenIntervalRef.current = null;
+              }
+            }
+          }
+        }
+      }
+    };
+    
+    document.addEventListener('click', handleCloseButtonClick, true);
+    
+    // Prevent map from closing popup on click
+    const handleMapClick = (e: L.LeafletMouseEvent) => {
+      // If popup should be kept open, prevent it from closing
+      if (markerRef.current && shouldKeepOpen && !userManuallyClosedRef.current) {
+        // Check if click is NOT on the popup itself
+        const originalTarget = (e.originalEvent?.target as HTMLElement) || null;
+        if (originalTarget && !originalTarget.closest('.leaflet-popup')) {
+          // Click was on the map, not the popup - ensure popup stays open
+          setTimeout(() => {
+            if (markerRef.current && shouldKeepOpen && !userManuallyClosedRef.current) {
+              try {
+                const popup = markerRef.current.getPopup?.();
+                if (popup && !popup.isOpen()) {
+                  markerRef.current.openPopup();
+                }
+              } catch (e) {
+                // Ignore errors
+              }
+            }
+          }, 50);
+        }
+      }
+    };
+    
+    map.on('click', handleMapClick);
+    
+    // Continuously check and keep popup open (but not if user manually closed it)
+    // Start immediately to catch any closures
+    keepOpenIntervalRef.current = setInterval(() => {
+      if (markerRef.current && shouldKeepOpen && !userManuallyClosedRef.current) {
+        try {
+          const popup = markerRef.current.getPopup?.();
+          if (popup) {
+            if (!popup.isOpen()) {
+              // Popup was closed - reopen it immediately
+              markerRef.current.openPopup();
+            }
+          }
+        } catch (e) {
+          // Ignore errors
+        }
+      } else if (userManuallyClosedRef.current) {
+        // User manually closed it, stop checking
+        if (keepOpenIntervalRef.current) {
+          clearInterval(keepOpenIntervalRef.current);
+          keepOpenIntervalRef.current = null;
+        }
+      }
+    }, 50); // Check every 50ms - very frequent to catch closures immediately
+    
+    // Reopen popup after zoom if it was open
+    const handleZoom = () => {
+      if (markerRef.current && shouldKeepOpen && !userManuallyClosedRef.current) {
+        setTimeout(() => {
+          if (markerRef.current && shouldKeepOpen && !userManuallyClosedRef.current) {
+            try {
+              const popup = markerRef.current.getPopup?.();
+              if (popup && !popup.isOpen()) {
+                markerRef.current.openPopup();
+              }
+            } catch (e) {
+              // Ignore errors
+            }
+          }
+        }, 200);
+      }
+    };
+    
+    map.on('zoomend', handleZoom);
+    
+    return () => {
+      document.removeEventListener('click', handleCloseButtonClick, true);
+      if (keepOpenIntervalRef.current) {
+        clearInterval(keepOpenIntervalRef.current);
+        keepOpenIntervalRef.current = null;
+      }
+      map.off('zoomend', handleZoom);
+      map.off('click', handleMapClick);
+    };
+  }, [map, markerRef, shouldKeepOpen, userManuallyClosedRef]);
   
   return null;
 };
@@ -705,11 +846,75 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const pieClickHandlersRef = React.useRef<Record<number, () => void>>({});
   const prevZoomTargetRef = React.useRef<[number, number] | null>(null);
+  const userLocationMarkerRef = React.useRef<any>(null);
+  const [shouldKeepPopupOpen, setShouldKeepPopupOpen] = useState(false);
+  const userManuallyClosedRef = React.useRef<boolean>(false);
+  const prevCategoryRef = React.useRef<string | null>(null);
+  const popupOpenTimerRef = React.useRef<NodeJS.Timeout | null>(null);
 
   // Notify parent when dialog state changes
   React.useEffect(() => {
     onDialogStateChange?.(isDialogOpen);
   }, [isDialogOpen, onDialogStateChange]);
+
+  // Simplified: Open popup when category is selected for "near me"
+  React.useEffect(() => {
+    const currentCategory = filters?.category || null;
+    const hasNearMe = !!filters?.nearMe;
+    const categoryChanged = prevCategoryRef.current !== currentCategory;
+    
+    // Clear any existing timer
+    if (popupOpenTimerRef.current) {
+      clearTimeout(popupOpenTimerRef.current);
+      popupOpenTimerRef.current = null;
+    }
+    
+    // Open popup if category is selected and near me is active
+    if (currentCategory && hasNearMe && isUserLocation && zoomTarget) {
+      // Open if category changed OR user manually closed it before
+      if (categoryChanged || userManuallyClosedRef.current) {
+        // Update the ref
+        prevCategoryRef.current = currentCategory;
+        
+        // Reset manual close flag and enable keeping popup open
+        // Set this first so the KeepPopupOpenHandler can start working
+        userManuallyClosedRef.current = false;
+        setShouldKeepPopupOpen(true);
+        
+        // Wait for marker to be available, then open popup
+        const attemptOpen = (attempts = 0) => {
+          if (userLocationMarkerRef.current) {
+            try {
+              const popup = userLocationMarkerRef.current.getPopup?.();
+              if (popup) {
+                userLocationMarkerRef.current.openPopup();
+              }
+            } catch (e) {
+              console.warn('Error opening popup:', e);
+            }
+          } else if (attempts < 20) {
+            // Retry up to 20 times (2 seconds total)
+            popupOpenTimerRef.current = setTimeout(() => attemptOpen(attempts + 1), 100);
+          }
+        };
+        
+        // Start attempting to open after a short delay
+        popupOpenTimerRef.current = setTimeout(() => attemptOpen(), 500);
+      }
+    } else if (!currentCategory || !hasNearMe) {
+      // Reset when category is cleared
+      prevCategoryRef.current = null;
+      setShouldKeepPopupOpen(false);
+      userManuallyClosedRef.current = false;
+    }
+    
+    return () => {
+      if (popupOpenTimerRef.current) {
+        clearTimeout(popupOpenTimerRef.current);
+        popupOpenTimerRef.current = null;
+      }
+    };
+  }, [filters?.category, filters?.nearMe, isUserLocation, zoomTarget]);
   
   // Track when zoomTarget is cleared (search is cleared) to refit bounds
   React.useEffect(() => {
@@ -806,6 +1011,54 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
     // Preserve originalCategoryName if it exists (for composite category handling)
     originalCategoryName: (s as any).originalCategoryName,
   }));
+
+  // Calculate unique diseases with outbreak counts for selected category when "near me" is active
+  const nearMeCategoryDiseases = useMemo(() => {
+    if (!filters?.category || !filters?.nearMe || !zoomTarget) {
+      return [];
+    }
+
+    const [userLat, userLon] = filters.nearMe.coordinates;
+    const radiusKm = filters.nearMe.radiusKm;
+    const selectedCategory = filters.category;
+
+    // Get all signals that match the category and are within radius
+    const matchingSignals = signals.filter(signal => {
+      // Check if category matches
+      const originalCategory = (signal as any).originalCategoryName;
+      const categoryMatches = categoriesMatch(originalCategory || signal.category, selectedCategory) ||
+                              categoriesMatch(signal.category, selectedCategory);
+      
+      if (!categoryMatches) {
+        return false;
+      }
+
+      // Check if within radius
+      const [signalLat, signalLon] = signal.position;
+      const distance = calculateDistance(userLat, userLon, signalLat, signalLon);
+      return distance <= radiusKm;
+    });
+
+    // Count outbreaks per disease
+    const diseaseCounts: Record<string, number> = {};
+    matchingSignals.forEach(signal => {
+      const disease = signal.disease;
+      diseaseCounts[disease] = (diseaseCounts[disease] || 0) + 1;
+    });
+
+    // Convert to array of objects with disease name and count, sorted by count (descending) then alphabetically
+    const diseasesWithCounts = Object.entries(diseaseCounts)
+      .map(([disease, count]) => ({ disease, count }))
+      .sort((a, b) => {
+        // Sort by count descending, then alphabetically
+        if (b.count !== a.count) {
+          return b.count - a.count;
+        }
+        return a.disease.localeCompare(b.disease);
+      });
+
+    return diseasesWithCounts;
+  }, [filters?.category, filters?.nearMe, zoomTarget, signals]);
 
   const CATEGORY_COLORS: Record<string, string> = {
     "Foodborne Outbreaks": "#f87171",
@@ -1309,6 +1562,11 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
       const target = e.target as HTMLElement | null;
       if (!target) return;
       
+      // Don't interfere with popup clicks - let Leaflet handle popup interactions
+      if (target.closest('.leaflet-popup') || target.closest('.leaflet-popup-content-wrapper')) {
+        return;
+      }
+      
       console.log('Click detected on:', target.tagName, target.className, target);
       
       // Check if clicking on a pie chart container or SVG
@@ -1590,11 +1848,21 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
           zoomLevel={zoomLevel}
         />
         <MapResizeHandler />
+        <KeepPopupOpenHandler 
+          markerRef={userLocationMarkerRef} 
+          shouldKeepOpen={shouldKeepPopupOpen}
+          userManuallyClosedRef={userManuallyClosedRef}
+        />
         <MapControls mapType={mapType} onMapTypeChange={setMapType} isOpen={isMapControlsOpen} onOpenChange={setIsMapControlsOpen} isFullscreen={isFullscreen} />
         
         {/* User Location Marker - Show when user location is detected */}
         {isUserLocation && zoomTarget && (
           <Marker
+            ref={(ref) => {
+              if (ref) {
+                userLocationMarkerRef.current = ref;
+              }
+            }}
             position={zoomTarget}
             icon={createUserLocationIcon(32)}
             zIndexOffset={1000}
@@ -1611,18 +1879,78 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
                 </div>
               </div>
             </Tooltip>
-            <Popup>
-              <div className="p-2 min-w-[200px]">
-                <div className="mb-2 font-semibold text-[#3b82f6]">📍 Your Current Location</div>
-                <div className="text-xs mb-1">
-                  <strong>Latitude:</strong> {zoomTarget[0].toFixed(6)}
-                </div>
-                <div className="text-xs mb-1">
-                  <strong>Longitude:</strong> {zoomTarget[1].toFixed(6)}
-                </div>
-                <div className="text-xs text-white/70 mt-2">
-                  This is your detected location. The map is centered on this point.
-                </div>
+            <Popup 
+              closeOnClick={false} 
+              autoClose={false}
+              eventHandlers={{
+                remove: () => {
+                  // Prevent popup from being removed if it should stay open
+                  if (shouldKeepPopupOpen && !userManuallyClosedRef.current && userLocationMarkerRef.current) {
+                    // Reopen immediately if it was removed
+                    setTimeout(() => {
+                      if (userLocationMarkerRef.current && shouldKeepPopupOpen && !userManuallyClosedRef.current) {
+                        try {
+                          userLocationMarkerRef.current.openPopup();
+                        } catch (e) {
+                          // Ignore errors
+                        }
+                      }
+                    }, 10);
+                  }
+                }
+              }}
+            >
+              <div className="p-2 min-w-[200px] max-w-[300px]">
+                {filters?.category && filters?.nearMe && nearMeCategoryDiseases.length > 0 ? (
+                  <>
+                    <div className="mb-2 font-semibold text-[#3b82f6]">📍 Outbreaks Near You</div>
+                    <div className="text-xs mb-2 text-white/90">
+                      <strong>Category:</strong> {filters.category}
+                    </div>
+                    <div className="text-xs mb-2 text-white/90">
+                      <strong>Radius:</strong> {filters.nearMe.radiusKm} km
+                    </div>
+                    <div className="text-xs mb-2 text-white/90">
+                      <strong>Diseases Found ({nearMeCategoryDiseases.length}):</strong>
+                    </div>
+                    <div className="max-h-[200px] overflow-y-auto space-y-1">
+                      {nearMeCategoryDiseases.map((item, index) => (
+                        <div 
+                          key={index} 
+                          className="text-xs text-white/80 bg-[#2a4149]/50 px-2 py-1 rounded border border-[#67DBE2]/20 flex items-center justify-between gap-2"
+                        >
+                          <span className="flex-1">{item.disease}</span>
+                          <span className="text-[#67DBE2] font-semibold bg-[#67DBE2]/10 px-1.5 py-0.5 rounded text-[10px] whitespace-nowrap">
+                            {item.count} {item.count === 1 ? 'outbreak' : 'outbreaks'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : filters?.category && filters?.nearMe ? (
+                  <>
+                    <div className="mb-2 font-semibold text-[#3b82f6]">📍 Outbreaks Near You</div>
+                    <div className="text-xs mb-2 text-white/90">
+                      <strong>Category:</strong> {filters.category}
+                    </div>
+                    <div className="text-xs text-white/70 mt-2">
+                      No diseases found in this category within {filters.nearMe.radiusKm} km of your location.
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="mb-2 font-semibold text-[#3b82f6]">📍 Your Current Location</div>
+                    <div className="text-xs mb-1">
+                      <strong>Latitude:</strong> {zoomTarget[0].toFixed(6)}
+                    </div>
+                    <div className="text-xs mb-1">
+                      <strong>Longitude:</strong> {zoomTarget[1].toFixed(6)}
+                    </div>
+                    <div className="text-xs text-white/70 mt-2">
+                      This is your detected location. The map is centered on this point.
+                    </div>
+                  </>
+                )}
               </div>
             </Popup>
           </Marker>
