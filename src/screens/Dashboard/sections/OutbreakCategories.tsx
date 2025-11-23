@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader } from "../../../components/ui/card";
 import { Badge } from "../../../components/ui/badge";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
+import { useOutbreakCategories } from "../../../lib/useOutbreakCategories";
 
 interface CategoryData {
   id: string;
@@ -12,81 +13,333 @@ interface CategoryData {
 }
 
 export const OutbreakCategories = (): JSX.Element => {
-  const [categories, setCategories] = useState<CategoryData[]>([
-    { id: '1', name: 'Foodborne Outbreaks', description: 'Diseases transmitted through contaminated food', color: '#f87171', diseaseCount: 45 },
-    { id: '2', name: 'Waterborne Outbreaks', description: 'Diseases transmitted through contaminated water', color: '#66dbe1', diseaseCount: 32 },
-    { id: '3', name: 'Vector-Borne Outbreaks', description: 'Diseases transmitted by vectors like mosquitoes', color: '#fbbf24', diseaseCount: 67 },
-    { id: '4', name: 'Airborne Outbreaks', description: 'Diseases transmitted through air', color: '#a78bfa', diseaseCount: 28 },
-    { id: '5', name: 'Contact Transmission', description: 'Diseases transmitted through direct contact', color: '#fb923c', diseaseCount: 41 },
-    { id: '6', name: 'Healthcare-Associated Infections', description: 'Infections acquired in healthcare settings', color: '#ef4444', diseaseCount: 38 },
-    { id: '7', name: 'Zoonotic Outbreaks', description: 'Diseases transmitted from animals to humans', color: '#10b981', diseaseCount: 54 },
-    { id: '8', name: 'Sexually Transmitted Infections', description: 'Diseases transmitted through sexual contact', color: '#ec4899', diseaseCount: 23 },
-    { id: '9', name: 'Vaccine-Preventable Diseases', description: 'Diseases that can be prevented by vaccination', color: '#3b82f6', diseaseCount: 19 },
-    { id: '10', name: 'Emerging Infectious Diseases', description: 'Newly identified diseases or re-emerging threats', color: '#f59e0b', diseaseCount: 31 },
-  ]);
+  const { categories: dbCategories, loading: categoriesLoading } = useOutbreakCategories();
+  const [categories, setCategories] = useState<CategoryData[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  // Transform categories data for pie chart
-  const pieChartData = categories.map(category => ({
-    name: category.name,
-    value: category.diseaseCount,
-    color: category.color,
-  }));
+  useEffect(() => {
+    async function fetchCategoryData() {
+      if (categoriesLoading) {
+        return;
+      }
+
+      if (!dbCategories.length) {
+        setCategories([]);
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        const envVars = (import.meta as unknown as { env?: Record<string, string | undefined> })?.env ?? import.meta.env;
+        const supabaseUrl = envVars?.VITE_SUPABASE_URL;
+        const supabaseKey = envVars?.VITE_SUPABASE_ANON_KEY;
+
+        if (!supabaseUrl || !supabaseKey) {
+          throw new Error("Missing Supabase configuration");
+        }
+
+        // Fetch disease counts for each category
+        // Query disease_categories table to count diseases per category
+        const queryResponse = await fetch(
+          `${supabaseUrl}/rest/v1/disease_categories?select=category_id,disease_id`,
+          {
+            headers: {
+              apikey: supabaseKey,
+              Authorization: `Bearer ${supabaseKey}`,
+            },
+          }
+        );
+
+        let diseaseCounts: Record<string, number> = {};
+
+        if (queryResponse.ok) {
+          const diseaseCategoryData: any[] = await queryResponse.json();
+          
+          // Count unique diseases per category
+          const categoryDiseaseMap = new Map<string, Set<string>>();
+          
+          diseaseCategoryData.forEach((dc: any) => {
+            if (dc.category_id && dc.disease_id) {
+              if (!categoryDiseaseMap.has(dc.category_id)) {
+                categoryDiseaseMap.set(dc.category_id, new Set());
+              }
+              categoryDiseaseMap.get(dc.category_id)!.add(dc.disease_id);
+            }
+          });
+
+          // Convert to counts
+          categoryDiseaseMap.forEach((diseaseSet, categoryId) => {
+            diseaseCounts[categoryId] = diseaseSet.size;
+          });
+        }
+
+        // Generate a unique color palette for categories
+        const colorPalette = [
+          '#f87171', // red
+          '#66dbe1', // cyan
+          '#fbbf24', // amber
+          '#a78bfa', // purple
+          '#fb923c', // orange
+          '#ef4444', // red-500
+          '#10b981', // green
+          '#ec4899', // pink
+          '#3b82f6', // blue
+          '#f59e0b', // amber-500
+          '#8b5cf6', // violet
+          '#06b6d4', // cyan-500
+          '#14b8a6', // teal
+          '#f97316', // orange-500
+          '#6366f1', // indigo
+          '#22c55e', // green-500
+          '#eab308', // yellow
+          '#84cc16', // lime
+          '#0ea5e9', // sky-500
+          '#a855f7', // purple-500
+        ];
+
+        // Track used colors to avoid duplicates
+        const usedColors = new Set<string>();
+        
+        // Helper function to get a unique color for a category
+        const getUniqueColor = (categoryName: string, existingColor: string | undefined): string => {
+          // If category has a valid color and it's not already used, use it
+          if (existingColor && existingColor.trim() && !usedColors.has(existingColor)) {
+            usedColors.add(existingColor);
+            return existingColor;
+          }
+          
+          // Generate a hash-based color from category name
+          let hash = 0;
+          for (let i = 0; i < categoryName.length; i++) {
+            hash = ((hash << 5) - hash) + categoryName.charCodeAt(i);
+            hash = hash & hash;
+          }
+          
+          // Try to find an unused color from palette
+          const startIndex = Math.abs(hash) % colorPalette.length;
+          for (let i = 0; i < colorPalette.length; i++) {
+            const colorIndex = (startIndex + i) % colorPalette.length;
+            const color = colorPalette[colorIndex];
+            if (!usedColors.has(color)) {
+              usedColors.add(color);
+              return color;
+            }
+          }
+          
+          // If all colors are used, generate a random color
+          const randomColor = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
+          usedColors.add(randomColor);
+          return randomColor;
+        };
+
+        // Combine category data with disease counts and assign unique colors
+        const combinedCategories: CategoryData[] = dbCategories.map((cat) => ({
+          id: cat.id,
+          name: cat.name,
+          description: cat.description || '',
+          color: getUniqueColor(cat.name, cat.color),
+          diseaseCount: diseaseCounts[cat.id] || 0,
+        }));
+
+        setCategories(combinedCategories);
+      } catch (err: any) {
+        console.error("Error fetching category disease counts:", err);
+        // Generate a unique color palette for categories (fallback)
+        const colorPalette = [
+          '#f87171', '#66dbe1', '#fbbf24', '#a78bfa', '#fb923c',
+          '#ef4444', '#10b981', '#ec4899', '#3b82f6', '#f59e0b',
+          '#8b5cf6', '#06b6d4', '#14b8a6', '#f97316', '#6366f1',
+          '#22c55e', '#eab308', '#84cc16', '#0ea5e9', '#a855f7',
+        ];
+        const usedColors = new Set<string>();
+        const getUniqueColor = (categoryName: string, existingColor: string | undefined): string => {
+          if (existingColor && existingColor.trim() && !usedColors.has(existingColor)) {
+            usedColors.add(existingColor);
+            return existingColor;
+          }
+          let hash = 0;
+          for (let i = 0; i < categoryName.length; i++) {
+            hash = ((hash << 5) - hash) + categoryName.charCodeAt(i);
+            hash = hash & hash;
+          }
+          const startIndex = Math.abs(hash) % colorPalette.length;
+          for (let i = 0; i < colorPalette.length; i++) {
+            const colorIndex = (startIndex + i) % colorPalette.length;
+            const color = colorPalette[colorIndex];
+            if (!usedColors.has(color)) {
+              usedColors.add(color);
+              return color;
+            }
+          }
+          const randomColor = `#${Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')}`;
+          usedColors.add(randomColor);
+          return randomColor;
+        };
+        
+        // Fallback to categories without counts
+        const fallbackCategories: CategoryData[] = dbCategories.map((cat) => ({
+          id: cat.id,
+          name: cat.name,
+          description: cat.description || '',
+          color: getUniqueColor(cat.name, cat.color),
+          diseaseCount: 0,
+        }));
+        setCategories(fallbackCategories);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchCategoryData();
+  }, [dbCategories, categoriesLoading]);
+
+  // Transform categories data for pie chart (only show categories with diseases)
+  const pieChartData = categories
+    .filter(category => category.diseaseCount > 0)
+    .map(category => ({
+      name: category.name,
+      value: category.diseaseCount,
+      color: category.color,
+    }));
+
+  if (loading || categoriesLoading) {
+    return (
+      <div className="space-y-6">
+        <Card className="bg-[#ffffff14] border-[#eaebf024]">
+          <CardContent className="p-6">
+            <div className="text-center text-[#ebebeb99]">
+              Loading outbreak categories...
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (categories.length === 0) {
+    return (
+      <div className="space-y-6">
+        <Card className="bg-[#ffffff14] border-[#eaebf024]">
+          <CardContent className="p-6">
+            <div className="text-center text-[#ebebeb99]">
+              No outbreak categories found.
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      <Card className="bg-[#ffffff14] border-[#eaebf024]">
-        <CardHeader className="pb-4">
-          <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-lg">
+      <Card className="bg-[#ffffff14] border-[#eaebf024] shadow-lg">
+        <CardHeader className="pb-6">
+          <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-xl">
             Outbreak Categories Distribution
           </h3>
-          <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm mt-1">
+          <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm mt-2">
             Visual breakdown of diseases by transmission method and outbreak type
           </p>
         </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={400}>
-            <PieChart>
-              <Pie
-                data={pieChartData}
-                cx="50%"
-                cy="50%"
-                labelLine={true}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(1)}%`}
-                outerRadius={140}
-                fill="#8884d8"
-                dataKey="value"
-              >
+        <CardContent className="pb-6">
+          {pieChartData.length > 0 ? (
+            <div className="w-full">
+              <ResponsiveContainer width="100%" height={380}>
+                <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                  <Pie
+                    data={pieChartData}
+                    cx="50%"
+                    cy="45%"
+                    outerRadius={140}
+                    innerRadius={60}
+                    paddingAngle={2}
+                    fill="#8884d8"
+                    dataKey="value"
+                    stroke="none"
+                  >
+                    {pieChartData.map((entry, index) => (
+                      <Cell 
+                        key={`cell-${index}`} 
+                        fill={entry.color}
+                        style={{ 
+                          filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.2))',
+                          transition: 'opacity 0.2s',
+                        }}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0];
+                        const categoryData = pieChartData.find(item => item.name === data.name);
+                        const color = categoryData?.color || (data.payload as any)?.color || '#8884d8';
+                        const percent = ((data.value as number) / pieChartData.reduce((sum, item) => sum + item.value, 0)) * 100;
+                        return (
+                          <div className="bg-[#1f2937] border border-[#374151] rounded-lg shadow-xl p-4 min-w-[200px]">
+                            <div className="flex items-center gap-3 mb-2">
+                              <div 
+                                className="w-4 h-4 rounded-full flex-shrink-0"
+                                style={{ backgroundColor: color }}
+                              />
+                              <p className="text-[#ffffff] font-semibold text-sm [font-family:'Roboto',Helvetica]">
+                                {data.name}
+                              </p>
+                            </div>
+                            <div className="space-y-1 pt-2 border-t border-[#374151]">
+                              <div className="flex justify-between items-center">
+                                <span className="text-[#ebebeb99] text-xs [font-family:'Roboto',Helvetica]">Diseases:</span>
+                                <span className="text-[#66dbe1] font-semibold text-sm [font-family:'Roboto',Helvetica]">
+                                  {data.value}
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-[#ebebeb99] text-xs [font-family:'Roboto',Helvetica]">Percentage:</span>
+                                <span className="text-[#66dbe1] font-semibold text-sm [font-family:'Roboto',Helvetica]">
+                                  {percent.toFixed(1)}%
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-4 px-4">
                 {pieChartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
+                  <div key={`legend-${index}`} className="flex items-center gap-2">
+                    <div 
+                      className="w-3 h-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: entry.color }}
+                    />
+                    <span className="text-[#ebebeb] text-xs [font-family:'Roboto',Helvetica]">
+                      {entry.name}
+                    </span>
+                  </div>
                 ))}
-              </Pie>
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#1f2937',
-                  border: '1px solid #374151',
-                  borderRadius: '8px',
-                  fontFamily: 'Roboto',
-                }}
-                labelStyle={{ color: '#ffffff' }}
-                formatter={(value: number) => [`${value} diseases`, 'Count']}
-              />
-              <Legend
-                wrapperStyle={{ fontFamily: 'Roboto', color: '#ebebeb' }}
-                iconType="circle"
-                formatter={(value) => <span style={{ color: '#ebebeb' }}>{value}</span>}
-              />
-            </PieChart>
-          </ResponsiveContainer>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center text-[#ebebeb99] py-12">
+              <p className="[font-family:'Roboto',Helvetica] text-sm">
+                No disease data available for categories yet.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      <Card className="bg-[#ffffff14] border-[#eaebf024]">
-        <CardHeader className="pb-4">
-          <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-lg">
+      <Card className="bg-[#ffffff14] border-[#eaebf024] shadow-lg">
+        <CardHeader className="pb-6">
+          <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-xl">
             Category Details
           </h3>
-          <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm mt-1">
-            Detailed information about each outbreak category
+          <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm mt-2">
+            Detailed information about each outbreak category ({categories.length} total)
           </p>
         </CardHeader>
         <CardContent>
@@ -94,22 +347,26 @@ export const OutbreakCategories = (): JSX.Element => {
             {categories.map((category) => (
               <div
                 key={category.id}
-                className="p-4 rounded-lg border border-[#ffffff1a] hover:bg-[#ffffff0d] transition-all cursor-pointer"
+                className="p-5 rounded-lg border border-[#ffffff1a] bg-[#ffffff08] hover:bg-[#ffffff12] hover:border-[#ffffff24] transition-all duration-200 cursor-pointer group"
                 style={{ borderLeftWidth: '4px', borderLeftColor: category.color }}
               >
-                <div className="flex items-start justify-between mb-2">
-                  <h4 className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-sm flex-1">
+                <div className="flex items-start justify-between mb-3">
+                  <h4 className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-sm flex-1 group-hover:text-[#66dbe1] transition-colors">
                     {category.name}
                   </h4>
                   <Badge
-                    className="border-0 text-xs"
-                    style={{ backgroundColor: `${category.color}33`, color: category.color }}
+                    className="border-0 text-xs font-semibold px-2.5 py-1"
+                    style={{ 
+                      backgroundColor: `${category.color}26`, 
+                      color: category.color,
+                      boxShadow: `0 0 8px ${category.color}33`
+                    }}
                   >
                     {category.diseaseCount}
                   </Badge>
                 </div>
                 <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-xs leading-relaxed">
-                  {category.description}
+                  {category.description || 'No description available'}
                 </p>
               </div>
             ))}

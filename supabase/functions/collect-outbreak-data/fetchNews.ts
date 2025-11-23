@@ -1,5 +1,6 @@
 import type { NormalizedArticle } from "./types.ts";
 import { parseRSSFeedArticles } from "./rss.ts";
+import { LANGUAGE_NEWS_SOURCES } from "./languages.ts";
 
 // Outbreak-related tags to filter CDC Media API results
 const OUTBREAK_RELATED_TAGS = [
@@ -183,7 +184,7 @@ async function fetchCDCMediaAPI(
   return articles;
 }
 
-export async function fetchArticles(): Promise<NormalizedArticle[]> {
+export async function fetchArticles(language: string = "en"): Promise<NormalizedArticle[]> {
   const articles: NormalizedArticle[] = [];
 
   // WHO - World Health Organization Disease Outbreak News
@@ -195,6 +196,11 @@ export async function fetchArticles(): Promise<NormalizedArticle[]> {
       maxItems: 50,
     });
     if (whoArticles.length > 0) {
+      // WHO articles are in English, set language and originalText
+      whoArticles.forEach(a => {
+        a.language = "en";
+        a.originalText = a.content;
+      });
       console.log(`WHO fetched ${whoArticles.length} articles`);
       articles.push(...whoArticles);
     }
@@ -207,6 +213,11 @@ export async function fetchArticles(): Promise<NormalizedArticle[]> {
   try {
     const cdcMediaArticles = await fetchCDCMediaAPI(50, 3);
     if (cdcMediaArticles.length > 0) {
+      // CDC articles are in English, set language and originalText
+      cdcMediaArticles.forEach(a => {
+        a.language = "en";
+        a.originalText = a.content;
+      });
       console.log(`CDC Media API fetched ${cdcMediaArticles.length} articles`);
       articles.push(...cdcMediaArticles);
     }
@@ -222,6 +233,11 @@ export async function fetchArticles(): Promise<NormalizedArticle[]> {
       maxItems: 30, // Reduced since we're also using Media API
     });
     if (cdcRssArticles.length > 0) {
+      // CDC RSS articles are in English, set language and originalText
+      cdcRssArticles.forEach(a => {
+        a.language = "en";
+        a.originalText = a.content;
+      });
       console.log(`CDC RSS fetched ${cdcRssArticles.length} articles`);
       articles.push(...cdcRssArticles);
     }
@@ -237,6 +253,11 @@ export async function fetchArticles(): Promise<NormalizedArticle[]> {
       maxItems: 50,
     });
     if (bbcArticles.length > 0) {
+      // BBC articles are in English, set language and originalText
+      bbcArticles.forEach(a => {
+        a.language = "en";
+        a.originalText = a.content;
+      });
       console.log(`BBC Health fetched ${bbcArticles.length} articles`);
       articles.push(...bbcArticles);
     }
@@ -265,6 +286,11 @@ export async function fetchArticles(): Promise<NormalizedArticle[]> {
       maxItems: 50,
     });
     if (promadArticles.length > 0) {
+      // ProMED-mail articles are in English, set language and originalText
+      promadArticles.forEach(a => {
+        a.language = "en";
+        a.originalText = a.content;
+      });
       console.log(`ProMED-mail (RSS) fetched ${promadArticles.length} articles`);
       articles.push(...promadArticles);
     } else {
@@ -279,12 +305,15 @@ export async function fetchArticles(): Promise<NormalizedArticle[]> {
           if (Array.isArray(promadData)) {
             promadData.forEach((post: any) => {
               if (!post.title || !post.link) return;
+              const content = post.content?.rendered || post.excerpt?.rendered || "";
               articles.push({
                 title: post.title.rendered || post.title,
-                content: post.content?.rendered || post.excerpt?.rendered || "",
+                content: content,
                 url: post.link || post.url,
                 publishedAt: post.date || new Date().toISOString(),
                 source: "ProMED-mail",
+                language: "en",
+                originalText: content,
               });
             });
             console.log(`ProMED-mail (WordPress API) fetched ${promadData.length} posts`);
@@ -302,29 +331,55 @@ export async function fetchArticles(): Promise<NormalizedArticle[]> {
 
   // Google News (results for outbreaks, in the past 12 hours) via RSS parser
   // Reduced from 24h to 12h to get fresher articles more frequently
-  const searchQuery = encodeURIComponent("outbreak when:12h");
-  try {
-    const rssUrl = `https://news.google.com/rss/search?q=${searchQuery}&hl=en`;
-    let googleArticles = await parseRSSFeedArticles({
-      url: rssUrl,
-      sourceName: "Google News",
-      maxItems: 100,
-    });
-    if (googleArticles.length) {
-      // // eliminate duplicates by title
-      // const titles = new Set<string>();
-      // googleArticles = googleArticles.filter((article) => {
-      //   if (titles.has(article.title)) return false;
-      //   titles.add(article.title);
-      //   return true;
-      // });
-      console.log(
-        `Google News fetched ${googleArticles.length} items for ${searchQuery}`
-      );
-      articles.push(...googleArticles);
+  // Use language-specific sources if available
+  const sources = LANGUAGE_NEWS_SOURCES[language] ?? LANGUAGE_NEWS_SOURCES["en"];
+  
+  for (const rssUrl of sources) {
+    try {
+      // Extract the base query from the URL and add time filter
+      // URLs are like: https://news.google.com/rss/search?q=disease
+      // We want: https://news.google.com/rss/search?q=disease+when:12h&hl=language
+      let urlWithLanguage = rssUrl;
+      if (urlWithLanguage.includes("?q=")) {
+        // Extract existing query and add time filter
+        const urlObj = new URL(rssUrl);
+        const existingQuery = urlObj.searchParams.get("q") || "";
+        const newQuery = existingQuery ? `${existingQuery} when:12h` : "outbreak when:12h";
+        urlObj.searchParams.set("q", newQuery);
+        urlObj.searchParams.set("hl", language);
+        urlWithLanguage = urlObj.toString();
+      } else {
+        // Fallback: construct URL with outbreak search
+        const searchQuery = encodeURIComponent("outbreak when:12h");
+        urlWithLanguage = `https://news.google.com/rss/search?q=${searchQuery}&hl=${language}`;
+      }
+      
+      let googleArticles = await parseRSSFeedArticles({
+        url: urlWithLanguage,
+        sourceName: `Google News (${language})`,
+        maxItems: 100,
+      });
+      if (googleArticles.length) {
+        // Set language and originalText for Google News articles
+        googleArticles.forEach(a => {
+          a.language = language;
+          a.originalText = a.content; // Keep original multilingual text
+        });
+        // // eliminate duplicates by title
+        // const titles = new Set<string>();
+        // googleArticles = googleArticles.filter((article) => {
+        //   if (titles.has(article.title)) return false;
+        //   titles.add(article.title);
+        //   return true;
+        // });
+        console.log(
+          `Google News (${language}) fetched ${googleArticles.length} items`
+        );
+        articles.push(...googleArticles);
+      }
+    } catch (e) {
+      console.warn(`Google News (${language}) fetch failed:`, e);
     }
-  } catch (e) {
-    console.warn(`Google News fetch failed for ${searchQuery}:`, e);
   }
 
   return articles;

@@ -108,15 +108,23 @@ export async function deepseekMatchArticles(opts: {
 
   // Prepare article data with title and content (limit content to 2000 chars to avoid token limits)
   // Strip HTML tags and clean up whitespace for better AI processing
+  // Use translated text if available, otherwise use original content
   const articleData = articles.map((a) => {
-    let contentPreview = a.content || "";
+    // Prefer translated text for AI matching (it's in English)
+    let contentPreview = a.translatedText || a.content || "";
     // Remove HTML tags
     contentPreview = contentPreview.replace(/<[^>]*>/g, " ");
     // Replace multiple spaces/newlines with single space
     contentPreview = contentPreview.replace(/\s+/g, " ").trim();
     // Limit to 2000 characters
     contentPreview = contentPreview.substring(0, 2000);
-    return `${a.id} => Title: ${a.title} | Content: ${contentPreview || "No content available"}`;
+    
+    // Include language info if available for context
+    const languageInfo = a.language && a.language !== "en" 
+      ? ` [Original language: ${a.language}]` 
+      : "";
+    
+    return `${a.id} => Title: ${a.title}${languageInfo} | Content: ${contentPreview || "No content available"}`;
   });
 
   const completion = await openai.chat.completions.create({

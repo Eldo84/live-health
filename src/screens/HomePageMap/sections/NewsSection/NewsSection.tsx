@@ -4,6 +4,8 @@ interface NewsArticle {
   id: string;
   title: string;
   content: string;
+  translated_text?: string | null;
+  language?: string | null;
   url: string;
   published_at: string;
   source: {
@@ -159,10 +161,16 @@ export const NewsSection = (): JSX.Element => {
           });
         }
         
+        // Use translated_text if available (for non-English articles), otherwise use content
+        // This ensures users see English translations for multilingual articles
+        const displayContent = item.translated_text || item.content || '';
+        
         return {
           id: item.id,
           title: stripHtmlTags(item.title || ''),
-          content: item.content || '',
+          content: displayContent,
+          translated_text: item.translated_text || null,
+          language: item.language || null,
           url: item.url || '#',
           published_at: item.published_at || new Date().toISOString(),
           source: {
@@ -482,9 +490,16 @@ export const NewsSection = (): JSX.Element => {
                     <span className="text-[10px] text-[#a7a7a7]">
                       {formatTimeAgo(article.published_at)}
                     </span>
-                    <span className="text-[10px] text-[#67DBE2] font-medium truncate max-w-[100px]">
-                      {article.source.name}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {article.language && article.language !== 'en' && article.translated_text && (
+                        <span className="text-[9px] text-[#a7a7a7] bg-[#23313c] px-1 py-0.5 rounded" title={`Translated from ${article.language.toUpperCase()}`}>
+                          {article.language.toUpperCase()}
+                        </span>
+                      )}
+                      <span className="text-[10px] text-[#67DBE2] font-medium truncate max-w-[100px]">
+                        {article.source.name}
+                      </span>
+                    </div>
                   </div>
                   
                   {/* Title */}

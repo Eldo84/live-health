@@ -755,7 +755,7 @@ export async function storeArticlesAndSignals({
     const articleData = {
       source_id: source.id,
       title: article.title,
-      content: article.content,
+      content: article.content, // This will be the translated text for non-English articles
       url: article.url,
       published_at: article.publishedAt,
       location_extracted: countryInfo
@@ -769,6 +769,10 @@ export async function storeArticlesAndSignals({
       diseases_mentioned: article.diseases,
       sentiment_score: -0.5,
       is_verified: false,
+      // Store multilingual support fields
+      original_text: article.originalText || article.content, // Original text (multilingual or English)
+      translated_text: article.translatedText || (article.language === "en" ? article.content : null), // English translation
+      language: article.language || "en", // Language code
     };
     
     // Store article using upsert (will update if URL already exists)
