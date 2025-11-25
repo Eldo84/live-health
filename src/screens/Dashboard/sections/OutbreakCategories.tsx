@@ -74,6 +74,88 @@ export const OutbreakCategories = (): JSX.Element => {
           });
         }
 
+        // Normalize category name to consolidate duplicates and variations
+        const normalizeCategoryForConsolidation = (categoryName: string): string => {
+          const lower = categoryName.toLowerCase().trim();
+          
+          // Handle composite categories - extract the first/primary category
+          if (categoryName.includes(',')) {
+            const firstCategory = categoryName.split(',')[0].trim();
+            return normalizeCategoryForConsolidation(firstCategory);
+          }
+          
+          // Map variations to standard category names
+          const categoryMappings: Record<string, string> = {
+            "veterinary outbreak": "Veterinary Outbreaks",
+            "veterinary outbreaks": "Veterinary Outbreaks",
+            "sexually transmitted outbreaks": "Sexually Transmitted Infections",
+            "sexually transmitted infections": "Sexually Transmitted Infections",
+            "emerging & re-emerging disease outbreaks": "Emerging Infectious Diseases",
+            "emerging and re-emerging disease outbreaks": "Emerging Infectious Diseases",
+            "emerging infectious diseases": "Emerging Infectious Diseases",
+            "emerging & re-emerging diseases": "Emerging Infectious Diseases",
+          };
+          
+          if (categoryMappings[lower]) {
+            return categoryMappings[lower];
+          }
+          
+          // Partial matching for variations
+          if (lower.includes("veterinary")) {
+            return "Veterinary Outbreaks";
+          }
+          if (lower.includes("sexually transmitted")) {
+            return "Sexually Transmitted Infections";
+          }
+          if (lower.includes("emerging") && (lower.includes("re-emerging") || lower.includes("reemerging"))) {
+            return "Emerging Infectious Diseases";
+          }
+          
+          // Capitalize properly for standard format
+          const words = categoryName.trim().toLowerCase().split(/\s+/);
+          return words.map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1)
+          ).join(' ');
+        };
+
+        // Consolidate categories - group similar ones together
+        const consolidatedCategories = new Map<string, {
+          id: string;
+          name: string;
+          description: string;
+          color: string;
+          diseaseCount: number;
+          originalNames: string[];
+        }>();
+
+        dbCategories.forEach((cat) => {
+          const normalizedName = normalizeCategoryForConsolidation(cat.name);
+          
+          if (consolidatedCategories.has(normalizedName)) {
+            // Merge with existing category
+            const existing = consolidatedCategories.get(normalizedName)!;
+            existing.diseaseCount += diseaseCounts[cat.id] || 0;
+            existing.originalNames.push(cat.name);
+            // Use the first category's color and description if available
+            if (!existing.color && cat.color) {
+              existing.color = cat.color;
+            }
+            if (!existing.description && cat.description) {
+              existing.description = cat.description;
+            }
+          } else {
+            // Create new consolidated category
+            consolidatedCategories.set(normalizedName, {
+              id: cat.id, // Use first category's ID
+              name: normalizedName,
+              description: cat.description || `Category: ${normalizedName}`,
+              color: cat.color || '',
+              diseaseCount: diseaseCounts[cat.id] || 0,
+              originalNames: [cat.name],
+            });
+          }
+        });
+
         // Generate a unique color palette for categories
         const colorPalette = [
           '#f87171', // red
@@ -133,18 +215,86 @@ export const OutbreakCategories = (): JSX.Element => {
           return randomColor;
         };
 
-        // Combine category data with disease counts and assign unique colors
-        const combinedCategories: CategoryData[] = dbCategories.map((cat) => ({
-          id: cat.id,
-          name: cat.name,
-          description: cat.description || '',
-          color: getUniqueColor(cat.name, cat.color),
-          diseaseCount: diseaseCounts[cat.id] || 0,
-        }));
+        // Convert consolidated categories to array and assign unique colors
+        const combinedCategories: CategoryData[] = Array.from(consolidatedCategories.values())
+          .map((cat) => ({
+            id: cat.id,
+            name: cat.name,
+            description: cat.description,
+            color: getUniqueColor(cat.name, cat.color),
+            diseaseCount: cat.diseaseCount,
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically
 
         setCategories(combinedCategories);
       } catch (err: any) {
         console.error("Error fetching category disease counts:", err);
+        
+        // Normalize category name to consolidate duplicates and variations (same as above)
+        const normalizeCategoryForConsolidation = (categoryName: string): string => {
+          const lower = categoryName.toLowerCase().trim();
+          if (categoryName.includes(',')) {
+            const firstCategory = categoryName.split(',')[0].trim();
+            return normalizeCategoryForConsolidation(firstCategory);
+          }
+          const categoryMappings: Record<string, string> = {
+            "veterinary outbreak": "Veterinary Outbreaks",
+            "veterinary outbreaks": "Veterinary Outbreaks",
+            "sexually transmitted outbreaks": "Sexually Transmitted Infections",
+            "sexually transmitted infections": "Sexually Transmitted Infections",
+            "emerging & re-emerging disease outbreaks": "Emerging Infectious Diseases",
+            "emerging and re-emerging disease outbreaks": "Emerging Infectious Diseases",
+            "emerging infectious diseases": "Emerging Infectious Diseases",
+            "emerging & re-emerging diseases": "Emerging Infectious Diseases",
+          };
+          if (categoryMappings[lower]) {
+            return categoryMappings[lower];
+          }
+          if (lower.includes("veterinary")) {
+            return "Veterinary Outbreaks";
+          }
+          if (lower.includes("sexually transmitted")) {
+            return "Sexually Transmitted Infections";
+          }
+          if (lower.includes("emerging") && (lower.includes("re-emerging") || lower.includes("reemerging"))) {
+            return "Emerging Infectious Diseases";
+          }
+          const words = categoryName.trim().toLowerCase().split(/\s+/);
+          return words.map(word => 
+            word.charAt(0).toUpperCase() + word.slice(1)
+          ).join(' ');
+        };
+
+        // Consolidate categories in fallback too
+        const consolidatedCategories = new Map<string, {
+          id: string;
+          name: string;
+          description: string;
+          color: string;
+          diseaseCount: number;
+        }>();
+
+        dbCategories.forEach((cat) => {
+          const normalizedName = normalizeCategoryForConsolidation(cat.name);
+          if (consolidatedCategories.has(normalizedName)) {
+            const existing = consolidatedCategories.get(normalizedName)!;
+            if (!existing.color && cat.color) {
+              existing.color = cat.color;
+            }
+            if (!existing.description && cat.description) {
+              existing.description = cat.description;
+            }
+          } else {
+            consolidatedCategories.set(normalizedName, {
+              id: cat.id,
+              name: normalizedName,
+              description: cat.description || `Category: ${normalizedName}`,
+              color: cat.color || '',
+              diseaseCount: 0,
+            });
+          }
+        });
+
         // Generate a unique color palette for categories (fallback)
         const colorPalette = [
           '#f87171', '#66dbe1', '#fbbf24', '#a78bfa', '#fb923c',
@@ -177,14 +327,16 @@ export const OutbreakCategories = (): JSX.Element => {
           return randomColor;
         };
         
-        // Fallback to categories without counts
-        const fallbackCategories: CategoryData[] = dbCategories.map((cat) => ({
-          id: cat.id,
-          name: cat.name,
-          description: cat.description || '',
-          color: getUniqueColor(cat.name, cat.color),
-          diseaseCount: 0,
-        }));
+        // Fallback to consolidated categories without counts
+        const fallbackCategories: CategoryData[] = Array.from(consolidatedCategories.values())
+          .map((cat) => ({
+            id: cat.id,
+            name: cat.name,
+            description: cat.description,
+            color: getUniqueColor(cat.name, cat.color),
+            diseaseCount: 0,
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name));
         setCategories(fallbackCategories);
       } finally {
         setLoading(false);
