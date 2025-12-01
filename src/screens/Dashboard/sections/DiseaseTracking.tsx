@@ -46,25 +46,30 @@ const generateSmoothPath = (
   return path;
 };
 
+// Tooltip data for a hovered date
+interface HoveredData {
+  date: string;
+  x: number;
+  values: Array<{
+    disease: string;
+    value: number;
+    color: string;
+  }>;
+}
+
 // Google Trends Chart Component
 interface GoogleTrendsChartProps {
   datasets: Array<{
     disease: string;
     color: string;
-    data: Array<{ date: string; interest_value: number }>;
+    data: Array<{ date: string; interest_value: number; normalized_value: number }>;
   }>;
   onClearAll: () => void;
 }
 
 const GoogleTrendsChart = ({ datasets, onClearAll }: GoogleTrendsChartProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [hoveredPoint, setHoveredPoint] = useState<{
-    disease: string;
-    date: string;
-    value: number;
-    x: number;
-    y: number;
-  } | null>(null);
+  const [hoveredData, setHoveredData] = useState<HoveredData | null>(null);
 
   // Chart dimensions
   const chartWidth = 800;
@@ -99,14 +104,15 @@ const GoogleTrendsChart = ({ datasets, onClearAll }: GoogleTrendsChartProps) => 
     return usableBottom - (value / 100) * usableHeight;
   };
 
-  // Generate wave paths
+  // Generate wave paths using normalized values
   const wavePaths = useMemo(() => {
     return datasets.map((dataset, laneIndex) => {
       const points: { x: number; y: number; date: string; value: number }[] = [];
 
       allDates.forEach((date, i) => {
         const dataPoint = dataset.data.find((d) => d.date === date);
-        const value = dataPoint?.interest_value ?? 0;
+        // Use normalized_value for chart positioning
+        const value = dataPoint?.normalized_value ?? 0;
         const x = getX(i);
         const y = getY(value, laneIndex);
         points.push({ x, y, date, value });
@@ -134,36 +140,50 @@ const GoogleTrendsChart = ({ datasets, onClearAll }: GoogleTrendsChartProps) => 
     });
   }, [datasets, allDates, laneHeight, lanePadding]);
 
-  // Handle mouse move for tooltip
+  // Handle mouse move - find closest DATE and show all diseases for that date
   const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
     const svg = e.currentTarget;
     const rect = svg.getBoundingClientRect();
     const scaleX = chartWidth / rect.width;
-    const scaleY = chartHeight / rect.height;
     const mouseX = (e.clientX - rect.left) * scaleX;
-    const mouseY = (e.clientY - rect.top) * scaleY;
 
-    let closest: typeof hoveredPoint = null;
+    // Find closest date based on x position
+    let closestDateIndex = 0;
     let minDist = Infinity;
 
-    wavePaths.forEach((wp) => {
-      if (!wp) return;
-      wp.points.forEach((pt) => {
-        const dist = Math.sqrt((pt.x - mouseX) ** 2 + (pt.y - mouseY) ** 2);
-        if (dist < minDist && dist < 30) {
-          minDist = dist;
-          closest = {
-            disease: wp.disease,
-            date: pt.date,
-            value: pt.value,
-            x: pt.x,
-            y: pt.y,
-          };
-        }
-      });
+    allDates.forEach((_, i) => {
+      const x = getX(i);
+      const dist = Math.abs(x - mouseX);
+      if (dist < minDist) {
+        minDist = dist;
+        closestDateIndex = i;
+      }
     });
 
-    setHoveredPoint(closest);
+    // Only show tooltip if mouse is within reasonable range
+    if (minDist > 50) {
+      setHoveredData(null);
+      return;
+    }
+
+    const hoveredDate = allDates[closestDateIndex];
+    const x = getX(closestDateIndex);
+
+    // Get NORMALIZED values for all diseases on this date (for tooltip display)
+    const values = datasets.map((dataset) => {
+      const dataPoint = dataset.data.find((d) => d.date === hoveredDate);
+      return {
+        disease: dataset.disease,
+        value: dataPoint?.normalized_value ?? 0,
+        color: dataset.color,
+      };
+    });
+
+    setHoveredData({
+      date: hoveredDate,
+      x,
+      values,
+    });
   };
 
   // X-axis labels
@@ -232,7 +252,7 @@ const GoogleTrendsChart = ({ datasets, onClearAll }: GoogleTrendsChartProps) => 
           className="w-full"
           style={{ minHeight: `${Math.max(300, chartHeight)}px` }}
           onMouseMove={handleMouseMove}
-          onMouseLeave={() => setHoveredPoint(null)}
+          onMouseLeave={() => setHoveredData(null)}
         >
           {/* Gradients */}
           <defs>
@@ -318,32 +338,28 @@ const GoogleTrendsChart = ({ datasets, onClearAll }: GoogleTrendsChartProps) => 
                   strokeLinejoin="round"
                   opacity="0.9"
                   className="transition-all duration-300"
-                  style={{
-                    filter:
-                      hoveredPoint?.disease === wp.disease
-                        ? `drop-shadow(0 0 8px ${wp.color})`
-                        : "none",
-                  }}
                 />
               )
           )}
 
-          {/* Data points */}
+          {/* Data points - highlight all points on hovered date */}
           {wavePaths.map((wp, waveIndex) =>
             wp?.points.map((pt, i) => {
-              const isHovered =
-                hoveredPoint?.x === pt.x && hoveredPoint?.disease === wp.disease;
+              const isHovered = hoveredData?.date === pt.date;
               return (
                 <circle
                   key={`point-${waveIndex}-${i}`}
                   cx={pt.x}
                   cy={pt.y}
-                  r={isHovered ? 5 : 3}
-                  fill={wp.color}
+                  r={isHovered ? 6 : 3}
+                  fill={isHovered ? wp.color : wp.color}
                   stroke="white"
-                  strokeWidth="1.5"
+                  strokeWidth={isHovered ? 2 : 1.5}
                   className="transition-all duration-200"
-                  style={{ opacity: isHovered ? 1 : 0.7 }}
+                  style={{ 
+                    opacity: isHovered ? 1 : 0.7,
+                    filter: isHovered ? `drop-shadow(0 0 4px ${wp.color})` : "none"
+                  }}
                 />
               );
             })
@@ -381,47 +397,63 @@ const GoogleTrendsChart = ({ datasets, onClearAll }: GoogleTrendsChartProps) => 
             );
           })}
 
-          {/* Hover line */}
-          {hoveredPoint && (
+          {/* Vertical hover line */}
+          {hoveredData && (
             <line
-              x1={hoveredPoint.x}
+              x1={hoveredData.x}
               y1={topPadding}
-              x2={hoveredPoint.x}
+              x2={hoveredData.x}
               y2={chartHeight - bottomPadding}
-              stroke="#9ca3af"
+              stroke="#374151"
               strokeWidth="1"
               strokeDasharray="4 4"
             />
           )}
         </svg>
 
-        {/* Tooltip */}
-        {hoveredPoint && (
+        {/* Google Trends-style Tooltip - Shows ALL diseases for hovered date */}
+        {hoveredData && (
           <div
-            className="absolute pointer-events-none bg-gray-900 text-white px-3 py-2 rounded-lg shadow-lg z-10"
+            className="absolute pointer-events-none bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[180px]"
             style={{
-              left: `${(hoveredPoint.x / chartWidth) * 100}%`,
-              top: `${(hoveredPoint.y / chartHeight) * 100 - 10}%`,
-              transform: "translate(-50%, -100%)",
+              left: `${(hoveredData.x / chartWidth) * 100}%`,
+              top: "10px",
+              transform: hoveredData.x > chartWidth * 0.7 ? "translateX(-100%)" : "translateX(0)",
             }}
           >
-            <div className="[font-family:'Roboto',Helvetica] text-xs text-gray-300 mb-1">
-              {new Date(hoveredPoint.date).toLocaleDateString("en-US", {
-                month: "short",
-                day: "numeric",
-                year: "numeric",
-              })}
+            {/* Date Header */}
+            <div className="px-3 py-2 border-b border-gray-100 bg-gray-50 rounded-t-lg">
+              <div className="[font-family:'Roboto',Helvetica] text-sm font-semibold text-gray-800">
+                {new Date(hoveredData.date).toLocaleDateString("en-US", {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+              </div>
             </div>
-            <div
-              className="[font-family:'Roboto',Helvetica] text-sm font-semibold capitalize"
-              style={{
-                color: datasets.find((d) => d.disease === hoveredPoint.disease)?.color,
-              }}
-            >
-              {hoveredPoint.disease}
-            </div>
-            <div className="[font-family:'Roboto',Helvetica] text-xs text-gray-300">
-              Interest: {hoveredPoint.value}
+            
+            {/* Disease Values */}
+            <div className="px-3 py-2 space-y-1.5">
+              {hoveredData.values.map((item) => (
+                <div key={item.disease} className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span className="[font-family:'Roboto',Helvetica] text-sm text-gray-700 capitalize">
+                      {item.disease}
+                    </span>
+                  </div>
+                  <span 
+                    className="[font-family:'Roboto',Helvetica] text-sm font-bold"
+                    style={{ color: item.color }}
+                  >
+                    {Math.round(item.value)}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -430,9 +462,9 @@ const GoogleTrendsChart = ({ datasets, onClearAll }: GoogleTrendsChartProps) => 
       {/* Footer note */}
       <div className="mt-4 pt-4 border-t border-gray-200">
         <p className="[font-family:'Roboto',Helvetica] font-normal text-gray-500 text-xs leading-relaxed">
-          <span className="font-semibold text-gray-700">Note:</span> Values represent
-          search interest relative to the highest point (100). A value of 50 means half
-          as popular. Data sourced from Google Trends, updated weekly.
+          <span className="font-semibold text-gray-700">Note:</span> Values are normalized 
+          relative to the highest point among all selected diseases (100 = peak interest). 
+          This matches how Google Trends displays comparison data.
         </p>
       </div>
     </div>
@@ -454,9 +486,15 @@ export const DiseaseTracking = (): JSX.Element => {
     return TRACKED_DISEASES.filter((disease) => disease.toLowerCase().includes(query));
   }, [searchQuery]);
 
-  // Build datasets for chart
+  // Build datasets for chart with CROSS-DISEASE NORMALIZATION
+  // This makes values comparable like Google Trends does when comparing multiple diseases
   const chartDatasets = useMemo(() => {
-    return selectedDiseases.map((disease, index) => {
+    if (selectedDiseases.length === 0 || trends.length === 0) {
+      return [];
+    }
+
+    // Step 1: Get all raw data with original interest values
+    const rawDatasets = selectedDiseases.map((disease, index) => {
       const trendData = trends.find((t) => t.disease === disease);
       return {
         disease,
@@ -464,6 +502,32 @@ export const DiseaseTracking = (): JSX.Element => {
         data: trendData?.data || [],
       };
     });
+
+    // Step 2: Find the GLOBAL maximum across ALL diseases and ALL dates
+    let globalMax = 0;
+    rawDatasets.forEach((dataset) => {
+      dataset.data.forEach((point) => {
+        if (point.interest_value > globalMax) {
+          globalMax = point.interest_value;
+        }
+      });
+    });
+
+    // Step 3: Normalize all values relative to globalMax
+    // This makes values comparable across diseases (like Google Trends comparison view)
+    const normalizedDatasets = rawDatasets.map((dataset) => ({
+      ...dataset,
+      data: dataset.data.map((point) => ({
+        ...point,
+        // Normalize: (value / globalMax) * 100
+        // If globalMax is 0, keep as 0
+        normalized_value: globalMax > 0 
+          ? Math.round((point.interest_value / globalMax) * 100) 
+          : 0,
+      })),
+    }));
+
+    return normalizedDatasets;
   }, [selectedDiseases, trends]);
 
   const handleDiseaseToggle = (disease: string) => {
