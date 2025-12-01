@@ -3,4 +3,7 @@
 
 pytrends>=4.9.0
 supabase>=2.0.0
+# Pin urllib3 to fix compatibility issue with pytrends
+# (method_whitelist was renamed to allowed_methods in newer versions)
+urllib3<2.0.0
 
