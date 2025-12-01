@@ -58,6 +58,7 @@ Deno.serve(async (req: Request) => {
       .select('id, name, code');
 
     const opencageKey = Deno.env.get('OPENCAGE_API_KEY');
+    const geocodeCache = new Map<string, [number, number] | null>();
     const processedArticles = [];
 
     // Function to extract city from article text
@@ -90,18 +91,20 @@ Deno.serve(async (req: Request) => {
       return null;
     }
 
-    // Function to geocode city
+    // Function to geocode city with simple in-memory cache to avoid duplicate lookups
     async function geocodeCity(cityName: string, countryName?: string): Promise<[number, number] | null> {
       if (!opencageKey) return null;
-      
+      if (!cityName) return null;
+      const cacheKey = `${cityName}|${countryName || ''}`.toLowerCase();
+      if (geocodeCache.has(cacheKey)) {
+        return geocodeCache.get(cacheKey)!;
+      }
+
       try {
         // Build query: city only or city + country
         const query = countryName 
           ? `${cityName}, ${countryName}`
           : cityName;
-        
-        // Rate limiting: wait 1 second between requests
-        await new Promise(resolve => setTimeout(resolve, 1000));
         
         const geocodeUrl = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(query)}&key=${opencageKey}&limit=1`;
         const geocodeRes = await fetch(geocodeUrl);
@@ -111,17 +114,25 @@ Deno.serve(async (req: Request) => {
           const result = geocodeData.results?.[0];
           
           if (result?.geometry) {
-            return [result.geometry.lat, result.geometry.lng];
+            const coords: [number, number] = [result.geometry.lat, result.geometry.lng];
+            geocodeCache.set(cacheKey, coords);
+            return coords;
           }
         }
       } catch (e) {
         console.error(`Geocoding failed for ${cityName}:`, e);
       }
       
+      geocodeCache.set(cacheKey, null);
       return null;
     }
 
+    const seenUrls = new Set<string>();
+
     for (const article of articles) {
+      if (!article.url || seenUrls.has(article.url)) continue;
+      seenUrls.add(article.url);
+
       const source = sources?.find(s => s.name.toLowerCase().includes(article.source.toLowerCase()));
       if (!source) continue;
 
@@ -201,7 +212,7 @@ Deno.serve(async (req: Request) => {
 
       const { data: insertedArticle, error: articleError } = await supabase
         .from('news_articles')
-        .insert({
+        .upsert({
           source_id: source.id,
           title: article.title,
           content: article.content,
@@ -211,7 +222,7 @@ Deno.serve(async (req: Request) => {
           diseases_mentioned: diseaseKeywords,
           sentiment_score: -0.5,
           is_verified: false,
-        })
+        }, { onConflict: 'url' })
         .select()
         .maybeSingle();
 

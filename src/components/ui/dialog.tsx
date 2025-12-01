@@ -1,8 +1,8 @@
 import * as React from "react";
 
 interface DialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
   children: React.ReactNode;
 }
 
@@ -19,7 +19,16 @@ const DialogContext = React.createContext<{
   onOpenChange: () => {},
 });
 
-export const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
+export const Dialog = ({ children, ...props }: DialogProps) => {
+  const [internalOpen, setInternalOpen] = React.useState(false);
+  const open = props.open ?? internalOpen;
+  const onOpenChange = props.onOpenChange ?? setInternalOpen;
+  
+  React.useEffect(() => {
+    if (props.open !== undefined) {
+      setInternalOpen(props.open);
+    }
+  }, [props.open]);
   React.useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === "Escape" && open) {
@@ -64,7 +73,7 @@ export const DialogContent = ({ children, className = "" }: DialogContentProps) 
       />
       {/* Dialog */}
       <div
-        className={`fixed left-1/2 top-1/2 z-[10000] max-h-[90vh] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 transform overflow-hidden rounded-lg bg-[#2a4149] border border-[#67DBE2]/30 shadow-2xl flex flex-col ${className}`}
+        className={`fixed left-1/2 top-1/2 z-[10000] max-h-[90vh] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 transform overflow-hidden rounded-lg bg-background border border-border shadow-2xl flex flex-col ${className}`}
         style={{ zIndex: 10000 }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -96,7 +105,7 @@ export const DialogTitle = ({
   className?: string;
 }) => {
   return (
-    <h2 className={`text-lg font-semibold leading-none tracking-tight text-white ${className}`}>
+    <h2 className={`text-lg font-semibold leading-none tracking-tight text-foreground ${className}`}>
       {children}
     </h2>
   );
@@ -109,7 +118,7 @@ export const DialogDescription = ({
   children: React.ReactNode;
   className?: string;
 }) => {
-  return <p className={`text-sm text-gray-400 ${className}`}>{children}</p>;
+  return <p className={`text-sm text-muted-foreground ${className}`}>{children}</p>;
 };
 
 export const DialogClose = ({
@@ -126,7 +135,7 @@ export const DialogClose = ({
       className={`absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${className}`}
     >
       <svg
-        className="h-4 w-4 text-white"
+        className="h-4 w-4 text-foreground"
         fill="none"
         stroke="currentColor"
         viewBox="0 0 24 24"
@@ -142,4 +151,31 @@ export const DialogClose = ({
     </button>
   );
 };
+
+export const DialogTrigger = React.forwardRef<
+  HTMLButtonElement,
+  React.ButtonHTMLAttributes<HTMLButtonElement> & { asChild?: boolean }
+>(({ children, asChild, onClick, ...props }, ref) => {
+  const { onOpenChange } = React.useContext(DialogContext);
+  
+  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    onOpenChange(true);
+    onClick?.(e);
+  };
+  
+  if (asChild && React.isValidElement(children)) {
+    return React.cloneElement(children, {
+      ...props,
+      onClick: handleClick,
+      ref,
+    } as any);
+  }
+  
+  return (
+    <button ref={ref} onClick={handleClick} {...props}>
+      {children}
+    </button>
+  );
+});
+DialogTrigger.displayName = "DialogTrigger";
 

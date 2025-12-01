@@ -19,6 +19,7 @@ import { GlobalHealthIndex } from "./sections/GlobalHealthIndex";
 import { OutbreakCategories } from "./sections/OutbreakCategories";
 import { SpreadsheetImport } from "../../components/SpreadsheetImport";
 import { CityExtractionStatus } from "./sections/CityExtractionStatus";
+import { DiseaseTracking } from "./sections/DiseaseTracking";
 import { useCountries } from "../../lib/useCountries";
 
 export const Dashboard = (): JSX.Element => {
@@ -37,7 +38,7 @@ export const Dashboard = (): JSX.Element => {
     const tabParam = searchParams.get("tab");
     if (tabParam) {
       // Validate tab value
-      const validTabs = ["overview", "analytics", "predictions", "categories", "health-index", "data"];
+      const validTabs = ["overview", "analytics", "predictions", "categories", "health-index", "data", "disease-tracking"];
       if (validTabs.includes(tabParam)) {
         setActiveView(tabParam);
       }
@@ -94,23 +95,26 @@ export const Dashboard = (): JSX.Element => {
   }, [selectedCountry, selectedCountryName]);
 
   return (
-    <div className="w-full min-h-screen bg-[#2a4149] p-6">
+    <div className="w-full min-h-screen bg-[#2a4149] p-3 sm:p-4 md:p-6">
       <div className="max-w-[1400px] mx-auto">
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <h1 className="[font-family:'Roboto',Helvetica] font-bold text-[#66dbe1] text-[38px] tracking-[0] leading-[48.1px]">
+        {/* Header Section - Responsive */}
+        <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-6">
+          <div className="flex-shrink-0">
+            <h1 className="[font-family:'Roboto',Helvetica] font-bold text-[#66dbe1] text-2xl sm:text-3xl md:text-[38px] tracking-[0] leading-tight sm:leading-[48.1px]">
               Disease Outbreak Dashboard
             </h1>
-            <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb] text-sm mt-2">
+            <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb] text-xs sm:text-sm mt-2">
               Real-time monitoring and analytics of global disease outbreaks
             </p>
           </div>
 
-          <div className="flex flex-col items-end gap-3">
-            <div className="flex items-center gap-4">
-              <div className="flex w-[300px] items-center gap-2 px-3 py-2.5 bg-[#ffffff24] rounded-md overflow-hidden border border-solid border-[#dae0e633] shadow-[0px_1px_2px_#1018280a]">
+          {/* Controls Section - Responsive */}
+          <div className="flex flex-col w-full lg:w-auto lg:items-end gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4">
+              {/* Search Input */}
+              <div className="flex w-full sm:w-[280px] lg:w-[300px] items-center gap-2 px-3 py-2.5 bg-[#ffffff24] rounded-md overflow-hidden border border-solid border-[#dae0e633] shadow-[0px_1px_2px_#1018280a]">
                 <img
-                  className="relative w-[18px] h-[18px]"
+                  className="relative w-[18px] h-[18px] flex-shrink-0"
                   alt="Search"
                   src="/zoom-search.svg"
                 />
@@ -119,12 +123,12 @@ export const Dashboard = (): JSX.Element => {
                   placeholder="Search diseases, regions..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex-1 bg-transparent border-0 text-[#ebebeb] text-sm [font-family:'Roboto',Helvetica] font-medium tracking-[-0.10px] leading-5 placeholder:text-[#ebebeb] focus-visible:ring-0 focus-visible:ring-offset-0 h-auto p-0"
+                  className="flex-1 bg-transparent border-0 text-[#ebebeb] text-sm [font-family:'Roboto',Helvetica] font-medium tracking-[-0.10px] leading-5 placeholder:text-[#ebebeb] focus-visible:ring-0 focus-visible:ring-offset-0 h-auto p-0 min-w-0"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery("")}
-                    className="flex items-center justify-center w-4 h-4 text-[#ebebeb99] hover:text-[#ebebeb] transition-colors"
+                    className="flex items-center justify-center w-4 h-4 text-[#ebebeb99] hover:text-[#ebebeb] transition-colors flex-shrink-0"
                     aria-label="Clear search"
                   >
                     <X className="w-3 h-3" />
@@ -132,7 +136,8 @@ export const Dashboard = (): JSX.Element => {
                 )}
               </div>
 
-              <div className="relative min-w-[220px]" ref={countryDropdownRef}>
+              {/* Country Dropdown */}
+              <div className="relative w-full sm:w-[200px] lg:min-w-[220px]" ref={countryDropdownRef}>
                 <div className="relative">
                   <Input
                     type="text"
@@ -150,7 +155,7 @@ export const Dashboard = (): JSX.Element => {
                       }
                     }}
                     onFocus={() => setIsCountryDropdownOpen(true)}
-                    className="bg-[#ffffff24] border border-[#dae0e633] text-[#ebebeb] text-sm px-3 py-2 pr-8 h-[42px] placeholder:text-[#ebebeb99] focus-visible:ring-2 focus-visible:ring-[#4eb7bd]/50"
+                    className="bg-[#ffffff24] border border-[#dae0e633] text-[#ebebeb] text-sm px-3 py-2 pr-8 h-[42px] placeholder:text-[#ebebeb99] focus-visible:ring-2 focus-visible:ring-[#4eb7bd]/50 w-full"
                     disabled={countriesLoading}
                   />
                   <button
@@ -214,48 +219,56 @@ export const Dashboard = (): JSX.Element => {
                 )}
               </div>
 
-              <Tabs value={timeRange} onValueChange={setTimeRange}>
-                <TabsList className="bg-[#ffffff14] border border-[#eaebf024]">
-                  <TabsTrigger value="24h" className="data-[state=active]:bg-[#4eb7bd] data-[state=active]:text-white text-[#ebebeb]">
+              {/* Time Range Tabs */}
+              <Tabs value={timeRange} onValueChange={setTimeRange} className="w-full sm:w-auto">
+                <TabsList className="bg-[#ffffff14] border border-[#eaebf024] w-full sm:w-auto">
+                  <TabsTrigger value="24h" className="data-[state=active]:bg-[#4eb7bd] data-[state=active]:text-white text-[#ebebeb] flex-1 sm:flex-none text-xs sm:text-sm">
                     24h
                   </TabsTrigger>
-                  <TabsTrigger value="7d" className="data-[state=active]:bg-[#4eb7bd] data-[state=active]:text-white text-[#ebebeb]">
+                  <TabsTrigger value="7d" className="data-[state=active]:bg-[#4eb7bd] data-[state=active]:text-white text-[#ebebeb] flex-1 sm:flex-none text-xs sm:text-sm">
                     7d
                   </TabsTrigger>
-                  <TabsTrigger value="30d" className="data-[state=active]:bg-[#4eb7bd] data-[state=active]:text-white text-[#ebebeb]">
+                  <TabsTrigger value="30d" className="data-[state=active]:bg-[#4eb7bd] data-[state=active]:text-white text-[#ebebeb] flex-1 sm:flex-none text-xs sm:text-sm">
                     30d
                   </TabsTrigger>
-                  <TabsTrigger value="1y" className="data-[state=active]:bg-[#4eb7bd] data-[state=active]:text-white text-[#ebebeb]">
+                  <TabsTrigger value="1y" className="data-[state=active]:bg-[#4eb7bd] data-[state=active]:text-white text-[#ebebeb] flex-1 sm:flex-none text-xs sm:text-sm">
                     1y
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
             </div>
-            <NavigationTabsSection />
+            {/* Navigation Tabs - Commented out */}
+            {/* <NavigationTabsSection /> */}
           </div>
         </div>
 
+        {/* Main Tabs - Scrollable on mobile */}
         <Tabs value={activeView} onValueChange={handleTabChange} className="mt-6">
-          <TabsList className="bg-[#ffffff14] border border-[#eaebf024] mb-6">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-[#4eb7bd] data-[state=active]:text-white text-[#ebebeb]">
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="data-[state=active]:bg-[#4eb7bd] data-[state=active]:text-white text-[#ebebeb]">
-              Analytics
-            </TabsTrigger>
-            <TabsTrigger value="predictions" className="data-[state=active]:bg-[#4eb7bd] data-[state=active]:text-white text-[#ebebeb]">
-              AI Predictions
-            </TabsTrigger>
-            <TabsTrigger value="categories" className="data-[state=active]:bg-[#4eb7bd] data-[state=active]:text-white text-[#ebebeb]">
-              Outbreak Categories
-            </TabsTrigger>
-            <TabsTrigger value="health-index" className="data-[state=active]:bg-[#4eb7bd] data-[state=active]:text-white text-[#ebebeb]">
-              Global Health Index
-            </TabsTrigger>
-            <TabsTrigger value="data" className="data-[state=active]:bg-[#4eb7bd] data-[state=active]:text-white text-[#ebebeb]">
-              Data Management
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0 mb-6">
+            <TabsList className="bg-[#ffffff14] border border-[#eaebf024] w-max min-w-full sm:min-w-0 inline-flex">
+              <TabsTrigger value="overview" className="data-[state=active]:bg-[#4eb7bd] data-[state=active]:text-white text-[#ebebeb] whitespace-nowrap text-xs sm:text-sm">
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="analytics" className="data-[state=active]:bg-[#4eb7bd] data-[state=active]:text-white text-[#ebebeb] whitespace-nowrap text-xs sm:text-sm">
+                Analytics
+              </TabsTrigger>
+              <TabsTrigger value="predictions" className="data-[state=active]:bg-[#4eb7bd] data-[state=active]:text-white text-[#ebebeb] whitespace-nowrap text-xs sm:text-sm">
+                AI Predictions
+              </TabsTrigger>
+              <TabsTrigger value="categories" className="data-[state=active]:bg-[#4eb7bd] data-[state=active]:text-white text-[#ebebeb] whitespace-nowrap text-xs sm:text-sm">
+                Outbreak Categories
+              </TabsTrigger>
+              <TabsTrigger value="health-index" className="data-[state=active]:bg-[#4eb7bd] data-[state=active]:text-white text-[#ebebeb] whitespace-nowrap text-xs sm:text-sm">
+                Global Health Index
+              </TabsTrigger>
+              <TabsTrigger value="data" className="data-[state=active]:bg-[#4eb7bd] data-[state=active]:text-white text-[#ebebeb] whitespace-nowrap text-xs sm:text-sm">
+                Data Management
+              </TabsTrigger>
+              <TabsTrigger value="disease-tracking" className="data-[state=active]:bg-[#4eb7bd] data-[state=active]:text-white text-[#ebebeb] whitespace-nowrap text-xs sm:text-sm">
+                Disease Tracking
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="overview" className="space-y-6 mt-0">
             <StatsOverview timeRange={timeRange} searchQuery={searchQuery} countryId={selectedCountry} />
@@ -302,6 +315,10 @@ export const Dashboard = (): JSX.Element => {
 
           <TabsContent value="data" className="space-y-6 mt-0">
             <SpreadsheetImport />
+          </TabsContent>
+
+          <TabsContent value="disease-tracking" className="space-y-6 mt-0">
+            <DiseaseTracking timeRange={timeRange} countryId={selectedCountry} />
           </TabsContent>
         </Tabs>
       </div>

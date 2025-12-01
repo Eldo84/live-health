@@ -243,11 +243,37 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoo
       // Use zoom level from props (defaults to 10 if not provided)
       const targetZoom = zoomLevel || 10;
       
-      // Set view with specified zoom level
-      map.setView([lat, lng], targetZoom, { 
-        animate: attemptNumber > 0, // Animate on retries
-        duration: 0.5 
-      });
+      // Check if mobile device
+      const isMobileDevice = window.innerWidth < 1024;
+      
+      if (isMobileDevice) {
+        // On mobile, center the pin in the visible viewport by offsetting for header/UI
+        // First set the view to the location
+        map.setView([lat, lng], targetZoom, { 
+          animate: attemptNumber > 0,
+          duration: 0.5 
+        });
+        
+        // Then adjust the pan to account for header/UI elements
+        // Header is ~56px, so we want to shift the map down so the pin appears higher (centered)
+        // Use panBy to shift the map by pixels after the view is set
+        setTimeout(() => {
+          if (map && map.getContainer()) {
+            // Calculate offset: move map down by ~80px so pin appears centered in viewport
+            // panBy uses pixels: positive Y moves map down (pin appears higher)
+            map.panBy([0, 80] as [number, number], { 
+              animate: attemptNumber > 0,
+              duration: 0.3 
+            });
+          }
+        }, 100);
+      } else {
+        // Desktop: center normally
+        map.setView([lat, lng], targetZoom, { 
+          animate: attemptNumber > 0, // Animate on retries
+          duration: 0.5 
+        });
+      }
       
       // Verify the zoom worked
       setTimeout(() => {
@@ -836,6 +862,17 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
   const [isMapControlsOpen, setIsMapControlsOpen] = useState(true);
   const [mapType, setMapType] = useState<MapType>('imagery');
   const [shouldFitBounds, setShouldFitBounds] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+  
+  // Detect mobile screen size
+  React.useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024); // lg breakpoint
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
   const [hoveredCategories, setHoveredCategories] = useState<Set<string>>(new Set());
   const [hoveredPieIndex, setHoveredPieIndex] = useState<number | null>(null);
   const [hoveredSliceCategory, setHoveredSliceCategory] = useState<string | null>(null);
@@ -1768,7 +1805,7 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
       >
         {/* Point count badge */}
         <div className={`absolute z-[1200] bg-[#0f172acc] text-white text-xs px-2 py-1 rounded ${
-          isFullscreen ? 'top-4 left-20' : 'top-4 left-4'
+          isMobile ? 'top-14 left-2' : isFullscreen ? 'top-4 left-20' : 'top-4 left-4'
         }`}>
           {filteredPoints.length} points
         </div>
@@ -1778,9 +1815,16 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
           open={isLegendOpen} 
           onOpenChange={setIsLegendOpen} 
           className={`absolute z-[1200] overflow-hidden transition-all duration-300 ${
-            isFullscreen ? 'top-16' : 'top-0 right-0'
+            isMobile ? 'top-14 right-2' : isFullscreen ? 'top-16' : 'top-0 right-0'
           }`}
-          style={isFullscreen ? {
+          style={isMobile ? {
+            borderTopRightRadius: '8px',
+            borderBottomLeftRadius: '10px',
+            background: '#315C64B2',
+            border: '1px solid #EAEBF024',
+            boxShadow: '0px 1px 2px 0px #1018280A',
+            maxWidth: '120px'
+          } : isFullscreen ? {
             borderTopRightRadius: '8px',
             borderBottomLeftRadius: '10px',
             background: '#315C64B2',
@@ -1798,7 +1842,7 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
         >
           <CollapsibleTrigger asChild>
             <div className="w-full hover:bg-[#305961]/50 transition-colors cursor-pointer">
-            <div className="px-3 py-2 border-b border-[#EAEBF024]/20 flex items-center justify-between gap-2" style={{ width: '124px' }}>
+            <div className="px-3 py-2 border-b border-[#EAEBF024]/20 flex items-center justify-between gap-2" style={{ width: isMobile ? '110px' : '124px' }}>
               <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-white text-xs tracking-[-0.10px] leading-4">
                 Legend
               </h3>
@@ -1814,7 +1858,7 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
             </div>
           </CollapsibleTrigger>
           <CollapsibleContent>
-            <div className="px-3 py-2" style={{ width: '124px' }}>
+            <div className="px-3 py-2" style={{ width: isMobile ? '110px' : '124px' }}>
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between gap-2">
                   <span className="[font-family:'Roboto',Helvetica] font-medium text-[10px] text-white tracking-[-0.10px] leading-3">

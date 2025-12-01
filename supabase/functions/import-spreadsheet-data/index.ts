@@ -18,6 +18,76 @@ interface SpreadsheetRow {
   Keywords: string;
 }
 
+// Normalize category name to standard form
+function normalizeCategoryName(categoryName: string): string {
+  if (!categoryName || !categoryName.trim()) {
+    return "Other";
+  }
+  
+  let normalized = categoryName.trim();
+  const lower = normalized.toLowerCase();
+  
+  // Handle composite categories - extract the first/primary category
+  if (normalized.includes(',')) {
+    const firstCategory = normalized.split(',')[0].trim();
+    normalized = firstCategory;
+  }
+  
+  // Map variations to standard category names
+  const categoryMappings: Record<string, string> = {
+    // Veterinary variations
+    "veterinary outbreak": "Veterinary Outbreaks",
+    "veterinary outbreaks": "Veterinary Outbreaks",
+    
+    // Sexually transmitted variations
+    "sexually transmitted outbreaks": "Sexually Transmitted Infections",
+    "sexually transmitted infections": "Sexually Transmitted Infections",
+    
+    // Emerging diseases variations
+    "emerging & re-emerging disease outbreaks": "Emerging Infectious Diseases",
+    "emerging and re-emerging disease outbreaks": "Emerging Infectious Diseases",
+    "emerging infectious diseases": "Emerging Infectious Diseases",
+    "emerging & re-emerging diseases": "Emerging Infectious Diseases",
+    
+    // Standardize common categories
+    "foodborne outbreaks": "Foodborne Outbreaks",
+    "waterborne outbreaks": "Waterborne Outbreaks",
+    "vector-borne outbreaks": "Vector-Borne Outbreaks",
+    "airborne outbreaks": "Airborne Outbreaks",
+    "zoonotic outbreaks": "Zoonotic Outbreaks",
+    "neurological outbreaks": "Neurological Outbreaks",
+    "respiratory outbreaks": "Respiratory Outbreaks",
+    "gastrointestinal outbreaks": "Gastrointestinal Outbreaks",
+    "bloodborne outbreaks": "Bloodborne Outbreaks",
+    "skin and soft tissue outbreaks": "Skin and Soft Tissue Outbreaks",
+    "antimicrobial-resistant outbreaks": "Antimicrobial-Resistant Outbreaks",
+  };
+  
+  // Check exact lowercase match first
+  if (categoryMappings[lower]) {
+    return categoryMappings[lower];
+  }
+  
+  // Check if it contains key phrases for partial matching
+  if (lower.includes("veterinary")) {
+    return "Veterinary Outbreaks";
+  }
+  if (lower.includes("sexually transmitted")) {
+    return "Sexually Transmitted Infections";
+  }
+  if (lower.includes("emerging") && (lower.includes("re-emerging") || lower.includes("reemerging"))) {
+    return "Emerging Infectious Diseases";
+  }
+  
+  // Capitalize properly for standard format: "Category Name"
+  const words = normalized.toLowerCase().split(/\s+/);
+  const capitalized = words.map(word => 
+    word.charAt(0).toUpperCase() + word.slice(1)
+  ).join(' ');
+  
+  return capitalized;
+}
+
 // Helper function to get or create an outbreak category
 async function getOrCreateCategory(
   supabase: SupabaseClient,
@@ -27,7 +97,8 @@ async function getOrCreateCategory(
     return null;
   }
   
-  const normalizedName = categoryName.trim();
+  // Normalize the category name to standard form
+  const normalizedName = normalizeCategoryName(categoryName);
   
   // Check if category exists (case-insensitive match)
   const { data: existingCategory } = await supabase

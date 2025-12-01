@@ -1,0 +1,6 @@
+# Python dependencies for Google Trends collection script
+# Install with: pip install -r scripts/requirements.txt
+
+pytrends>=4.9.0
+supabase>=2.0.0
+

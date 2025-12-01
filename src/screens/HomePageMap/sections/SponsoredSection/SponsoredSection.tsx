@@ -9,7 +9,7 @@ const sponsoredCards = [
 
 export const SponsoredSection = (): JSX.Element => {
   return (
-    <div className="w-[240px] rounded-lg border border-[#EAEBF024] bg-[#FFFFFF14] shadow-lg flex flex-col overflow-hidden" style={{ height: '380px', boxSizing: 'border-box' }}>
+    <div className="w-full lg:w-[240px] rounded-lg border border-[#EAEBF024] bg-[#FFFFFF14] shadow-lg flex flex-col overflow-hidden lg:h-[380px] h-[500px] max-h-[60vh] lg:max-h-[380px]" style={{ boxSizing: 'border-box' }}>
       <div className="px-4 pt-4 pb-3 border-b border-[#EAEBF024]/50">
         <Badge
           variant="secondary"

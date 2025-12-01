@@ -56,18 +56,35 @@ export const AIPredictions = (): JSX.Element => {
 
       const data = await response.json();
       
-      if (data.error && data.predictions?.length === 0) {
-        // API key not configured - show helpful message
-        setError("AI predictions are not configured. Please set DEEPSEEK_API_KEY in Edge Function secrets.");
+      console.log("Prediction response:", {
+        cached: data.cached,
+        predictionCount: data.predictions?.length || 0,
+        generatedAt: data.generatedAt,
+        forceRefresh
+      });
+      
+      // Handle error cases
+      if (data.error) {
+        // API key not configured or other error
+        if (data.error.includes("DEEPSEEK_API_KEY")) {
+          setError("AI predictions are not configured. Please set DEEPSEEK_API_KEY in Edge Function secrets.");
+        } else {
+          setError(data.error);
+        }
         setPredictions([]);
         setIsCached(false);
       } else if (data.predictions && Array.isArray(data.predictions)) {
+        // Success - set predictions
+        console.log(`Setting ${data.predictions.length} predictions (cached: ${data.cached})`);
         setPredictions(data.predictions);
         setLastUpdated(new Date());
         setIsCached(data.cached === true);
+        setError(null); // Clear any previous errors
       } else {
+        // Unexpected response format
         setPredictions([]);
         setIsCached(false);
+        setError("Unexpected response format from prediction service");
       }
     } catch (err) {
       console.error("Error fetching AI predictions:", err);
@@ -157,7 +174,7 @@ export const AIPredictions = (): JSX.Element => {
               <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#ffffff1a]">
                 <div className="flex items-center gap-2">
                   <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-xs">
-                    Last updated: {lastUpdated.toLocaleTimeString()}
+                    {isCached ? "Cached predictions" : "Freshly generated"} • Last updated: {lastUpdated.toLocaleTimeString()}
                   </p>
                 </div>
                 <button
@@ -172,7 +189,8 @@ export const AIPredictions = (): JSX.Element => {
               </div>
             )}
             {predictions.map((pred, index) => {
-          const config = riskConfig[pred.riskLevel];
+          const riskLevel = pred.riskLevel || "medium";
+          const config = riskConfig[riskLevel] || riskConfig.medium;
           return (
             <div
               key={index}

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "../../../../components/ui/button";
 import {
@@ -6,9 +6,15 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "../../../../components/ui/collapsible";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Home } from "lucide-react";
 
 const menuItems = [
+  {
+    id: "home",
+    label: "Home",
+    icon: "home", // Special identifier for Home icon
+    isActive: false,
+  },
   {
     id: "map",
     label: "Map",
@@ -64,18 +70,40 @@ export const SidebarMenuSection = (): JSX.Element => {
       <div className="flex flex-col items-start gap-[5px] flex-1 self-stretch w-full">
         <Button
           variant="ghost"
+          onClick={() => navigate("/")}
+          className={`flex h-[46px] items-center gap-3 py-0 self-stretch w-full ${isActive("/") ? "bg-[#ffffff1a]" : ""} hover:bg-[#ffffff1a] rounded-none ${isCollapsed ? 'justify-center px-0' : 'justify-start px-7'}`}
+          title={isCollapsed ? menuItems[0].label : undefined}
+        >
+          {menuItems[0].icon === "home" ? (
+            <Home className="w-[22px] h-[22px] flex-shrink-0 text-[#ffffff99]" />
+          ) : (
+            <img
+              className="w-[22px] h-[22px] flex-shrink-0"
+              alt="Home icon"
+              src={menuItems[0].icon as string}
+            />
+          )}
+          {!isCollapsed && (
+            <span className={`flex-1 [font-family:'Roboto',Helvetica] ${isActive("/") ? "font-semibold text-[#ffffff]" : "font-normal text-[#ffffff99]"} text-[15px] tracking-[-0.10px] leading-[22px]`}>
+              {menuItems[0].label}
+            </span>
+          )}
+        </Button>
+
+        <Button
+          variant="ghost"
           onClick={() => navigate("/map")}
           className={`flex h-[46px] items-center gap-3 py-0 self-stretch w-full ${isActive("/map") ? "bg-[#ffffff1a]" : ""} hover:bg-[#ffffff1a] rounded-none ${isCollapsed ? 'justify-center px-0' : 'justify-start px-7'}`}
-          title={isCollapsed ? menuItems[0].label : undefined}
+          title={isCollapsed ? menuItems[1].label : undefined}
         >
           <img
             className="w-[22px] h-[22px] flex-shrink-0"
             alt="Map icon"
-            src={menuItems[0].icon}
+            src={menuItems[1].icon}
           />
           {!isCollapsed && (
             <span className={`flex-1 [font-family:'Roboto',Helvetica] ${isActive("/map") ? "font-semibold text-[#ffffff]" : "font-normal text-[#ffffff99]"} text-[15px] tracking-[-0.10px] leading-[22px]`}>
-              {menuItems[0].label}
+              {menuItems[1].label}
             </span>
           )}
         </Button>
@@ -93,7 +121,7 @@ export const SidebarMenuSection = (): JSX.Element => {
             <Button
               variant="ghost"
               className={`flex h-[46px] items-center gap-3 py-0 self-stretch w-full hover:bg-[#ffffff1a] rounded-none ${isCollapsed ? 'justify-center px-0' : 'justify-start px-7'}`}
-              title={isCollapsed ? menuItems[1].label : undefined}
+              title={isCollapsed ? menuItems[2].label : undefined}
               onClick={() => {
                 if (isCollapsed) {
                   navigate("/dashboard?tab=overview");
@@ -103,17 +131,17 @@ export const SidebarMenuSection = (): JSX.Element => {
               <img
                 className="w-[22px] h-[22px] flex-shrink-0"
                 alt="Dashboard icon"
-                src={menuItems[1].icon}
+                src={menuItems[2].icon}
               />
               {!isCollapsed && (
                 <>
                   <span className="flex-1 [font-family:'Roboto',Helvetica] font-normal text-[#ffffff99] text-[15px] tracking-[-0.10px] leading-[22px]">
-                    {menuItems[1].label}
+                    {menuItems[2].label}
                   </span>
                   <img
                     className="w-5 h-5 flex-shrink-0"
                     alt="Dropdown icon"
-                    src={menuItems[1].dropdownIcon}
+                    src={menuItems[2].dropdownIcon}
                   />
                 </>
               )}
@@ -121,7 +149,7 @@ export const SidebarMenuSection = (): JSX.Element => {
           </CollapsibleTrigger>
           <CollapsibleContent>
             <div className={`flex flex-col items-start gap-2 pr-0 py-0 ${isCollapsed ? 'w-[70px] pl-0' : 'w-[160px] pl-6'}`}>
-              {menuItems[1].subItems?.map((subItem, index) => {
+              {menuItems[2].subItems?.map((subItem, index) => {
                 const isDashboardActive = isActive("/dashboard");
                 const currentTab = new URLSearchParams(location.search).get("tab");
                 // First item (Disease Outbreak/overview) is active if no tab param or tab=overview
@@ -158,16 +186,16 @@ export const SidebarMenuSection = (): JSX.Element => {
         <Button
           variant="ghost"
           className={`flex h-[46px] items-center gap-3 py-0 self-stretch w-full hover:bg-[#ffffff1a] rounded-none ${isCollapsed ? 'justify-center px-0' : 'justify-start px-7'}`}
-          title={isCollapsed ? menuItems[2].label : undefined}
+          title={isCollapsed ? menuItems[3].label : undefined}
         >
           <img
             className="w-[22px] h-[22px] flex-shrink-0"
             alt="Dataset icon"
-            src={menuItems[2].icon}
+            src={menuItems[3].icon}
           />
           {!isCollapsed && (
             <span className="flex-1 [font-family:'Roboto',Helvetica] font-normal text-[#ffffff99] text-[15px] tracking-[-0.10px] leading-[22px]">
-              {menuItems[2].label}
+              {menuItems[3].label}
             </span>
           )}
         </Button>

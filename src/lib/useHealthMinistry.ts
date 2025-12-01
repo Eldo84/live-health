@@ -1,9 +1,5 @@
 import { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { supabase } from "./supabase";
 
 export interface HealthMinistry {
   id: string;
@@ -11,6 +7,44 @@ export interface HealthMinistry {
   ministry_name: string;
   phone_number: string | null;
   email_address: string | null;
+}
+
+// Country name aliases - maps common variations to database names
+const COUNTRY_NAME_ALIASES: Record<string, string> = {
+  'Congo': 'Congo (Republic of the)',
+  'Republic of Congo': 'Congo (Republic of the)',
+  'Republic of the Congo': 'Congo (Republic of the)',
+  'Congo-Brazzaville': 'Congo (Republic of the)',
+  'Congo Brazzaville': 'Congo (Republic of the)',
+  'DRC': 'Democratic Republic of the Congo',
+  'DR Congo': 'Democratic Republic of the Congo',
+  'Congo-Kinshasa': 'Democratic Republic of the Congo',
+  'Congo Kinshasa': 'Democratic Republic of the Congo',
+  'USA': 'United States',
+  'US': 'United States',
+  'America': 'United States',
+  'UK': 'United Kingdom',
+  'Britain': 'United Kingdom',
+  'Great Britain': 'United Kingdom',
+};
+
+/**
+ * Normalize country name using aliases
+ */
+function normalizeCountryName(name: string): string {
+  const trimmed = name.trim();
+  // Check for exact alias match
+  if (COUNTRY_NAME_ALIASES[trimmed]) {
+    return COUNTRY_NAME_ALIASES[trimmed];
+  }
+  // Check case-insensitive alias match
+  const lowerName = trimmed.toLowerCase();
+  for (const [alias, canonical] of Object.entries(COUNTRY_NAME_ALIASES)) {
+    if (alias.toLowerCase() === lowerName) {
+      return canonical;
+    }
+  }
+  return trimmed;
 }
 
 /**
@@ -36,23 +70,38 @@ export function useHealthMinistry(countryName: string | null | undefined) {
 
     async function fetchMinistry() {
       try {
-        // Try exact match first
+        // Normalize country name using aliases (e.g., "Congo" -> "Congo (Republic of the)")
+        const normalizedName = normalizeCountryName(countryName);
+        
+        // Try exact match first with normalized name
         let { data, error: queryError } = await supabase
           .from('health_ministries')
           .select('id, country_name, ministry_name, phone_number, email_address')
-          .eq('country_name', countryName.trim())
+          .eq('country_name', normalizedName)
           .maybeSingle();
 
-        // If no exact match, try case-insensitive
+        // If no exact match, try case-insensitive with normalized name
         if (!data && !queryError) {
           const { data: caseInsensitiveData, error: caseInsensitiveError } = await supabase
+            .from('health_ministries')
+            .select('id, country_name, ministry_name, phone_number, email_address')
+            .ilike('country_name', normalizedName)
+            .maybeSingle();
+          
+          data = caseInsensitiveData;
+          queryError = caseInsensitiveError;
+        }
+        
+        // If still no match and name was normalized, also try the original name
+        if (!data && !queryError && normalizedName !== countryName.trim()) {
+          const { data: originalData, error: originalError } = await supabase
             .from('health_ministries')
             .select('id, country_name, ministry_name, phone_number, email_address')
             .ilike('country_name', countryName.trim())
             .maybeSingle();
           
-          data = caseInsensitiveData;
-          queryError = caseInsensitiveError;
+          data = originalData;
+          queryError = originalError;
         }
 
         if (cancelled) return;
@@ -96,6 +145,15 @@ export function extractCountryFromLocation(location: string): string | null {
   // Otherwise, the whole string might be the country
   return parts.length > 1 ? parts[parts.length - 1] : parts[0];
 }
+
+
+
+
+
+
+
+
+
 
 
 

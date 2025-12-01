@@ -1,0 +1,57 @@
+# =============================================================================
+# Google Trends Data Collection Workflow
+# =============================================================================
+# This workflow runs weekly to collect Google Trends data for 20 tracked
+# diseases and stores it in Supabase for the Disease Tracking feature.
+#
+# Schedule: Every Monday at 6:00 AM UTC
+# Manual trigger: Available via workflow_dispatch
+#
+# Required Secrets:
+#   - SUPABASE_URL: Your Supabase project URL
+#   - SUPABASE_SERVICE_ROLE: Service role key (not anon key!)
+# =============================================================================
+
+name: Collect Google Trends Data
+
+on:
+  # Run every Monday at 6:00 AM UTC
+  schedule:
+    - cron: "0 6 * * 1"
+  
+  # Allow manual trigger from GitHub Actions UI
+  workflow_dispatch:
+
+jobs:
+  collect-trends:
+    name: Collect Trends Data
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+          cache-dependency-path: scripts/requirements.txt
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r scripts/requirements.txt
+      
+      - name: Run Google Trends collection
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE: ${{ secrets.SUPABASE_SERVICE_ROLE }}
+        run: python scripts/collect_google_trends.py
+      
+      - name: Report status
+        if: always()
+        run: |
+          echo "Collection job completed with status: ${{ job.status }}"
+          echo "Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+

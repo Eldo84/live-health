@@ -9,7 +9,28 @@ const HEALTH_MINISTRY_SPREADSHEET_CSV_URL =
 // Load CSV from spreadsheet
 async function loadHealthMinistryCSV(): Promise<string> {
   const csvResponse = await fetch(HEALTH_MINISTRY_SPREADSHEET_CSV_URL);
-  const csvText = await csvResponse.text();
+  let csvText = await csvResponse.text();
+  
+  // Skip any empty leading rows (common in Google Sheets exports)
+  // Split into lines, filter out empty/whitespace-only lines at the start
+  const lines = csvText.split('\n');
+  let startIndex = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    // Check if line is empty or just commas
+    if (line === '' || /^,+$/.test(line)) {
+      startIndex = i + 1;
+    } else {
+      break;
+    }
+  }
+  
+  // Rejoin from the first non-empty line
+  if (startIndex > 0) {
+    console.log(`Skipping ${startIndex} empty leading rows`);
+    csvText = lines.slice(startIndex).join('\n');
+  }
+  
   return csvText;
 }
 
@@ -26,37 +47,100 @@ interface HealthMinistryRow {
   "Email Address": string;
 }
 
+// Country name aliases - maps spreadsheet names to database names
+const COUNTRY_NAME_ALIASES: Record<string, string> = {
+  'Congo (Democratic Republic of the)': 'Democratic Republic of the Congo',
+  'DRC': 'Democratic Republic of the Congo',
+  'DR Congo': 'Democratic Republic of the Congo',
+  'Congo-Kinshasa': 'Democratic Republic of the Congo',
+  'Congo (Republic of the)': 'Congo (Republic of the)',
+  'Republic of the Congo': 'Congo (Republic of the)',
+  'Congo-Brazzaville': 'Congo (Republic of the)',
+  'USA': 'United States',
+  'UK': 'United Kingdom',
+  'South Korea': 'Korea, Republic of',
+  'North Korea': "Korea, Democratic People's Republic of",
+};
+
+// Normalize country name using aliases
+function normalizeCountryName(name: string): string {
+  const trimmed = name.trim();
+  // Check for exact alias match first
+  if (COUNTRY_NAME_ALIASES[trimmed]) {
+    return COUNTRY_NAME_ALIASES[trimmed];
+  }
+  // Check case-insensitive alias match
+  const lowerName = trimmed.toLowerCase();
+  for (const [alias, canonical] of Object.entries(COUNTRY_NAME_ALIASES)) {
+    if (alias.toLowerCase() === lowerName) {
+      return canonical;
+    }
+  }
+  return trimmed;
+}
+
 // Helper function to find or create country
 async function findOrCreateCountry(
   supabase: SupabaseClient,
   countryName: string
-): Promise<string | null> {
+): Promise<{ id: string; canonicalName: string } | null> {
   if (!countryName || !countryName.trim()) {
     return null;
   }
   
-  const normalizedName = countryName.trim();
+  // Normalize the country name using aliases
+  const normalizedName = normalizeCountryName(countryName);
+  
+  console.log(`Looking up country: "${countryName}" -> normalized to "${normalizedName}"`);
   
   // Try to find existing country by name (case-insensitive)
   const { data: existingCountry } = await supabase
     .from('countries')
-    .select('id')
+    .select('id, name')
     .ilike('name', normalizedName)
     .maybeSingle();
   
   if (existingCountry) {
-    return existingCountry.id;
+    return { id: existingCountry.id, canonicalName: existingCountry.name };
   }
   
   // Try exact match as fallback
   const { data: exactMatch } = await supabase
     .from('countries')
-    .select('id')
+    .select('id, name')
     .eq('name', normalizedName)
     .maybeSingle();
   
   if (exactMatch) {
-    return exactMatch.id;
+    return { id: exactMatch.id, canonicalName: exactMatch.name };
+  }
+  
+  // Try partial match for Congo variations (handles edge cases)
+  if (normalizedName.toLowerCase().includes('congo')) {
+    // Try to match Democratic Republic of the Congo
+    if (normalizedName.toLowerCase().includes('democratic') || normalizedName.toLowerCase().includes('drc')) {
+      const { data: drcMatch } = await supabase
+        .from('countries')
+        .select('id, name')
+        .ilike('name', '%Democratic Republic%Congo%')
+        .maybeSingle();
+      if (drcMatch) {
+        console.log(`Matched "${countryName}" to "${drcMatch.name}"`);
+        return { id: drcMatch.id, canonicalName: drcMatch.name };
+      }
+    }
+    // Try to match Republic of the Congo
+    if (normalizedName.toLowerCase().includes('republic') && !normalizedName.toLowerCase().includes('democratic')) {
+      const { data: rocMatch } = await supabase
+        .from('countries')
+        .select('id, name')
+        .or('name.ilike.%Congo (Republic%,name.ilike.Republic%Congo%')
+        .maybeSingle();
+      if (rocMatch) {
+        console.log(`Matched "${countryName}" to "${rocMatch.name}"`);
+        return { id: rocMatch.id, canonicalName: rocMatch.name };
+      }
+    }
   }
   
   // If country doesn't exist, create it
@@ -72,7 +156,7 @@ async function findOrCreateCountry(
       code: code,
       continent: 'Unknown', // Default continent since we don't have this data
     })
-    .select('id')
+    .select('id, name')
     .single();
   
   if (error || !newCountry) {
@@ -81,7 +165,7 @@ async function findOrCreateCountry(
   }
   
   console.log(`Created new country: "${normalizedName}"`);
-  return newCountry.id;
+  return { id: newCountry.id, canonicalName: newCountry.name };
 }
 
 Deno.serve(async (req: Request) => {
@@ -172,20 +256,23 @@ Deno.serve(async (req: Request) => {
         const emailAddress = emailValue ? emailValue.toString().trim() : null;
         
         // Find or create country
-        const countryId = await findOrCreateCountry(supabase, countryName);
+        const countryResult = await findOrCreateCountry(supabase, countryName);
         
-        if (!countryId) {
+        if (!countryResult) {
           console.warn(`Could not find or create country for "${countryName}"`);
           errors.push({ row: countryName, error: 'Failed to find or create country' });
           skippedCount++;
           continue;
         }
         
+        const { id: countryId, canonicalName } = countryResult;
+        
         // Check if health ministry already exists for this country
+        // Use canonical name (from countries table) to ensure proper matching
         const { data: existingMinistry } = await supabase
           .from('health_ministries')
           .select('id')
-          .eq('country_name', countryName)
+          .eq('country_name', canonicalName)
           .maybeSingle();
 
         if (existingMinistry) {
@@ -202,29 +289,31 @@ Deno.serve(async (req: Request) => {
             .eq('id', existingMinistry.id);
           
           if (updateError) {
-            console.error(`Error updating health ministry for ${countryName}:`, updateError);
+            console.error(`Error updating health ministry for ${canonicalName}:`, updateError);
             errors.push({ row: countryName, error: `Update failed: ${updateError.message}` });
             skippedCount++;
             continue;
           }
+          console.log(`Updated health ministry for ${canonicalName}`);
         } else {
-          // Create new ministry
+          // Create new ministry - use canonicalName (from countries table) for proper map lookup
           const { error: insertError } = await supabase
             .from('health_ministries')
             .insert({
               country_id: countryId,
-              country_name: countryName,
+              country_name: canonicalName, // Use canonical name, not spreadsheet name
               ministry_name: ministryName,
               phone_number: phoneNumber,
               email_address: emailAddress,
             });
           
           if (insertError) {
-            console.error(`Error creating health ministry for ${countryName}:`, insertError);
+            console.error(`Error creating health ministry for ${canonicalName}:`, insertError);
             errors.push({ row: countryName, error: `Insert failed: ${insertError.message}` });
             skippedCount++;
             continue;
           }
+          console.log(`Created health ministry for ${canonicalName}`);
         }
 
         processedCount++;

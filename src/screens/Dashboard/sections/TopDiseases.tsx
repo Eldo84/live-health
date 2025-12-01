@@ -49,7 +49,7 @@ export const TopDiseases = ({ timeRange, searchQuery = "", countryId }: TopDisea
           Top Active Diseases
         </h3>
         <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm mt-1">
-          Ranked by current case count
+          Ranked by number of outbreak reports
         </p>
       </CardHeader>
       <CardContent>
@@ -80,9 +80,9 @@ export const TopDiseases = ({ timeRange, searchQuery = "", countryId }: TopDisea
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="[font-family:'Roboto',Helvetica] font-medium text-[#ebebeb99] text-xs">
-                        {disease.cases.toLocaleString()} cases
+                        {(disease.reports || disease.cases).toLocaleString()} reports
                       </span>
-                      <span className={`[font-family:'Roboto',Helvetica] font-medium text-xs ${disease.growth.startsWith('+') ? 'text-[#f87171]' : 'text-[#4ade80]'}`}>
+                      <span className={`[font-family:'Roboto',Helvetica] font-medium text-xs ${disease.growth.startsWith('+') || disease.growth === 'New' ? 'text-[#f87171]' : 'text-[#4ade80]'}`}>
                         {disease.growth}
                       </span>
                     </div>

@@ -1,6 +1,6 @@
-import React from "react";
 import { Button } from "../../../../components/ui/button";
 import { Input } from "../../../../components/ui/input";
+import outbreakNowLogo from "@/assets/outbreaknow-logo.png";
 
 const resourcesLinks = [
   { label: "Disclaimer" },
@@ -42,9 +42,9 @@ export const InfoPanelSection = (): JSX.Element => {
           <div className="flex items-start justify-between w-[1138px] h-[180px]">
             <div className="flex flex-col w-[249px] gap-[10px]">
               <img
-                className="w-[62px] h-[42px] object-cover"
-                alt="Group"
-                src="/group-1062-2-1.png"
+                className="h-16 w-auto object-contain"
+                alt="OutbreakNow Logo"
+                src={outbreakNowLogo}
               />
 
               <div className="w-[247px] [font-family:'Roboto',Helvetica] font-normal text-[#dbdbdbd9] text-base tracking-[-0.10px] leading-6">

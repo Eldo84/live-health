@@ -59,7 +59,7 @@ Deno.serve(async (req: Request) => {
     const forceRefresh = url.searchParams.get("refresh") === "true";
 
     // Check cache first (cache for 24 hours since we generate proactively)
-    // Unless refresh is explicitly requested, always return stored predictions if available
+    // Unless refresh is explicitly requested, return cached predictions if fresh
     const cacheKey = "ai_predictions_cache";
     const cacheDuration = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
     
@@ -72,32 +72,75 @@ Deno.serve(async (req: Request) => {
 
       if (cacheData && cacheData.updated_at) {
         const cacheAge = Date.now() - new Date(cacheData.updated_at).getTime();
-        // Always return stored predictions if they exist (even if expired)
-        // New predictions are generated proactively, so stored ones are always fresh enough
-        try {
-          const cachedPredictions = JSON.parse(cacheData.value);
-          const isExpired = cacheAge >= cacheDuration;
-          console.log(
-            `Returning stored predictions (age: ${Math.round(cacheAge / 1000)}s, expired: ${isExpired})`
-          );
-          return new Response(
-            JSON.stringify({ 
-              predictions: cachedPredictions,
-              cached: true,
-              cacheAge: Math.round(cacheAge / 1000) // seconds
-            }),
-            { 
-              status: 200, 
-              headers: { ...corsHeaders, "Content-Type": "application/json" } 
+        const isExpired = cacheAge >= cacheDuration;
+        
+        // If cache is still fresh (< 24 hours), return it
+        if (!isExpired) {
+          try {
+            const cachedPredictions = JSON.parse(cacheData.value);
+            console.log(
+              `Returning stored predictions (age: ${Math.round(cacheAge / 1000)}s, expired: false)`
+            );
+            return new Response(
+              JSON.stringify({ 
+                predictions: cachedPredictions,
+                cached: true,
+                cacheAge: Math.round(cacheAge / 1000) // seconds
+              }),
+              { 
+                status: 200, 
+                headers: { ...corsHeaders, "Content-Type": "application/json" } 
+              }
+            );
+          } catch (e) {
+            console.error("Error parsing cache:", e);
+            // Fall through to generate new predictions
+          }
+        } else {
+          // Cache expired - check if there are new signals since cache was created
+          const cacheTime = new Date(cacheData.updated_at);
+          const { count: newSignalsCount, error: countError } = await supabase
+            .from("outbreak_signals")
+            .select("*", { count: "exact", head: true })
+            .gt("detected_at", cacheTime.toISOString());
+          
+          // If error checking for new signals, regenerate to be safe
+          if (countError) {
+            console.error("Error checking for new signals:", countError);
+            // Fall through to generate new predictions
+          }
+          // If no new signals, return cached predictions (even if expired) to avoid unnecessary API calls
+          else if (newSignalsCount === 0) {
+            try {
+              const cachedPredictions = JSON.parse(cacheData.value);
+              console.log(
+                `Returning stored predictions (age: ${Math.round(cacheAge / 1000)}s, expired: true, but no new signals)`
+              );
+              return new Response(
+                JSON.stringify({ 
+                  predictions: cachedPredictions,
+                  cached: true,
+                  cacheAge: Math.round(cacheAge / 1000) // seconds
+                }),
+                { 
+                  status: 200, 
+                  headers: { ...corsHeaders, "Content-Type": "application/json" } 
+                }
+              );
+            } catch (e) {
+              console.error("Error parsing cache:", e);
+              // Fall through to generate new predictions
             }
-          );
-        } catch (e) {
-          console.error("Error parsing cache:", e);
-          // Fall through to generate new predictions
+          } else {
+            console.log(
+              `Cache expired (age: ${Math.round(cacheAge / 1000)}s) and ${newSignalsCount} new signals detected - regenerating predictions`
+            );
+            // Fall through to generate new predictions
+          }
         }
       }
     } else {
-      console.log("Force refresh requested - bypassing cache");
+      console.log("Force refresh requested - bypassing cache and generating new predictions");
     }
 
     // Fetch recent outbreak signals (last 30 days) with disease and country info
@@ -184,8 +227,14 @@ Deno.serve(async (req: Request) => {
       severity: entry.severity,
     }));
 
+    console.log(`Generating predictions from ${signals.length} signals, ${topOutbreaks.length} top outbreaks`);
+
     // Call DeepSeek API
+    // Add timestamp to prompt to encourage variation on regenerations
+    const currentDate = new Date().toISOString();
     const prompt = `You are an expert epidemiologist analyzing disease outbreak data. Based on the following recent outbreak signals, generate 5-7 specific, actionable predictions about potential spread, risk levels, and case forecasts.
+
+Current Analysis Date: ${currentDate}
 
 Recent Outbreak Data:
 ${JSON.stringify(contextData, null, 2)}
@@ -212,7 +261,7 @@ Return ONLY a valid JSON array of predictions in this exact format:
   }
 ]
 
-Make predictions realistic, data-driven, and specific. Focus on diseases with higher case counts and recent activity.`;
+Make predictions realistic, data-driven, and specific. Focus on diseases with higher case counts and recent activity. Vary your predictions based on the current date and latest trends.`;
 
     const deepseekResponse = await fetch("https://api.deepseek.com/v1/chat/completions", {
       method: "POST",
@@ -232,7 +281,7 @@ Make predictions realistic, data-driven, and specific. Focus on diseases with hi
             content: prompt,
           },
         ],
-        temperature: 0.7,
+        temperature: 0.8, // Increased from 0.7 to encourage more variation
         max_tokens: 2000,
       }),
     });
@@ -257,6 +306,18 @@ Make predictions realistic, data-driven, and specific. Focus on diseases with hi
     let predictions: AIPrediction[] = [];
     try {
       predictions = JSON.parse(predictionsJson);
+      
+      // Validate and normalize predictions
+      const validRiskLevels = ["low", "medium", "high", "critical"];
+      predictions = predictions
+        .filter((pred: any) => pred && pred.disease && pred.location && pred.prediction)
+        .map((pred: any) => ({
+          ...pred,
+          riskLevel: validRiskLevels.includes(pred.riskLevel?.toLowerCase()) 
+            ? pred.riskLevel.toLowerCase() 
+            : "medium", // Default to medium if invalid
+          confidence: Math.max(0, Math.min(100, Number(pred.confidence) || 50)), // Clamp 0-100
+        }));
     } catch (parseError) {
       console.error("Failed to parse AI response:", parseError);
       console.error("Raw response:", aiResponse);
@@ -290,6 +351,8 @@ Make predictions realistic, data-driven, and specific. Focus on diseases with hi
       color: diseaseColors[pred.disease] || colorMap[pred.riskLevel] || "#66dbe1",
     }));
 
+    console.log(`Generated ${predictions.length} predictions successfully`);
+
     // Cache the predictions in database
     try {
       await supabase
@@ -308,8 +371,18 @@ Make predictions realistic, data-driven, and specific. Focus on diseases with hi
       // Continue even if caching fails
     }
 
+    const responseData = { 
+      predictions, 
+      cached: false,
+      generatedAt: new Date().toISOString(),
+      signalCount: signals.length,
+      outbreakCount: topOutbreaks.length
+    };
+    
+    console.log(`Returning ${predictions.length} freshly generated predictions`);
+    
     return new Response(
-      JSON.stringify({ predictions, cached: false }),
+      JSON.stringify(responseData),
       { 
         status: 200, 
         headers: { ...corsHeaders, "Content-Type": "application/json" } 
