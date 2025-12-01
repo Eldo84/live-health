@@ -1,9 +1,16 @@
 # Python dependencies for Google Trends collection script
 # Install with: pip install -r scripts/requirements.txt
 
-pytrends>=4.9.0
-supabase>=2.0.0
-# Pin urllib3 to fix compatibility issue with pytrends
-# (method_whitelist was renamed to allowed_methods in newer versions)
-urllib3<2.0.0
+# --- Google Trends ---
+pytrends==4.9.2        # last stable release, compatible with urllib3 1.x
 
+# --- Supabase Python Client ---
+supabase>=2.0.3        # safe and stable
+
+# --- Networking dependencies ---
+requests>=2.31.0
+urllib3==1.26.18       # compatible with pytrends (avoids method_whitelist error)
+
+# --- Useful utilities ---
+pandas>=2.2.0
+python-dotenv>=1.0.1
