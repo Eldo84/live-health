@@ -5,6 +5,9 @@ This script collects Google Trends data for 20 tracked diseases and stores
 it in Supabase. It runs weekly via GitHub Actions.
 
 Data collected: Last 30 days of daily interest values (0-100 scale)
+
+Each disease is fetched INDIVIDUALLY to get accurate normalized values
+(100 = peak interest for that specific disease in the time period).
 """
 
 import os
@@ -47,18 +50,14 @@ TRACKED_DISEASES = [
 ]
 
 # Rate limiting settings
-DELAY_BETWEEN_REQUESTS = 3  # seconds between API calls
-DELAY_ON_ERROR = 10  # seconds to wait after an error
+DELAY_BETWEEN_REQUESTS = 2  # seconds between API calls
+DELAY_ON_ERROR = 15  # seconds to wait after an error
+MAX_RETRIES = 3  # max retries per disease
 
 
 # =============================================================================
 # Helper Functions
 # =============================================================================
-
-def chunk_list(lst: list, size: int) -> list:
-    """Split a list into chunks of specified size."""
-    return [lst[i:i + size] for i in range(0, len(lst), size)]
-
 
 def validate_environment():
     """Ensure required environment variables are set."""
@@ -88,17 +87,18 @@ def create_pytrends_client() -> TrendReq:
 # Main Collection Logic
 # =============================================================================
 
-def collect_trends_for_group(pytrends: TrendReq, diseases: list) -> list:
+def collect_trends_for_disease(pytrends: TrendReq, disease: str) -> list:
     """
-    Fetch Google Trends data for a group of up to 5 diseases.
+    Fetch Google Trends data for a SINGLE disease.
+    This ensures each disease gets its own normalized 0-100 scale.
     Returns list of records ready for database insertion.
     """
     records = []
     
     try:
-        # Build payload for this group - last 30 days
+        # Build payload for single disease - last 30 days
         pytrends.build_payload(
-            diseases,
+            [disease],  # Single disease for accurate normalization
             timeframe="today 1-m",  # Last 30 days, daily granularity
             geo="",  # Worldwide
         )
@@ -107,25 +107,20 @@ def collect_trends_for_group(pytrends: TrendReq, diseases: list) -> list:
         df = pytrends.interest_over_time()
         
         if df.empty:
-            print(f"    ⚠ No data returned for: {diseases}")
+            print(f"    ⚠ No data returned for: {disease}")
             return records
         
-        # Process each disease in the group
-        for disease in diseases:
-            if disease not in df.columns:
-                print(f"    ⚠ No column for: {disease}")
-                continue
-            
-            for date_index, row in df.iterrows():
-                # Skip the 'isPartial' column if present
-                if hasattr(row, 'isPartial'):
-                    pass
-                    
-                records.append({
-                    "disease": disease,
-                    "date": date_index.strftime("%Y-%m-%d"),
-                    "interest_value": int(row[disease]),
-                })
+        # Process the disease data
+        if disease not in df.columns:
+            print(f"    ⚠ No column for: {disease}")
+            return records
+        
+        for date_index, row in df.iterrows():
+            records.append({
+                "disease": disease,
+                "date": date_index.strftime("%Y-%m-%d"),
+                "interest_value": int(row[disease]),
+            })
         
         print(f"    ✓ Collected {len(records)} data points")
         
@@ -163,6 +158,7 @@ def upload_to_supabase(supabase: Client, records: list):
 def collect_all_trends():
     """
     Main function: Collect Google Trends data for all 20 diseases.
+    Each disease is fetched individually for accurate normalized values.
     """
     print("=" * 60)
     print("Google Trends Data Collection")
@@ -174,42 +170,63 @@ def collect_all_trends():
     supabase = create_supabase_client()
     pytrends = create_pytrends_client()
     
-    # Split diseases into groups of 5 (Google Trends limit)
-    disease_groups = chunk_list(TRACKED_DISEASES, 5)
     total_records = 0
+    successful = 0
+    failed = 0
     
-    print(f"\nCollecting data for {len(TRACKED_DISEASES)} diseases in {len(disease_groups)} groups...")
+    print(f"\nCollecting data for {len(TRACKED_DISEASES)} diseases (individually)...")
     print("-" * 60)
     
-    for group_num, group in enumerate(disease_groups, 1):
-        print(f"\n[{group_num}/{len(disease_groups)}] Processing: {group}")
+    for idx, disease in enumerate(TRACKED_DISEASES, 1):
+        print(f"\n[{idx}/{len(TRACKED_DISEASES)}] Processing: {disease}")
         
-        try:
-            # Collect trends for this group
-            records = collect_trends_for_group(pytrends, group)
-            
-            # Upload to Supabase
-            if records:
-                upload_to_supabase(supabase, records)
-                total_records += len(records)
-            
-            # Rate limiting - be respectful to Google
-            if group_num < len(disease_groups):
-                print(f"    Waiting {DELAY_BETWEEN_REQUESTS}s before next request...")
-                time.sleep(DELAY_BETWEEN_REQUESTS)
+        retries = 0
+        success = False
+        
+        while retries < MAX_RETRIES and not success:
+            try:
+                # Collect trends for this disease
+                records = collect_trends_for_disease(pytrends, disease)
                 
-        except Exception as e:
-            print(f"    ✗ Failed to process group: {e}")
-            print(f"    Waiting {DELAY_ON_ERROR}s before continuing...")
-            time.sleep(DELAY_ON_ERROR)
-            continue
+                # Upload to Supabase
+                if records:
+                    upload_to_supabase(supabase, records)
+                    total_records += len(records)
+                    successful += 1
+                    success = True
+                else:
+                    # No data returned, count as success but warn
+                    successful += 1
+                    success = True
+                
+                # Rate limiting - be respectful to Google
+                if idx < len(TRACKED_DISEASES):
+                    print(f"    Waiting {DELAY_BETWEEN_REQUESTS}s...")
+                    time.sleep(DELAY_BETWEEN_REQUESTS)
+                    
+            except Exception as e:
+                retries += 1
+                if retries < MAX_RETRIES:
+                    print(f"    ⚠ Retry {retries}/{MAX_RETRIES} after error: {e}")
+                    time.sleep(DELAY_ON_ERROR)
+                    # Recreate pytrends client to reset session
+                    pytrends = create_pytrends_client()
+                else:
+                    print(f"    ✗ Failed after {MAX_RETRIES} retries")
+                    failed += 1
     
     # Summary
     print("\n" + "=" * 60)
     print("Collection Complete!")
+    print(f"Successful: {successful}/{len(TRACKED_DISEASES)} diseases")
+    print(f"Failed: {failed}/{len(TRACKED_DISEASES)} diseases")
     print(f"Total records uploaded: {total_records}")
     print(f"Finished at: {datetime.utcnow().isoformat()}Z")
     print("=" * 60)
+    
+    # Exit with error code if any failed
+    if failed > 0:
+        exit(1)
 
 
 # =============================================================================
@@ -218,4 +235,3 @@ def collect_all_trends():
 
 if __name__ == "__main__":
     collect_all_trends()
-
