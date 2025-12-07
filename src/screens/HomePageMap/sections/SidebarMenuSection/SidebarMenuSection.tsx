@@ -31,6 +31,8 @@ const menuItems = [
       { label: "Disease Outbreak", tab: "overview" },
       { label: "AI Powered Prediction", tab: "predictions" },
       { label: "Global Population Health Index", tab: "health-index" },
+      { label: "Disease Tracking", tab: "disease-tracking" },
+      { label: "My Advertising", path: "/dashboard/advertising" },
     ],
   },
   {
@@ -152,17 +154,26 @@ export const SidebarMenuSection = (): JSX.Element => {
               {menuItems[2].subItems?.map((subItem, index) => {
                 const isDashboardActive = isActive("/dashboard");
                 const currentTab = new URLSearchParams(location.search).get("tab");
-                // First item (Disease Outbreak/overview) is active if no tab param or tab=overview
-                const isActiveItem = isDashboardActive && (
-                  index === 0 
-                    ? (!currentTab || currentTab === "overview")
-                    : currentTab === subItem.tab
-                );
+                // Check if this is a path-based item or tab-based
+                const isPathBased = 'path' in subItem && subItem.path;
+                const isActiveItem = isPathBased 
+                  ? location.pathname === subItem.path
+                  : isDashboardActive && (
+                      index === 0 
+                        ? (!currentTab || currentTab === "overview")
+                        : currentTab === subItem.tab
+                    );
                 
                 return (
                   <button
                     key={index}
-                    onClick={() => navigate(`/dashboard?tab=${subItem.tab}`)}
+                    onClick={() => {
+                      if (isPathBased) {
+                        navigate(subItem.path);
+                      } else {
+                        navigate(`/dashboard?tab=${subItem.tab}`);
+                      }
+                    }}
                     className={`flex items-start gap-3.5 w-full text-left hover:opacity-80 transition-opacity ${isCollapsed ? 'justify-center' : ''}`}
                     title={isCollapsed ? subItem.label : undefined}
                   >
@@ -187,6 +198,7 @@ export const SidebarMenuSection = (): JSX.Element => {
           variant="ghost"
           className={`flex h-[46px] items-center gap-3 py-0 self-stretch w-full hover:bg-[#ffffff1a] rounded-none ${isCollapsed ? 'justify-center px-0' : 'justify-start px-7'}`}
           title={isCollapsed ? menuItems[3].label : undefined}
+          onClick={() => navigate("/dashboard?tab=data")}
         >
           <img
             className="w-[22px] h-[22px] flex-shrink-0"

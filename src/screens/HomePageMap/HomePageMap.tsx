@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { InteractiveMap } from "./sections/MapSection/InteractiveMap";
 import { NewsSection } from "./sections/NewsSection";
 import { SponsoredSection } from "./sections/SponsoredSection";
+import { PremiumAdsSection } from "./sections/PremiumAdsSection";
 import { FilterState } from "./sections/FilterPanel";
 import { Input } from "../../components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
@@ -28,8 +29,6 @@ export const HomePageMap = (): JSX.Element => {
     diseaseSearch: "",
     diseaseType: "all", // Default to show all disease types
   });
-  const [hoveredCategory, setHoveredCategory] = React.useState<string | null>(null);
-  const [hoveredCategoryPosition, setHoveredCategoryPosition] = React.useState<{ x: number; y: number } | null>(null);
   const [zoomTarget, setZoomTarget] = React.useState<[number, number] | null>(null);
   const { isFullscreen: isMapFullscreen, setIsFullscreen: setIsMapFullscreen } = useFullscreen();
   const mapContainerRef = React.useRef<HTMLDivElement>(null);
@@ -43,6 +42,8 @@ export const HomePageMap = (): JSX.Element => {
   const [nearMeCategory, setNearMeCategory] = React.useState<string | null>(null);
   const [isMobileFiltersOpen, setIsMobileFiltersOpen] = React.useState(false);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
+  const [hoveredCategory, setHoveredCategory] = React.useState<string | null>(null);
+  const [hoveredCategoryPosition, setHoveredCategoryPosition] = React.useState<{ x: number; y: number } | null>(null);
   
   // Request user location on mount
   const { location, isRequesting: isRequestingLocation, error: locationError } = useUserLocation(true);
@@ -101,6 +102,12 @@ export const HomePageMap = (): JSX.Element => {
     });
     return Array.from(countries).sort();
   }, [signals]);
+
+  // Store availableCountries in a ref to avoid recreating processSearch callback
+  const availableCountriesRef = React.useRef<string[]>(availableCountries);
+  React.useEffect(() => {
+    availableCountriesRef.current = availableCountries;
+  }, [availableCountries]);
 
   // Handle search input change - just update the input value, don't process yet
   const handleSearchChange = (value: string) => {
@@ -187,7 +194,9 @@ export const HomePageMap = (): JSX.Element => {
     // Check if any signal location matches the search (case-insensitive partial match)
     // This helps find countries that might be in the database but not in our lookup
     // But only if query is at least 3 characters to avoid false matches with single letters
-    const matchingCountry = queryLower.length >= 3 ? availableCountries.find(country => {
+    // Use ref to avoid recreating this callback when availableCountries changes
+    const currentAvailableCountries = availableCountriesRef.current;
+    const matchingCountry = queryLower.length >= 3 ? currentAvailableCountries.find(country => {
       const countryLower = country.toLowerCase();
       // Only match if country starts with query or query starts with country (exact/prefix match)
       // This prevents "c" from matching "Democratic Republic of Congo"
@@ -286,7 +295,7 @@ export const HomePageMap = (): JSX.Element => {
     });
     setZoomTarget(null);
     setIsUserLocationZoom(false);
-  }, [availableCountries]);
+  }, []); // No dependencies - uses ref for availableCountries to prevent infinite loop
 
   // Minimal debounce for search processing - instant for known countries, 150ms for others
   React.useEffect(() => {
@@ -553,10 +562,77 @@ export const HomePageMap = (): JSX.Element => {
       });
     });
     
-    // Convert map to array, remove originalName field, and sort by name
-    return Array.from(categoryMap.values())
-      .map(({ originalName, ...cat }) => cat) // Remove originalName from output
-      .sort((a, b) => a.name.localeCompare(b.name));
+    // Define the standard categories from map dropdown (CATEGORY_COLORS)
+    const standardCategories = [
+      "Foodborne Outbreaks",
+      "Waterborne Outbreaks",
+      "Vector-Borne Outbreaks",
+      "Airborne Outbreaks",
+      "Contact Transmission",
+      "Healthcare-Associated Infections",
+      "Zoonotic Outbreaks",
+      "Sexually Transmitted Infections",
+      "Vaccine-Preventable Diseases",
+      "Emerging Infectious Diseases",
+      "Veterinary Outbreaks",
+      "Neurological Outbreaks",
+      "Respiratory Outbreaks",
+      "Bloodborne Outbreaks",
+      "Gastrointestinal Outbreaks",
+      "Other"
+    ];
+    
+    // Filter to only include categories that match the standard categories from map dropdown
+    // and ensure they're in the same order
+    const filteredCategories = standardCategories
+      .map(categoryName => {
+        // Find matching category from database (exact match or normalized match)
+        const found = Array.from(categoryMap.values()).find(cat => 
+          cat.name === categoryName || 
+          normalizeCategoryForDisplay(cat.name) === categoryName
+        );
+        
+        if (found) {
+          return found;
+        }
+        
+        // If not found in database, create a default entry with standard color
+        const standardColors: Record<string, string> = {
+          'Foodborne Outbreaks': '#f87171',
+          'Waterborne Outbreaks': '#66dbe1',
+          'Vector-Borne Outbreaks': '#fbbf24',
+          'Airborne Outbreaks': '#a78bfa',
+          'Contact Transmission': '#fb923c',
+          'Healthcare-Associated Infections': '#ef4444',
+          'Zoonotic Outbreaks': '#10b981',
+          'Sexually Transmitted Infections': '#ec4899',
+          'Vaccine-Preventable Diseases': '#3b82f6',
+          'Emerging Infectious Diseases': '#f59e0b',
+          'Veterinary Outbreaks': '#8b5cf6',
+          'Neurological Outbreaks': '#dc2626',
+          'Respiratory Outbreaks': '#9333ea',
+          'Bloodborne Outbreaks': '#dc2626',
+          'Gastrointestinal Outbreaks': '#f97316',
+          'Other': '#4eb7bd',
+        };
+        
+        // Get icon for this category
+        let IconComponent = AlertCircle;
+        if (categoryIconMap[categoryName]) {
+          IconComponent = categoryIconMap[categoryName];
+        }
+        
+        return {
+          id: categoryName.toLowerCase().replace(/\s+/g, '-'),
+          name: categoryName,
+          color: standardColors[categoryName] || '#4eb7bd',
+          icon: IconComponent,
+        };
+      })
+      .filter(Boolean); // Remove any undefined entries
+    
+    // Convert to array and remove originalName field
+    return filteredCategories.map(({ originalName, ...cat }) => cat);
   }, [dbCategories]);
 
   // Handle category selection from disease category icons
@@ -727,7 +803,7 @@ export const HomePageMap = (): JSX.Element => {
   // Auto-apply location when detected (only once on initial load)
   React.useEffect(() => {
     if (location && !locationAutoAppliedRef.current) {
-      // User location detected - automatically filter by country and zoom to location
+      // User location detected - zoom to their location (but keep all global outbreaks visible)
       const detectedCountry = location.country;
       const userCoords = location.coordinates;
       
@@ -751,19 +827,9 @@ export const HomePageMap = (): JSX.Element => {
         return;
       }
       
-      // Check if country exists in our lookup or available countries
-      const coords = geocodeLocation(detectedCountry);
-      const countryExists = coords || availableCountries.some(c => 
-        c.toLowerCase() === detectedCountry.toLowerCase()
-      );
-      
-      if (countryExists && !filters.country) {
-        // Set country filter (only if not already set)
-        setFilters(prev => ({
-          ...prev,
-          country: detectedCountry,
-        }));
-      }
+      // Don't set country filter on page load - show ALL outbreaks globally
+      // Just zoom to user's location so they can see nearby outbreaks in context
+      // Users can manually filter by country if they want
       
       // ALWAYS zoom to user's location (regardless of country existence)
       // Use their actual coordinates, not country center
@@ -781,7 +847,7 @@ export const HomePageMap = (): JSX.Element => {
         setShowLocationNotification(false);
       }, 5000);
     }
-  }, [location, availableCountries]);
+  }, [location]); // Use ref for availableCountries to prevent dependency cycle
   
   // Ensure zoom target and user location flag stay set even if filters change
   React.useEffect(() => {
@@ -807,7 +873,7 @@ export const HomePageMap = (): JSX.Element => {
     const updateCategoryPosition = () => {
       const mapContainer = mapContainerRef.current;
       if (!mapContainer) {
-        // Responsive fallback based on screen size
+        // Responsive fallback based on screen size - ensure it's visible
         const fallback = window.innerWidth >= 1024 ? '820px' : window.innerWidth >= 768 ? '700px' : window.innerWidth >= 640 ? '600px' : '500px';
         setCategoryTop(fallback);
         return;
@@ -816,7 +882,7 @@ export const HomePageMap = (): JSX.Element => {
       const mapRect = mapContainer.getBoundingClientRect();
       const containerRect = mapContainer.parentElement?.getBoundingClientRect();
       if (!containerRect) {
-        // Responsive fallback based on screen size
+        // Responsive fallback based on screen size - ensure it's visible
         const fallback = window.innerWidth >= 1024 ? '820px' : window.innerWidth >= 768 ? '700px' : window.innerWidth >= 640 ? '600px' : '500px';
         setCategoryTop(fallback);
         return;
@@ -827,7 +893,13 @@ export const HomePageMap = (): JSX.Element => {
       // Responsive minimum position based on screen size
       const minPosition = window.innerWidth >= 1024 ? 820 : window.innerWidth >= 768 ? 700 : window.innerWidth >= 640 ? 600 : 500;
       const newTop = Math.max(minPosition, mapBottom + 20); // Ensure minimum position
-      setCategoryTop(`${newTop}px`);
+      
+      // Ensure categories are not positioned below viewport
+      const viewportHeight = window.innerHeight;
+      const maxTop = viewportHeight - 100; // Leave some space at bottom
+      const finalTop = Math.min(newTop, maxTop);
+      
+      setCategoryTop(`${finalTop}px`);
     };
 
     // Initial calculation
@@ -840,6 +912,7 @@ export const HomePageMap = (): JSX.Element => {
     const timeoutIds = [
       setTimeout(updateCategoryPosition, 100),
       setTimeout(updateCategoryPosition, 600), // After transition completes
+      setTimeout(updateCategoryPosition, 1000), // Extra delay to ensure map is fully rendered
     ];
 
     // Use ResizeObserver to watch for map container size changes
@@ -861,20 +934,20 @@ export const HomePageMap = (): JSX.Element => {
   }, [isMapFullscreen, isMobile]); // Recalculate when fullscreen or mobile changes
 
   return (
-    <div className={`bg-[#2a4149] relative ${isMapFullscreen ? 'absolute inset-0 w-full h-full overflow-hidden' : isMobile ? 'absolute inset-0 w-full h-screen overflow-hidden' : 'min-h-screen overflow-x-hidden'}`}>
-      <div className={`relative w-full ${isMobile ? 'h-screen' : 'h-full'} ${isMobile ? '' : 'lg:min-w-[1280px]'}`}>
+    <div className={`bg-[#2a4149] relative ${isMapFullscreen ? 'fixed inset-0 w-full h-full overflow-hidden z-[2000]' : isMobile ? 'absolute inset-0 w-full h-screen overflow-hidden' : ''}`}>
+      <div className={`relative w-full ${isMobile ? 'h-screen' : ''} ${isMobile ? '' : 'lg:min-w-[1280px]'}`} style={{ minHeight: isMobile ? '100vh' : 'calc(100vh - 60px)', paddingBottom: isMobile ? '0' : '200px', marginBottom: isMobile ? '0' : '40px' }}>
         {/* Location Detection Notification */}
         {showLocationNotification && location && (
           <div className={`absolute ${isMobile ? 'top-16' : 'top-20'} left-1/2 transform -translate-x-1/2 z-[1100] bg-[#67DBE2] text-[#2a4149] px-3 py-2 ${isMobile ? 'text-xs' : 'px-4 py-3'} rounded-lg shadow-lg flex items-center gap-2 ${isMobile ? 'max-w-[90vw]' : ''} animate-in fade-in slide-in-from-top-2 duration-300`}>
             <MapPin className={`${isMobile ? 'w-4 h-4' : 'w-5 h-5'} flex-shrink-0`} />
             <div className="flex-1 min-w-0">
               <div className={`${isMobile ? 'text-xs' : 'font-semibold text-sm'} truncate`}>
-                Showing outbreaks in {location.country}
+                Zoomed to your location: {location.country}
                 {location.city && `, ${location.city}`}
               </div>
               {!isMobile && (
                 <div className="text-xs opacity-90">
-                  Your location has been detected. Click to dismiss.
+                  Showing all global outbreaks. Use filters to narrow down.
                 </div>
               )}
             </div>
@@ -1021,6 +1094,7 @@ export const HomePageMap = (): JSX.Element => {
                     </select>
                   </div>
                   
+                  
                   {/* Reset Button */}
                   <button
                     onClick={() => {
@@ -1118,6 +1192,8 @@ export const HomePageMap = (): JSX.Element => {
               <option value="veterinary">Veterinary Only</option>
               <option value="zoonotic">Zoonotic (Both)</option>
             </select>
+            
+            
             <button
               onClick={handleResetFilters}
               className="flex items-center ml-2 justify-center w-10 h-[40px] rounded-[6px] border border-[#DAE0E633] bg-[#FFFFFF14] text-[#EBEBEBCC] hover:text-white hover:bg-[#FFFFFF24] transition-colors shadow-[0px_1px_2px_#1018280A] flex-shrink-0"
@@ -1134,6 +1210,199 @@ export const HomePageMap = (): JSX.Element => {
           </div> */}
         </div>
 
+        {/* Outbreak Categories - Above Map */}
+        <style>{`
+          .category-icons-scrollable::-webkit-scrollbar {
+            display: none;
+          }
+          .category-icons-scrollable {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+          }
+        `}</style>
+        
+        {/* Desktop Category Icons - Above Map */}
+        <div 
+          className={`hidden lg:block lg:absolute z-[1000] transition-all duration-300 ${isMapFullscreen || isDialogOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+          style={{
+            top: isMapFullscreen ? 'auto' : '120px',
+            left: '90px',
+            right: isMapFullscreen ? 'auto' : '260px',
+            height: 'auto',
+            minHeight: '60px',
+            overflow: 'visible',
+            position: 'absolute',
+            visibility: isMapFullscreen || isDialogOpen ? 'hidden' : 'visible',
+            paddingBottom: '25px',
+            marginBottom: '15px',
+          }}
+        >
+          {/* Scrollable container for icons */}
+          <div 
+            className="category-icons-scrollable"
+            style={{
+              overflowX: 'auto',
+              overflowY: 'visible',
+              scrollbarWidth: 'none',
+              paddingRight: '20px',
+              paddingLeft: '0',
+              paddingBottom: '5px',
+              paddingTop: '0',
+              position: 'relative',
+              height: '60px',
+            }}
+          >
+            <div className="flex items-center gap-[18px] flex-nowrap" style={{ minWidth: 'max-content', paddingLeft: '0', paddingRight: '10px', paddingBottom: '0', paddingTop: '0', alignItems: 'center', display: 'flex', marginBottom: '0', height: '48px' }}>
+              {diseaseCategories.map((category) => {
+                return (
+                  <div 
+                    key={category.name} 
+                    className="relative flex flex-col items-center flex-shrink-0" 
+                    style={{ minWidth: '44px' }}
+                    onMouseEnter={(e) => handleMouseEnter(category.name, e)}
+                    onMouseLeave={handleMouseLeave}
+                  >
+                    <button
+                      onClick={() => handleCategoryClick(category.name)}
+                      className="flex items-center justify-center rounded-full cursor-pointer transition-all duration-200 relative"
+                      style={{
+                        width: '44px',
+                        height: '44px',
+                        backgroundColor: '#FFFFFF',
+                        border: 'none',
+                        boxShadow: filters.category === category.name 
+                          ? `0 0 14px ${category.color}60, 0 4px 8px rgba(0,0,0,0.3)` 
+                          : `0 2px 4px rgba(0,0,0,0.2)`,
+                      }}
+                    >
+                      <div 
+                        className="absolute inset-0 rounded-full"
+                        style={{
+                          backgroundColor: category.color,
+                          width: filters.category === category.name ? '44px' : '40px',
+                          height: filters.category === category.name ? '44px' : '40px',
+                          margin: 'auto',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        {React.createElement(category.icon, {
+                          style: {
+                            width: '26px',
+                            height: '26px',
+                            color: '#FFFFFF',
+                            stroke: '#FFFFFF',
+                            fill: 'none',
+                            strokeWidth: 2.5,
+                          }
+                        })}
+                      </div>
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Category Icons - Above Map */}
+        {!isMapFullscreen && isMobile && (
+          <div 
+            className={`absolute z-[1000] transition-all duration-300 ${isDialogOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'} bg-[#2a4149]/95 backdrop-blur-sm`}
+            style={{
+              top: '60px',
+              left: '0',
+              right: '0',
+              height: 'auto',
+              minHeight: '80px',
+              paddingTop: '8px',
+              paddingBottom: '25px',
+              marginBottom: '15px',
+              overflow: 'visible',
+            }}
+          >
+            {/* Scrollable container for icons */}
+            <div 
+              className="category-icons-scrollable h-full"
+              style={{
+                overflowX: 'auto',
+                overflowY: 'hidden',
+                scrollbarWidth: 'none',
+                paddingLeft: '12px',
+                paddingRight: '12px',
+                position: 'relative',
+              }}
+            >
+              <div className="flex items-center gap-3 flex-nowrap" style={{ minWidth: 'max-content', height: '64px', alignItems: 'center', display: 'flex' }}>
+                {diseaseCategories.map((category) => {
+                  return (
+                    <div 
+                      key={category.name} 
+                      className="relative flex flex-col items-center flex-shrink-0" 
+                      style={{ minWidth: '50px' }}
+                      onTouchStart={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setHoveredCategory(category.name);
+                        setHoveredCategoryPosition({
+                          x: rect.left + rect.width / 2,
+                          y: rect.top,
+                        });
+                      }}
+                      onTouchEnd={() => {
+                        setTimeout(() => {
+                          setHoveredCategory(null);
+                          setHoveredCategoryPosition(null);
+                        }, 2000);
+                      }}
+                    >
+                      <button
+                        onClick={() => handleCategoryClick(category.name)}
+                        className="flex items-center justify-center rounded-full cursor-pointer transition-all duration-200 relative"
+                        style={{
+                          width: '50px',
+                          height: '50px',
+                          backgroundColor: '#FFFFFF',
+                          border: 'none',
+                          boxShadow: filters.category === category.name 
+                            ? `0 0 14px ${category.color}60, 0 4px 8px rgba(0,0,0,0.3)` 
+                            : `0 2px 4px rgba(0,0,0,0.2)`,
+                        }}
+                      >
+                        <div 
+                          className="absolute inset-0 rounded-full"
+                          style={{
+                            backgroundColor: category.color,
+                            width: filters.category === category.name ? '50px' : '46px',
+                            height: filters.category === category.name ? '50px' : '46px',
+                            margin: 'auto',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'all 0.2s',
+                          }}
+                        >
+                          {React.createElement(category.icon, {
+                            style: {
+                              width: '28px',
+                              height: '28px',
+                              color: '#FFFFFF',
+                              stroke: '#FFFFFF',
+                              fill: 'none',
+                              strokeWidth: 2.5,
+                            }
+                          })}
+                        </div>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Map - Main Content Area */}
         <div 
           ref={mapContainerRef}
@@ -1146,7 +1415,7 @@ export const HomePageMap = (): JSX.Element => {
               ? 'top-0 left-0 right-0 bottom-0 w-full h-full rounded-none' 
               : isMobile
                 ? ''
-                : 'top-[160px] left-[90px] w-[calc(100vw-550px)] h-[calc(100vh-320px)] min-w-[750px] min-h-[650px]'
+                : 'top-[190px] left-[90px] w-[calc(100vw-550px)] h-[calc(100vh-350px)] min-w-[750px] min-h-[650px]'
           }`}
           style={isMobile ? { 
             position: 'absolute', 
@@ -1197,6 +1466,24 @@ export const HomePageMap = (): JSX.Element => {
             onDialogStateChange={setIsDialogOpen}
           />
         </div>
+
+        {/* Premium Ads Section - Below Map */}
+        {!isMapFullscreen && !isMobile && (
+          <div 
+            className="absolute z-[900] transition-opacity duration-300 overflow-visible" 
+            style={{ 
+              top: 'calc(160px + calc(100vh - 320px) + 25px)',
+              left: '90px',
+              right: '260px',
+              width: 'calc(100vw - 550px)',
+              minWidth: '750px',
+              marginBottom: '20px',
+              paddingRight: '0',
+            }}
+          >
+            <PremiumAdsSection />
+          </div>
+        )}
 
         {/* News Section - Right Sidebar - Desktop Only */}
         <div className={`hidden lg:block absolute top-[160px] z-[1000] transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} style={{ left: 'calc(90px + min(calc(100vw - 550px), calc(100vw - 260px)) + 10px)', width: '240px' }}>
@@ -1325,99 +1612,7 @@ export const HomePageMap = (): JSX.Element => {
           </div>
         )}
 
-        {/* Disease Category Icons - Scrollable */}
-        <style>{`
-          .category-icons-scrollable::-webkit-scrollbar {
-            display: none;
-          }
-          .category-icons-scrollable {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-          }
-        `}</style>
-        
-        {/* Desktop Category Icons */}
-        <div 
-          className={`hidden lg:absolute z-[1000] transition-all duration-300 ${isMapFullscreen || isDialogOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-          style={{
-            top: isMapFullscreen ? 'auto' : categoryTop,
-            left: '90px',
-            right: isMapFullscreen ? 'auto' : '260px', // Leave space for right sidebar (240px + 20px margin)
-            height: '60px',
-            minHeight: '60px',
-            overflow: 'visible', // Allow tooltips to show outside container
-          }}
-        >
-          {/* Scrollable container for icons */}
-          <div 
-            className="category-icons-scrollable h-full"
-            style={{
-              overflowX: 'auto',
-              overflowY: 'hidden', // Keep hidden for scrolling, but tooltips will escape via parent
-              scrollbarWidth: 'none',
-              paddingRight: '20px', // Add padding to prevent icons from being cut off at the end
-              paddingLeft: '0',
-              paddingBottom: '0',
-              paddingTop: '0',
-              position: 'relative', // Ensure positioning context
-            }}
-          >
-          <div className="flex items-center gap-[18px] flex-nowrap" style={{ minWidth: 'max-content', paddingLeft: '0', paddingRight: '10px', paddingBottom: '0', paddingTop: '0', alignItems: 'center', display: 'flex', marginBottom: '0', height: '48px' }}>
-            {diseaseCategories.map((category) => {
-              return (
-                <div 
-                  key={category.name} 
-                  className="relative flex flex-col items-center flex-shrink-0" 
-                  style={{ minWidth: '44px' }}
-                  onMouseEnter={(e) => handleMouseEnter(category.name, e)}
-                  onMouseLeave={handleMouseLeave}
-                >
-                  <button
-                    onClick={() => handleCategoryClick(category.name)}
-                    className="flex items-center justify-center rounded-full cursor-pointer transition-all duration-200 relative"
-                    style={{
-                      width: '44px',
-                      height: '44px',
-                      backgroundColor: '#FFFFFF',
-                      border: 'none',
-                      boxShadow: filters.category === category.name 
-                        ? `0 0 14px ${category.color}60, 0 4px 8px rgba(0,0,0,0.3)` 
-                        : `0 2px 4px rgba(0,0,0,0.2)`,
-                    }}
-                  >
-                    <div 
-                      className="absolute inset-0 rounded-full"
-                      style={{
-                        backgroundColor: category.color,
-                        width: filters.category === category.name ? '44px' : '40px',
-                        height: filters.category === category.name ? '44px' : '40px',
-                        margin: 'auto',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        transition: 'all 0.2s',
-                      }}
-                    >
-                      {React.createElement(category.icon, {
-                        style: {
-                          width: '26px',
-                          height: '26px',
-                          color: '#FFFFFF',
-                          stroke: '#FFFFFF',
-                          fill: 'none',
-                          strokeWidth: 2.5,
-                        }
-                      })}
-                    </div>
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-          </div>
-        </div>
-        
-        {/* Mobile Bottom Section Container - Category Icons + News/Sponsored */}
+        {/* Mobile Bottom Section Container - News/Sponsored */}
         {!isMapFullscreen && isMobile && (
           <div 
             className={`absolute bottom-0 left-0 right-0 z-[1000] transition-all duration-300 ${isDialogOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'} bg-[#2a4149]/95 backdrop-blur-sm`}
@@ -1427,102 +1622,12 @@ export const HomePageMap = (): JSX.Element => {
               flexDirection: 'column',
             }}
           >
-            {/* Category Icons - At top of bottom section */}
-            <div 
-              className="flex-shrink-0 border-t border-[#67DBE2]/20 bg-[#2a4149]/95"
-              style={{
-                height: '80px',
-                paddingTop: '8px',
-                paddingBottom: '8px',
-                overflow: 'visible',
-              }}
-            >
-              {/* Scrollable container for icons */}
-              <div 
-                className="category-icons-scrollable h-full"
-                style={{
-                  overflowX: 'auto',
-                  overflowY: 'hidden',
-                  scrollbarWidth: 'none',
-                  paddingLeft: '12px',
-                  paddingRight: '12px',
-                  position: 'relative',
-                }}
-              >
-                <div className="flex items-center gap-3 flex-nowrap" style={{ minWidth: 'max-content', height: '64px', alignItems: 'center', display: 'flex' }}>
-                  {diseaseCategories.map((category) => {
-                    return (
-                      <div 
-                        key={category.name} 
-                        className="relative flex flex-col items-center flex-shrink-0" 
-                        style={{ minWidth: '50px' }}
-                        onTouchStart={(e) => {
-                          // Show tooltip on mobile tap
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          setHoveredCategory(category.name);
-                          setHoveredCategoryPosition({
-                            x: rect.left + rect.width / 2,
-                            y: rect.top,
-                          });
-                        }}
-                        onTouchEnd={() => {
-                          setTimeout(() => {
-                            setHoveredCategory(null);
-                            setHoveredCategoryPosition(null);
-                          }, 2000);
-                        }}
-                      >
-                        <button
-                          onClick={() => handleCategoryClick(category.name)}
-                          className="flex items-center justify-center rounded-full cursor-pointer transition-all duration-200 relative"
-                          style={{
-                            width: '50px',
-                            height: '50px',
-                            backgroundColor: '#FFFFFF',
-                            border: 'none',
-                            boxShadow: filters.category === category.name 
-                              ? `0 0 14px ${category.color}60, 0 4px 8px rgba(0,0,0,0.3)` 
-                              : `0 2px 4px rgba(0,0,0,0.2)`,
-                          }}
-                        >
-                          <div 
-                            className="absolute inset-0 rounded-full"
-                            style={{
-                              backgroundColor: category.color,
-                              width: filters.category === category.name ? '50px' : '46px',
-                              height: filters.category === category.name ? '50px' : '46px',
-                              margin: 'auto',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              transition: 'all 0.2s',
-                            }}
-                          >
-                            {React.createElement(category.icon, {
-                              style: {
-                                width: '28px',
-                                height: '28px',
-                                color: '#FFFFFF',
-                                stroke: '#FFFFFF',
-                                fill: 'none',
-                                strokeWidth: 2.5,
-                              }
-                            })}
-                          </div>
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-
-            {/* Scrollable content area for News/Sponsored - Below category icons */}
+            {/* Scrollable content area for News/Sponsored */}
             <div 
               className="overflow-y-auto flex-shrink-0 border-t border-[#67DBE2]/20"
               style={{
-                maxHeight: 'calc(60vh - 80px)', // Leave space for category icons
-                minHeight: '500px', // Ensure enough space to show at least 10 items
+                maxHeight: '60vh',
+                minHeight: '500px',
               }}
             >
               {/* Two-column layout: Sponsored (left) and News (right) */}

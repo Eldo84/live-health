@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -96,6 +96,19 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange, mode
     onModeChange?.(mode === "login" ? "signup" : "login");
   };
 
+  // Reset forms when mode changes to ensure proper initialization
+  useEffect(() => {
+    if (open) {
+      if (mode === "login") {
+        loginForm.reset({ email: "", password: "" });
+      } else {
+        signUpForm.reset({ email: "", password: "", confirmPassword: "" });
+      }
+      setError(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, open]);
+
   const isSignUpMode = mode === "signup";
 
   return (
@@ -116,7 +129,7 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange, mode
         <div className="space-y-6">
           {isSignUpMode ? (
             <Form {...signUpForm}>
-              <form onSubmit={signUpForm.handleSubmit(onSignUpSubmit)} className="space-y-5">
+              <form key="signup-form" onSubmit={signUpForm.handleSubmit(onSignUpSubmit)} className="space-y-5">
                 <div className="space-y-4">
                   <FormField
                     control={signUpForm.control}
@@ -210,7 +223,7 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange, mode
             </Form>
           ) : (
             <Form {...loginForm}>
-              <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-5">
+              <form key="login-form" onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-5">
                 <div className="space-y-4">
                   <FormField
                     control={loginForm.control}

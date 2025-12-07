@@ -225,10 +225,12 @@
     @apply text-foreground;
     background-color: #2A4149;
     font-feature-settings: "rlig" 1, "calt" 1;
+    overflow-x: hidden;
   }
   
   html {
     background-color: #2A4149;
+    overflow-x: hidden;
   }
 
   /* Custom scrollbar styles */

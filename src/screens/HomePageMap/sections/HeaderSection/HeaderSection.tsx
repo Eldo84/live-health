@@ -1,5 +1,6 @@
-import { ChevronDownIcon, Menu, Home, ChevronRight, LogOut, User, Plus } from "lucide-react";
-import React, { useState } from "react";
+import { ChevronDownIcon, Menu, Home, ChevronRight, LogOut, User, Plus, Shield, Megaphone } from "lucide-react";
+import { NotificationBell } from "../../../../components/NotificationBell";
+import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "../../../../components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "../../../../components/ui/sheet";
@@ -11,6 +12,7 @@ import {
 import { AuthDialog } from "../../../../components/AuthDialog";
 import { AddAlertDialog } from "../../../../components/AddAlertDialog";
 import { useAuth } from "../../../../contexts/AuthContext";
+import { supabase } from "../../../../lib/supabase";
 import outbreakNowLogo from "@/assets/outbreaknow-logo.png";
 
 const navigationItems = [
@@ -43,6 +45,7 @@ const menuItems = [
       { label: "Disease Outbreak", tab: "overview" },
       { label: "AI Powered Prediction", tab: "predictions" },
       { label: "Global Population Health Index", tab: "health-index" },
+      { label: "My Advertising", path: "/dashboard/advertising" },
     ],
   },
   {
@@ -59,9 +62,50 @@ export const HeaderSection = (): JSX.Element => {
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [addAlertDialogOpen, setAddAlertDialogOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { user, signOut } = useAuth();
+
+  // Check if user is admin
+  useEffect(() => {
+    const checkAdminRole = async () => {
+      if (!user) {
+        setIsAdmin(false);
+        return;
+      }
+
+      try {
+        // Query user_roles table (RLS policy fixed - no more circular dependency)
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (error) {
+          // Handle specific error cases
+          if (error.code === 'PGRST116') {
+            // No record found - user is not admin (default role is 'user')
+            setIsAdmin(false);
+            return;
+          }
+          console.error('Error checking admin role:', error);
+          setIsAdmin(false);
+          return;
+        }
+
+        // Check if user is admin
+        setIsAdmin(data?.role === 'admin');
+      } catch (error: any) {
+        // Catch any unexpected errors
+        console.error('Unexpected error checking admin role:', error);
+        setIsAdmin(false);
+      }
+    };
+
+    checkAdminRole();
+  }, [user]);
 
   const isActive = (path: string) => {
     if (path === "/") {
@@ -76,8 +120,12 @@ export const HeaderSection = (): JSX.Element => {
     setIsDashboardOpen(false);
   };
 
-  const handleDashboardSubItem = (tab: string) => {
-    navigate(`/dashboard?tab=${tab}`);
+  const handleDashboardSubItem = (subItem: { tab?: string; path?: string; label: string }) => {
+    if (subItem.path) {
+      navigate(subItem.path);
+    } else if (subItem.tab) {
+      navigate(`/dashboard?tab=${subItem.tab}`);
+    }
     setMobileMenuOpen(false);
     setIsDashboardOpen(false);
   };
@@ -141,7 +189,28 @@ export const HeaderSection = (): JSX.Element => {
             </Button>
             {user ? (
               <>
+                <Button
+                  variant="ghost"
+                  onClick={() => navigate('/dashboard/advertising')}
+                  className="h-auto px-[18px] py-2.5 rounded-lg [font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-base tracking-[0] leading-6 hover:bg-white/10 border border-primary/50 hover:border-primary transition-colors flex items-center gap-2"
+                  title="My Advertising"
+                >
+                  <Megaphone className="w-4 h-4" />
+                  My Ads
+                </Button>
+                {isAdmin && (
+                  <Button
+                    variant="ghost"
+                    onClick={() => navigate('/admin/advertising')}
+                    className="h-auto px-[18px] py-2.5 rounded-lg [font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-base tracking-[0] leading-6 hover:bg-white/10 border border-yellow-500/50 hover:border-yellow-500 transition-colors flex items-center gap-2"
+                    title="Admin Panel"
+                  >
+                    <Shield className="w-4 h-4" />
+                    Admin
+                  </Button>
+                )}
                 <div className="flex items-center gap-2 px-3 py-2 text-white">
+                  <NotificationBell />
                   <User className="w-4 h-4" />
                   <span className="[font-family:'Roboto',Helvetica] font-medium text-sm">
                     {user.email}
@@ -231,16 +300,19 @@ export const HeaderSection = (): JSX.Element => {
                           <CollapsibleContent>
                             <div className="flex flex-col gap-2 pl-6 mt-2">
                               {item.subItems.map((subItem, index) => {
+                                const isPathBased = 'path' in subItem && subItem.path;
                                 const currentTab = new URLSearchParams(location.search).get("tab");
-                                const isActiveItem = isActive("/dashboard") && (
-                                  index === 0
-                                    ? (!currentTab || currentTab === "overview")
-                                    : currentTab === subItem.tab
-                                );
+                                const isActiveItem = isPathBased
+                                  ? location.pathname === subItem.path
+                                  : isActive("/dashboard") && (
+                                      index === 0
+                                        ? (!currentTab || currentTab === "overview")
+                                        : currentTab === subItem.tab
+                                    );
                                 return (
                                   <button
                                     key={index}
-                                    onClick={() => handleDashboardSubItem(subItem.tab)}
+                                    onClick={() => handleDashboardSubItem(subItem)}
                                     className={`flex items-center gap-3.5 w-full text-left hover:opacity-80 transition-opacity py-2`}
                                   >
                                     <div className="flex items-center justify-center w-[5px] h-[22px]">
@@ -305,7 +377,36 @@ export const HeaderSection = (): JSX.Element => {
                     </Button>
                     {user ? (
                       <>
+                        <Button
+                          variant="ghost"
+                          onClick={() => {
+                            navigate('/dashboard/advertising');
+                            setMobileMenuOpen(false);
+                          }}
+                          className="w-full justify-start h-[46px] px-4 hover:bg-[#ffffff1a] rounded-none text-white border border-primary/50 hover:border-primary transition-colors"
+                        >
+                          <Megaphone className="w-[22px] h-[22px] flex-shrink-0" />
+                          <span className="flex-1 text-left ml-3 [font-family:'Roboto',Helvetica] font-semibold text-[15px]">
+                            My Advertising
+                          </span>
+                        </Button>
+                        {isAdmin && (
+                          <Button
+                            variant="ghost"
+                            onClick={() => {
+                              navigate('/admin/advertising');
+                              setMobileMenuOpen(false);
+                            }}
+                            className="w-full justify-start h-[46px] px-4 hover:bg-[#ffffff1a] rounded-none text-white border border-yellow-500/50 hover:border-yellow-500 transition-colors"
+                          >
+                            <Shield className="w-[22px] h-[22px] flex-shrink-0" />
+                            <span className="flex-1 text-left ml-3 [font-family:'Roboto',Helvetica] font-semibold text-[15px]">
+                              Admin Panel
+                            </span>
+                          </Button>
+                        )}
                         <div className="flex items-center gap-2 px-4 py-2 text-white">
+                          <NotificationBell />
                           <User className="w-4 h-4" />
                           <span className="[font-family:'Roboto',Helvetica] font-medium text-sm">
                             {user.email}

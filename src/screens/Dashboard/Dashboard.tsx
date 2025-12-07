@@ -20,6 +20,7 @@ import { OutbreakCategories } from "./sections/OutbreakCategories";
 import { SpreadsheetImport } from "../../components/SpreadsheetImport";
 import { CityExtractionStatus } from "./sections/CityExtractionStatus";
 import { DiseaseTracking } from "./sections/DiseaseTracking";
+import { DataExportTable } from "./sections/DataExportTable";
 import { useCountries } from "../../lib/useCountries";
 
 export const Dashboard = (): JSX.Element => {
@@ -314,7 +315,8 @@ export const Dashboard = (): JSX.Element => {
           </TabsContent>
 
           <TabsContent value="data" className="space-y-6 mt-0">
-            <SpreadsheetImport />
+            <DataExportTable timeRange={timeRange} countryId={selectedCountry} />
+            {/* <SpreadsheetImport /> */}
           </TabsContent>
 
           <TabsContent value="disease-tracking" className="space-y-6 mt-0">

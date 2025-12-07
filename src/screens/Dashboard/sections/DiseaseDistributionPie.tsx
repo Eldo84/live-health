@@ -10,17 +10,61 @@ interface DiseaseDistributionPieProps {
   countryId?: string | null;
 }
 
+// Color palette with distinct colors for pie chart slices
+const colorPalette = [
+  '#f87171', // red
+  '#66dbe1', // cyan
+  '#fbbf24', // amber
+  '#a78bfa', // purple
+  '#fb923c', // orange
+  '#ef4444', // red-500
+  '#10b981', // green
+  '#ec4899', // pink
+  '#3b82f6', // blue
+  '#f59e0b', // amber-500
+  '#8b5cf6', // violet
+  '#06b6d4', // cyan-500
+  '#14b8a6', // teal
+  '#f97316', // orange-500
+  '#6366f1', // indigo
+  '#22c55e', // green-500
+  '#eab308', // yellow
+  '#84cc16', // lime
+  '#0ea5e9', // sky-500
+  '#a855f7', // purple-500
+];
+
 export const DiseaseDistributionPie = ({ timeRange, searchQuery = "", countryId }: DiseaseDistributionPieProps): JSX.Element => {
   const { data, loading, error } = useDiseaseDistribution(timeRange, countryId);
 
-  // Filter data based on search query
+  // Filter data based on search query and assign unique colors
   const filteredData = React.useMemo(() => {
-    if (!searchQuery.trim()) return data;
+    let filtered = data;
     
-    const query = searchQuery.toLowerCase().trim();
-    return data.filter(disease => 
-      disease.name.toLowerCase().includes(query)
-    );
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = data.filter(disease => 
+        disease.name.toLowerCase().includes(query)
+      );
+    }
+    
+    // Deduplicate by disease name to ensure each disease appears only once
+    const uniqueDiseases = new Map<string, typeof data[0]>();
+    filtered.forEach(disease => {
+      if (!uniqueDiseases.has(disease.name)) {
+        uniqueDiseases.set(disease.name, disease);
+      }
+    });
+    
+    const uniqueData = Array.from(uniqueDiseases.values());
+    
+    // Assign unique colors sequentially by index
+    // Since we have 20 colors and data is limited to top 10 diseases,
+    // each disease is guaranteed a unique color
+    return uniqueData.map((disease, index) => ({
+      ...disease,
+      color: colorPalette[index % colorPalette.length],
+    }));
   }, [data, searchQuery]);
 
   if (error) {
