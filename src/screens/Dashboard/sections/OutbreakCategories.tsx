@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader } from "../../../components/ui/card";
 import { Badge } from "../../../components/ui/badge";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { useOutbreakCategories } from "../../../lib/useOutbreakCategories";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 interface CategoryData {
   id: string;
@@ -13,6 +14,7 @@ interface CategoryData {
 }
 
 export const OutbreakCategories = (): JSX.Element => {
+  const { t } = useLanguage();
   const { categories: dbCategories, loading: categoriesLoading } = useOutbreakCategories();
   const [categories, setCategories] = useState<CategoryData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -358,13 +360,13 @@ export const OutbreakCategories = (): JSX.Element => {
   if (loading || categoriesLoading) {
     return (
       <div className="space-y-6">
-        <Card className="bg-[#ffffff14] border-[#eaebf024]">
-          <CardContent className="p-6">
-            <div className="text-center text-[#ebebeb99]">
-              Loading outbreak categories...
-            </div>
-          </CardContent>
-        </Card>
+      <Card className="bg-[#ffffff14] border-[#eaebf024]">
+        <CardContent className="p-6">
+          <div className="text-center text-[#ebebeb99]">
+            {t("dashboard.loadingOutbreakCategories")}
+          </div>
+        </CardContent>
+      </Card>
       </div>
     );
   }
@@ -372,13 +374,13 @@ export const OutbreakCategories = (): JSX.Element => {
   if (categories.length === 0) {
     return (
       <div className="space-y-6">
-        <Card className="bg-[#ffffff14] border-[#eaebf024]">
-          <CardContent className="p-6">
-            <div className="text-center text-[#ebebeb99]">
-              No outbreak categories found.
-            </div>
-          </CardContent>
-        </Card>
+      <Card className="bg-[#ffffff14] border-[#eaebf024]">
+        <CardContent className="p-6">
+          <div className="text-center text-[#ebebeb99]">
+            {t("dashboard.noOutbreakCategoriesFound")}
+          </div>
+        </CardContent>
+      </Card>
       </div>
     );
   }
@@ -388,10 +390,10 @@ export const OutbreakCategories = (): JSX.Element => {
       <Card className="bg-[#ffffff14] border-[#eaebf024] shadow-lg">
         <CardHeader className="pb-6">
           <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-xl">
-            Outbreak Categories Distribution
+            {t("dashboard.outbreakCategoriesDistribution")}
           </h3>
           <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm mt-2">
-            Visual breakdown of diseases by transmission method and outbreak type
+            {t("dashboard.visualBreakdownOfDiseases")}
           </p>
         </CardHeader>
         <CardContent className="pb-6">
@@ -441,13 +443,13 @@ export const OutbreakCategories = (): JSX.Element => {
                             </div>
                             <div className="space-y-1 pt-2 border-t border-[#374151]">
                               <div className="flex justify-between items-center">
-                                <span className="text-[#ebebeb99] text-xs [font-family:'Roboto',Helvetica]">Diseases:</span>
+                                <span className="text-[#ebebeb99] text-xs [font-family:'Roboto',Helvetica]">{t("dashboard.diseases")}:</span>
                                 <span className="text-[#66dbe1] font-semibold text-sm [font-family:'Roboto',Helvetica]">
                                   {data.value}
                                 </span>
                               </div>
                               <div className="flex justify-between items-center">
-                                <span className="text-[#ebebeb99] text-xs [font-family:'Roboto',Helvetica]">Percentage:</span>
+                                <span className="text-[#ebebeb99] text-xs [font-family:'Roboto',Helvetica]">{t("dashboard.percentage")}:</span>
                                 <span className="text-[#66dbe1] font-semibold text-sm [font-family:'Roboto',Helvetica]">
                                   {percent.toFixed(1)}%
                                 </span>
@@ -478,7 +480,7 @@ export const OutbreakCategories = (): JSX.Element => {
           ) : (
             <div className="text-center text-[#ebebeb99] py-12">
               <p className="[font-family:'Roboto',Helvetica] text-sm">
-                No disease data available for categories yet.
+                {t("dashboard.noDiseaseDataAvailableForCategories")}
               </p>
             </div>
           )}
@@ -488,10 +490,10 @@ export const OutbreakCategories = (): JSX.Element => {
       <Card className="bg-[#ffffff14] border-[#eaebf024] shadow-lg">
         <CardHeader className="pb-6">
           <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-xl">
-            Category Details
+            {t("dashboard.categoryDetails")}
           </h3>
           <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm mt-2">
-            Detailed information about each outbreak category ({categories.length} total)
+            {t("dashboard.detailedInformationAboutEachCategory", { count: categories.length })}
           </p>
         </CardHeader>
         <CardContent>
@@ -518,7 +520,7 @@ export const OutbreakCategories = (): JSX.Element => {
                   </Badge>
                 </div>
                 <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-xs leading-relaxed">
-                  {category.description || 'No description available'}
+                  {category.description || t("dashboard.noDescriptionAvailable")}
                 </p>
               </div>
             ))}

@@ -7,23 +7,20 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "./ui/form";
 import { useAuth } from "../contexts/AuthContext";
+import { useLanguage } from "../contexts/LanguageContext";
 
-const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-});
+// Schemas will be created inside component to use translations
 
-const signUpSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string().min(6, "Password must be at least 6 characters"),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
+type LoginFormValues = {
+  email: string;
+  password: string;
+};
 
-type LoginFormValues = z.infer<typeof loginSchema>;
-type SignUpFormValues = z.infer<typeof signUpSchema>;
+type SignUpFormValues = {
+  email: string;
+  password: string;
+  confirmPassword: string;
+};
 
 interface AuthDialogProps {
   open: boolean;
@@ -34,8 +31,23 @@ interface AuthDialogProps {
 
 export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange, mode, onModeChange }) => {
   const { signIn, signUp } = useAuth();
+  const { t } = useLanguage();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const loginSchema = z.object({
+    email: z.string().email(t("auth.invalidEmail")),
+    password: z.string().min(6, t("auth.passwordTooShort")),
+  });
+
+  const signUpSchema = z.object({
+    email: z.string().email(t("auth.invalidEmail")),
+    password: z.string().min(6, t("auth.passwordTooShort")),
+    confirmPassword: z.string().min(6, t("auth.passwordTooShort")),
+  }).refine((data) => data.password === data.confirmPassword, {
+    message: t("auth.passwordsDontMatch"),
+    path: ["confirmPassword"],
+  });
 
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -62,7 +74,7 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange, mode
         }, 1500);
       }
     } catch (err: any) {
-      setError(err.message || "An error occurred during login");
+      setError(err.message || t("auth.loginError"));
     } finally {
       setIsLoading(false);
     }
@@ -83,7 +95,7 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange, mode
         }, 1500);
       }
     } catch (err: any) {
-      setError(err.message || "An error occurred during sign up");
+      setError(err.message || t("auth.signupError"));
     } finally {
       setIsLoading(false);
     }
@@ -117,12 +129,12 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange, mode
         <DialogClose className="text-white hover:text-white/80" />
         <DialogHeader className="space-y-2 text-center">
           <DialogTitle className="text-2xl font-bold text-white [font-family:'Roboto',Helvetica]">
-            {isSignUpMode ? "Create your account" : "Welcome back"}
+            {isSignUpMode ? t("auth.createAccount") : t("auth.welcomeBack")}
           </DialogTitle>
           <DialogDescription className="text-sm text-[#ffffff99] [font-family:'Roboto',Helvetica]">
             {isSignUpMode
-              ? "Enter your details to create a new account"
-              : "Sign in to your account to continue"}
+              ? t("auth.signUpDescription")
+              : t("auth.signInDescription")}
           </DialogDescription>
         </DialogHeader>
 
@@ -136,11 +148,11 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange, mode
                     name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-medium text-white [font-family:'Roboto',Helvetica]">Email address</FormLabel>
+                        <FormLabel className="text-sm font-medium text-white [font-family:'Roboto',Helvetica]">{t("auth.emailAddress")}</FormLabel>
                         <FormControl>
                           <Input
                             type="email"
-                            placeholder="Enter your email"
+                            placeholder={t("auth.enterEmail")}
                             className="h-11 text-base bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff66] focus-visible:ring-app-primary [font-family:'Roboto',Helvetica]"
                             {...field}
                           />
@@ -155,11 +167,11 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange, mode
                     name="password"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-medium text-white [font-family:'Roboto',Helvetica]">Password</FormLabel>
+                        <FormLabel className="text-sm font-medium text-white [font-family:'Roboto',Helvetica]">{t("auth.password")}</FormLabel>
                         <FormControl>
                           <Input
                             type="password"
-                            placeholder="Enter your password"
+                            placeholder={t("auth.enterPassword")}
                             className="h-11 text-base bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff66] focus-visible:ring-app-primary [font-family:'Roboto',Helvetica]"
                             {...field}
                           />
@@ -174,11 +186,11 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange, mode
                     name="confirmPassword"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-medium text-white [font-family:'Roboto',Helvetica]">Confirm Password</FormLabel>
+                        <FormLabel className="text-sm font-medium text-white [font-family:'Roboto',Helvetica]">{t("auth.confirmPassword")}</FormLabel>
                         <FormControl>
                           <Input
                             type="password"
-                            placeholder="Confirm your password"
+                            placeholder={t("auth.confirmPasswordPlaceholder")}
                             className="h-11 text-base bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff66] focus-visible:ring-app-primary [font-family:'Roboto',Helvetica]"
                             {...field}
                           />
@@ -213,10 +225,10 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange, mode
                           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                         />
                       </svg>
-                      Creating account...
+                      {t("auth.creatingAccount")}
                     </span>
                   ) : (
-                    "Create account"
+                    t("auth.createAccount")
                   )}
                 </Button>
               </form>
@@ -230,11 +242,11 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange, mode
                     name="email"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-medium text-white [font-family:'Roboto',Helvetica]">Email address</FormLabel>
+                        <FormLabel className="text-sm font-medium text-white [font-family:'Roboto',Helvetica]">{t("auth.emailAddress")}</FormLabel>
                         <FormControl>
                           <Input
                             type="email"
-                            placeholder="Enter your email"
+                            placeholder={t("auth.enterEmail")}
                             className="h-11 text-base bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff66] focus-visible:ring-app-primary [font-family:'Roboto',Helvetica]"
                             {...field}
                           />
@@ -249,11 +261,11 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange, mode
                     name="password"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-sm font-medium text-white [font-family:'Roboto',Helvetica]">Password</FormLabel>
+                        <FormLabel className="text-sm font-medium text-white [font-family:'Roboto',Helvetica]">{t("auth.password")}</FormLabel>
                         <FormControl>
                           <Input
                             type="password"
-                            placeholder="Enter your password"
+                            placeholder={t("auth.enterPassword")}
                             className="h-11 text-base bg-[#ffffff1a] border-[#ffffff33] text-white placeholder:text-[#ffffff66] focus-visible:ring-app-primary [font-family:'Roboto',Helvetica]"
                             {...field}
                           />
@@ -288,10 +300,10 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange, mode
                           d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                         />
                       </svg>
-                      Signing in...
+                      {t("auth.signingIn")}
                     </span>
                   ) : (
-                    "Sign in"
+                    t("auth.signIn")
                   )}
                 </Button>
               </form>
@@ -301,14 +313,14 @@ export const AuthDialog: React.FC<AuthDialogProps> = ({ open, onOpenChange, mode
           <div className="pt-6">
             <div className="text-center">
               <p className="text-sm text-[#ffffff99] [font-family:'Roboto',Helvetica]">
-                {isSignUpMode ? "Already have an account?" : "Don't have an account?"}{" "}
+                {isSignUpMode ? t("auth.alreadyHaveAccount") : t("auth.dontHaveAccount")}{" "}
                 <button
                   type="button"
                   onClick={handleModeSwitch}
                   disabled={isLoading}
                   className="text-sm font-semibold text-app-primary hover:text-app-primary/80 hover:underline focus:outline-none focus:underline [font-family:'Roboto',Helvetica] transition-colors"
                 >
-                  {isSignUpMode ? "Sign in" : "Create one"}
+                  {isSignUpMode ? t("auth.signIn") : t("auth.createOne")}
                 </button>
               </p>
             </div>

@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../../../components/ui
 import { Badge } from "../../../components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "../../../components/ui/dialog";
 import { ExternalLink, Loader2, Info } from "lucide-react";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 interface CityExtractionData {
   article_id: string;
@@ -69,6 +70,7 @@ interface DiseaseSummary {
 }
 
 export const CityExtractionStatus: React.FC = () => {
+  const { t } = useLanguage();
   const [cityData, setCityData] = useState<CityExtractionData[]>([]);
   const [stats, setStats] = useState<CityStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -312,12 +314,12 @@ export const CityExtractionStatus: React.FC = () => {
 
   if (loading) {
     return (
-      <Card className="bg-[#23313c] border-[#EAEBF024]">
+      <Card className="bg-[#23313c] border-[#EAEBF024]" style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
         <CardHeader>
-          <CardTitle className="text-white">City Extraction Status</CardTitle>
+          <CardTitle className="text-white">{t("dashboard.cityExtractionStatus")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-white/70">Loading city data...</div>
+          <div className="text-white/70">{t("dashboard.loadingCityData")}</div>
         </CardContent>
       </Card>
     );
@@ -325,42 +327,42 @@ export const CityExtractionStatus: React.FC = () => {
 
   if (error) {
     return (
-      <Card className="bg-[#23313c] border-[#EAEBF024]">
+      <Card className="bg-[#23313c] border-[#EAEBF024]" style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
         <CardHeader>
-          <CardTitle className="text-white">City Extraction Status</CardTitle>
+          <CardTitle className="text-white">{t("dashboard.cityExtractionStatus")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-red-400">Error: {error}</div>
+          <div className="text-red-400">{t("common.error")}: {error}</div>
         </CardContent>
       </Card>
     );
   }
 
   return (
-    <Card className="bg-[#23313c] border-[#EAEBF024]">
+    <Card className="bg-[#23313c] border-[#EAEBF024]" style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
       <CardHeader>
-        <CardTitle className="text-white text-lg">City Extraction Status</CardTitle>
+        <CardTitle className="text-white text-lg">{t("dashboard.cityExtractionStatus")}</CardTitle>
         <p className="text-sm text-white/70 mt-1">
-          Shows cities extracted from news articles and stored in outbreak signals
+          {t("dashboard.cityExtractionDescription")}
         </p>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4" style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
         {stats && (
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-[#2a4149] p-3 rounded">
-              <div className="text-xs text-white/70">Total Articles</div>
+              <div className="text-xs text-white/70">{t("dashboard.totalArticles")}</div>
               <div className="text-2xl font-bold text-[#67DBE2]">{stats.total_articles}</div>
             </div>
             <div className="bg-[#2a4149] p-3 rounded">
-              <div className="text-xs text-white/70">Articles with Cities</div>
+              <div className="text-xs text-white/70">{t("dashboard.articlesWithCities")}</div>
               <div className="text-2xl font-bold text-[#67DBE2]">{stats.articles_with_cities}</div>
             </div>
             <div className="bg-[#2a4149] p-3 rounded">
-              <div className="text-xs text-white/70">Unique Cities</div>
+              <div className="text-xs text-white/70">{t("dashboard.uniqueCities")}</div>
               <div className="text-2xl font-bold text-[#67DBE2]">{stats.unique_cities}</div>
             </div>
             <div className="bg-[#2a4149] p-3 rounded">
-              <div className="text-xs text-white/70">Extraction Rate</div>
+              <div className="text-xs text-white/70">{t("dashboard.extractionRate")}</div>
               <div className="text-2xl font-bold text-[#67DBE2]">
                 {stats.total_articles > 0
                   ? `${Math.round((stats.articles_with_cities / stats.total_articles) * 100)}%`
@@ -372,7 +374,7 @@ export const CityExtractionStatus: React.FC = () => {
 
         {stats && stats.cities_list.length > 0 && (
           <div>
-            <h3 className="text-sm font-semibold text-white mb-2">Cities Found ({stats.cities_list.length})</h3>
+            <h3 className="text-sm font-semibold text-white mb-2">{t("dashboard.citiesFound")} ({stats.cities_list.length})</h3>
             <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
               {stats.cities_list.map((item, idx) => (
                 <span
@@ -389,23 +391,23 @@ export const CityExtractionStatus: React.FC = () => {
         {cityData.length > 0 && (
           <div>
             <h3 className="text-sm font-semibold text-white mb-3">
-              Recent Articles with Cities ({cityData.length})
+              {t("dashboard.recentArticlesWithCities")} ({cityData.length})
             </h3>
-            <div className="overflow-x-auto">
-              <div className="max-h-[500px] overflow-y-auto custom-scrollbar">
-                <table className="w-full border-collapse">
+            <div style={{ width: '100%', maxWidth: '100%', overflowX: 'auto', overflowY: 'hidden' }}>
+              <div className="max-h-[500px] overflow-y-auto custom-scrollbar" style={{ width: '100%' }}>
+                <table className="w-full border-collapse text-sm" style={{ tableLayout: 'fixed' }}>
                   <thead className="sticky top-0 z-10 bg-[#2a4149]">
                     <tr className="border-b border-[#EAEBF024] bg-[#2a4149]">
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-white">Date</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-white">Disease</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-white">Summary</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-white">Location</th>
-                      <th className="text-center py-3 px-4 text-sm font-semibold text-white">Cases</th>
-                      <th className="text-center py-3 px-4 text-sm font-semibold text-white">Alert</th>
-                      <th className="text-center py-3 px-4 text-sm font-semibold text-white">Mortality</th>
-                      <th className="text-center py-3 px-4 text-sm font-semibold text-white">Severity</th>
-                      <th className="text-left py-3 px-4 text-sm font-semibold text-white">Source</th>
-                      <th className="text-center py-3 px-4 text-sm font-semibold text-white">Action</th>
+                      <th className="text-left py-2 px-2 text-xs font-semibold text-white" style={{ width: '8%' }}>{t("dashboard.date")}</th>
+                      <th className="text-left py-2 px-2 text-xs font-semibold text-white" style={{ width: '10%' }}>{t("dashboard.disease")}</th>
+                      <th className="text-left py-2 px-2 text-xs font-semibold text-white" style={{ width: '25%' }}>{t("dashboard.summary")}</th>
+                      <th className="text-left py-2 px-2 text-xs font-semibold text-white" style={{ width: '10%' }}>{t("dashboard.location")}</th>
+                      <th className="text-center py-2 px-2 text-xs font-semibold text-white" style={{ width: '7%' }}>{t("dashboard.cases")}</th>
+                      <th className="text-center py-2 px-2 text-xs font-semibold text-white" style={{ width: '7%' }}>{t("dashboard.alert")}</th>
+                      <th className="text-center py-2 px-2 text-xs font-semibold text-white" style={{ width: '8%' }}>{t("dashboard.mortality")}</th>
+                      <th className="text-center py-2 px-2 text-xs font-semibold text-white" style={{ width: '8%' }}>{t("dashboard.severity")}</th>
+                      <th className="text-left py-2 px-2 text-xs font-semibold text-white" style={{ width: '10%' }}>{t("dashboard.source")}</th>
+                      <th className="text-center py-2 px-2 text-xs font-semibold text-white" style={{ width: '7%' }}>{t("dashboard.action")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -421,24 +423,24 @@ export const CityExtractionStatus: React.FC = () => {
                         key={idx} 
                         className="border-b border-[#EAEBF024]/30 hover:bg-[#2a4149]/70 transition-colors"
                       >
-                        <td className="py-4 px-4 text-sm text-white font-medium">
+                        <td className="py-2 px-2 text-xs text-white font-medium truncate">
                           {item.formatted_date}
                         </td>
-                        <td className="py-4 px-4 text-sm text-white font-medium">
+                        <td className="py-2 px-2 text-xs text-white font-medium truncate">
                           {item.disease_name}
                         </td>
-                        <td className="py-4 px-4 text-sm text-white max-w-md">
-                          <div className="line-clamp-2 leading-relaxed" title={item.article_title}>
+                        <td className="py-2 px-2 text-xs text-white">
+                          <div className="line-clamp-2 leading-tight" title={item.article_title}>
                             {item.article_title}
                           </div>
                         </td>
-                        <td className="py-4 px-4 text-sm text-white font-medium">
-                          {item.location || item.city || 'Unknown'}
+                        <td className="py-2 px-2 text-xs text-white font-medium truncate">
+                          {item.location || item.city || '-'}
                         </td>
-                        <td className="py-4 px-4 text-sm text-white font-medium text-center">
+                        <td className="py-2 px-2 text-xs text-white font-medium text-center">
                           {item.case_count !== null && item.case_count > 0 ? item.case_count : '-'}
                         </td>
-                        <td className="py-4 px-4 text-sm text-white font-medium text-center">
+                        <td className="py-2 px-2 text-xs text-white font-medium text-center">
                           {item.severity === 'CRITICAL' || item.severity === 'HIGH' ? (
                             <span className="text-[#f87171] font-semibold">HIGH</span>
                           ) : item.severity === 'MEDIUM' ? (
@@ -447,36 +449,36 @@ export const CityExtractionStatus: React.FC = () => {
                             <span className="text-[#4ade80]">LOW</span>
                           )}
                         </td>
-                        <td className="py-4 px-4 text-sm text-white font-medium text-center">
+                        <td className="py-2 px-2 text-xs text-white font-medium text-center">
                           {item.mortality_count !== null && item.mortality_count > 0 ? item.mortality_count : '-'}
                         </td>
-                        <td className="py-4 px-4 text-center">
-                          <Badge className={`${severityColor} text-white border-0 text-xs font-semibold px-3 py-1`}>
+                        <td className="py-2 px-2 text-center">
+                          <Badge className={`${severityColor} text-white border-0 text-[10px] font-semibold px-2 py-0.5`}>
                             {item.severity}
                           </Badge>
                         </td>
-                        <td className="py-4 px-4 text-sm text-white/90 font-medium">
+                        <td className="py-2 px-2 text-xs text-white/90 font-medium truncate">
                           {item.source_name && item.source_name.trim() && item.source_name !== 'Unknown Source' 
                             ? item.source_name 
                             : '-'}
                         </td>
-                        <td className="py-4 px-4 text-center">
-                          <div className="flex items-center justify-center gap-2">
+                        <td className="py-2 px-2 text-center">
+                          <div className="flex items-center justify-center gap-1">
                             {item.article_url && (
                               <button
                                 onClick={() => handleLearnMoreClick(item.disease_name, item.article_url)}
-                                className="inline-flex items-center gap-1.5 text-[#66dbe1] hover:text-[#66dbe1]/80 text-sm font-semibold transition-colors"
+                                className="inline-flex items-center gap-1 text-[#66dbe1] hover:text-[#66dbe1]/80 text-xs font-semibold transition-colors"
+                                title={t("dashboard.viewArticle")}
                               >
-                                Article
-                                <ExternalLink className="w-4 h-4" />
+                                <ExternalLink className="w-3 h-3" />
                               </button>
                             )}
                             <button
                               onClick={() => handleSummaryClick(item.disease_name)}
-                              className="inline-flex items-center gap-1.5 text-[#66dbe1] hover:text-[#66dbe1]/80 text-sm font-semibold transition-colors"
+                              className="inline-flex items-center gap-1 text-[#66dbe1] hover:text-[#66dbe1]/80 text-xs font-semibold transition-colors"
+                              title={t("dashboard.viewSummary")}
                             >
-                              Summary
-                              <Info className="w-4 h-4" />
+                              <Info className="w-3 h-3" />
                             </button>
                           </div>
                         </td>
@@ -492,9 +494,9 @@ export const CityExtractionStatus: React.FC = () => {
 
         {cityData.length === 0 && (
           <div className="text-center py-8 text-white/70">
-            <p>No cities found in outbreak signals yet.</p>
+            <p>{t("dashboard.noCitiesFound")}</p>
             <p className="text-xs mt-2">
-              Cities will appear here once news articles are processed with city extraction enabled.
+              {t("dashboard.citiesWillAppear")}
             </p>
           </div>
         )}
@@ -506,86 +508,86 @@ export const CityExtractionStatus: React.FC = () => {
           <DialogClose />
           <DialogHeader>
             <DialogTitle className="text-xl">
-              {selectedDisease} - Summary
+              {selectedDisease} - {t("dashboard.summary")}
             </DialogTitle>
           </DialogHeader>
           
           {summaryLoading ? (
             <div className="flex items-center justify-center py-12 px-6">
               <Loader2 className="w-6 h-6 text-[#66dbe1] animate-spin mr-2" />
-              <span className="text-white">Generating summary...</span>
+              <span className="text-white">{t("dashboard.generatingSummary")}</span>
             </div>
           ) : summaryError ? (
             <div className="text-center py-12 px-6 text-red-400">
-              <p>Error: {summaryError}</p>
+              <p>{t("common.error")}: {summaryError}</p>
               <p className="text-sm text-white/70 mt-2">
-                Please ensure DEEPSEEK_API_KEY is configured in your Supabase edge function.
+                {t("dashboard.deepseekApiKeyError")}
               </p>
             </div>
           ) : diseaseSummary ? (
             <div className="space-y-6 text-white px-6 pb-6">
               {/* Key Facts */}
               <section>
-                <h3 className="text-lg font-semibold text-[#66dbe1] mb-3">Key Facts</h3>
+                <h3 className="text-lg font-semibold text-[#66dbe1] mb-3">{t("dashboard.keyFacts")}</h3>
                 <div className="space-y-3 text-sm leading-relaxed">
-                  <p><strong>Cause:</strong> {diseaseSummary.keyFacts.cause}</p>
-                  <p><strong>Transmission:</strong> {diseaseSummary.keyFacts.transmission}</p>
-                  <p><strong>Severity:</strong> {diseaseSummary.keyFacts.severity}</p>
-                  <p><strong>History:</strong> {diseaseSummary.keyFacts.history}</p>
-                  <p><strong>Treatment:</strong> {diseaseSummary.keyFacts.treatment}</p>
-                  <p><strong>Vaccine:</strong> {diseaseSummary.keyFacts.vaccine}</p>
+                  <p><strong>{t("dashboard.cause")}:</strong> {diseaseSummary.keyFacts.cause}</p>
+                  <p><strong>{t("dashboard.transmissionLabel")}:</strong> {diseaseSummary.keyFacts.transmission}</p>
+                  <p><strong>{t("dashboard.severityLabel")}:</strong> {diseaseSummary.keyFacts.severity}</p>
+                  <p><strong>{t("dashboard.history")}:</strong> {diseaseSummary.keyFacts.history}</p>
+                  <p><strong>{t("dashboard.treatment")}:</strong> {diseaseSummary.keyFacts.treatment}</p>
+                  <p><strong>{t("dashboard.vaccine")}:</strong> {diseaseSummary.keyFacts.vaccine}</p>
                 </div>
               </section>
 
               {/* Symptoms */}
               <section>
-                <h3 className="text-lg font-semibold text-[#66dbe1] mb-3">Symptoms</h3>
+                <h3 className="text-lg font-semibold text-[#66dbe1] mb-3">{t("dashboard.symptoms")}</h3>
                 <div className="space-y-3 text-sm leading-relaxed">
-                  <p><strong>Early:</strong> {diseaseSummary.symptoms.early}</p>
-                  <p><strong>Progression:</strong> {diseaseSummary.symptoms.progression}</p>
-                  <p><strong>Severe cases:</strong> {diseaseSummary.symptoms.severe}</p>
+                  <p><strong>{t("dashboard.early")}:</strong> {diseaseSummary.symptoms.early}</p>
+                  <p><strong>{t("dashboard.progression")}:</strong> {diseaseSummary.symptoms.progression}</p>
+                  <p><strong>{t("dashboard.severeCases")}:</strong> {diseaseSummary.symptoms.severe}</p>
                 </div>
               </section>
 
               {/* Transmission */}
               <section>
-                <h3 className="text-lg font-semibold text-[#66dbe1] mb-3">Transmission</h3>
+                <h3 className="text-lg font-semibold text-[#66dbe1] mb-3">{t("dashboard.transmission")}</h3>
                 <div className="space-y-3 text-sm leading-relaxed">
-                  <p><strong>Foodborne/Primary:</strong> {diseaseSummary.transmission.primary}</p>
-                  <p><strong>Other Transmission Modes:</strong> {diseaseSummary.transmission.otherModes}</p>
-                  <p><strong>Human-to-human spread:</strong> {diseaseSummary.transmission.humanToHuman}</p>
-                  <p><strong>Environmental Sources:</strong> {diseaseSummary.transmission.environmental}</p>
+                  <p><strong>{t("dashboard.foodbornePrimary")}:</strong> {diseaseSummary.transmission.primary}</p>
+                  <p><strong>{t("dashboard.otherTransmissionModes")}:</strong> {diseaseSummary.transmission.otherModes}</p>
+                  <p><strong>{t("dashboard.humanToHumanSpread")}:</strong> {diseaseSummary.transmission.humanToHuman}</p>
+                  <p><strong>{t("dashboard.environmentalSources")}:</strong> {diseaseSummary.transmission.environmental}</p>
                 </div>
               </section>
 
               {/* Diagnosis & Treatment */}
               <section>
-                <h3 className="text-lg font-semibold text-[#66dbe1] mb-3">Diagnosis & Treatment</h3>
+                <h3 className="text-lg font-semibold text-[#66dbe1] mb-3">{t("dashboard.diagnosisTreatment")}</h3>
                 <div className="space-y-3 text-sm leading-relaxed">
-                  <p><strong>Tests:</strong> {diseaseSummary.diagnosisTreatment.tests}</p>
-                  <p><strong>Treatment:</strong> {diseaseSummary.diagnosisTreatment.treatment}</p>
-                  <p><strong>Advanced therapies:</strong> {diseaseSummary.diagnosisTreatment.advancedTherapies}</p>
+                  <p><strong>{t("dashboard.tests")}:</strong> {diseaseSummary.diagnosisTreatment.tests}</p>
+                  <p><strong>{t("dashboard.treatment")}:</strong> {diseaseSummary.diagnosisTreatment.treatment}</p>
+                  <p><strong>{t("dashboard.advancedTherapies")}:</strong> {diseaseSummary.diagnosisTreatment.advancedTherapies}</p>
                 </div>
               </section>
 
               {/* Prevention & Control */}
               <section>
-                <h3 className="text-lg font-semibold text-[#66dbe1] mb-3">Prevention & Control</h3>
+                <h3 className="text-lg font-semibold text-[#66dbe1] mb-3">{t("dashboard.preventionControl")}</h3>
                 <div className="space-y-3 text-sm leading-relaxed">
-                  <p><strong>Prophylaxis:</strong> {diseaseSummary.preventionControl.prophylaxis}</p>
-                  <p><strong>Infection control measures:</strong> {diseaseSummary.preventionControl.infectionControl}</p>
-                  <p><strong>Community/public health practices:</strong> {diseaseSummary.preventionControl.communityPractices}</p>
-                  <p><strong>Other preventive steps:</strong> {diseaseSummary.preventionControl.otherSteps}</p>
+                  <p><strong>{t("dashboard.prophylaxis")}:</strong> {diseaseSummary.preventionControl.prophylaxis}</p>
+                  <p><strong>{t("dashboard.infectionControlMeasures")}:</strong> {diseaseSummary.preventionControl.infectionControl}</p>
+                  <p><strong>{t("dashboard.communityPublicHealthPractices")}:</strong> {diseaseSummary.preventionControl.communityPractices}</p>
+                  <p><strong>{t("dashboard.otherPreventiveSteps")}:</strong> {diseaseSummary.preventionControl.otherSteps}</p>
                 </div>
               </section>
 
               {/* Global Response */}
               <section>
-                <h3 className="text-lg font-semibold text-[#66dbe1] mb-3">Global Response</h3>
+                <h3 className="text-lg font-semibold text-[#66dbe1] mb-3">{t("dashboard.globalResponse")}</h3>
                 <div className="space-y-3 text-sm leading-relaxed">
-                  <p><strong>Major organizations involved:</strong> {diseaseSummary.globalResponse.organizations}</p>
-                  <p><strong>Strategies used in outbreak control:</strong> {diseaseSummary.globalResponse.strategies}</p>
-                  <p><strong>Research efforts:</strong> {diseaseSummary.globalResponse.research}</p>
+                  <p><strong>{t("dashboard.majorOrganizationsInvolved")}:</strong> {diseaseSummary.globalResponse.organizations}</p>
+                  <p><strong>{t("dashboard.strategiesUsedInOutbreakControl")}:</strong> {diseaseSummary.globalResponse.strategies}</p>
+                  <p><strong>{t("dashboard.researchEfforts")}:</strong> {diseaseSummary.globalResponse.research}</p>
                 </div>
               </section>
             </div>

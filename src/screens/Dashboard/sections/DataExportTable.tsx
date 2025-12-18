@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader } from "../../../components/ui/card";
 import { Input } from "../../../components/ui/input";
 import { Button } from "../../../components/ui/button";
 import { useExportData, ExportDataRow } from "../../../lib/useExportData";
+import { useLanguage } from "../../../contexts/LanguageContext";
 import { 
   Download, 
   Search, 
@@ -28,6 +29,7 @@ type SortField = keyof ExportDataRow;
 type SortDirection = 'asc' | 'desc';
 
 export const DataExportTable: React.FC<DataExportTableProps> = ({ timeRange, countryId }) => {
+  const { t } = useLanguage();
   const { data, loading, error } = useExportData(timeRange, countryId);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -162,16 +164,16 @@ export const DataExportTable: React.FC<DataExportTableProps> = ({ timeRange, cou
     if (dataToExport.length === 0) return;
 
     const headers = [
-      'Date',
-      'Disease',
+      t("dashboard.date"),
+      t("dashboard.disease"),
       'Pathogen',
       'Pathogen Type',
       'Primary Species',
-      'Location',
-      'Severity',
-      'No of Alerts',
-      'Confirmed Cases',
-      'Mortality'
+      t("dashboard.location"),
+      t("dashboard.severity"),
+      t("dashboard.totalAlerts"),
+      t("dashboard.totalCases"),
+      t("dashboard.mortality")
     ];
 
     const csvRows = [
@@ -210,10 +212,10 @@ export const DataExportTable: React.FC<DataExportTableProps> = ({ timeRange, cou
           <div>
             <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-lg flex items-center gap-2">
               <Database className="w-5 h-5 text-[#66dbe1]" />
-              Outbreak Data Export
+              {t("dashboard.outbreakDataExport")}
             </h3>
             <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm mt-1">
-              View and export all outbreak data as CSV
+              {t("dashboard.viewAndExportAllOutbreakData")}
             </p>
           </div>
           
@@ -223,7 +225,7 @@ export const DataExportTable: React.FC<DataExportTableProps> = ({ timeRange, cou
             className="bg-[#4eb7bd] hover:bg-[#3da5ab] text-white flex items-center gap-2"
           >
             <Download className="w-4 h-4" />
-            Export CSV
+            {t("dashboard.exportCsv")}
           </Button>
         </div>
 
@@ -233,7 +235,7 @@ export const DataExportTable: React.FC<DataExportTableProps> = ({ timeRange, cou
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#ebebeb99]" />
             <Input
               type="text"
-              placeholder="Search diseases, locations, pathogens..."
+              placeholder={t("dashboard.searchDiseasesLocationsPathogens")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="bg-[#ffffff14] border-[#dae0e633] text-[#ebebeb] pl-10 placeholder:text-[#ebebeb66]"
@@ -242,11 +244,11 @@ export const DataExportTable: React.FC<DataExportTableProps> = ({ timeRange, cou
           
           <div className="text-sm text-[#ebebeb99]">
             {loading ? (
-              <span>Loading...</span>
+              <span>{t("dashboard.loading")}</span>
             ) : (
               <span>
-                Showing {paginatedData.length} of {filteredData.length} records
-                {searchQuery && ` (filtered from ${data.length})`}
+                {t("dashboard.showingRecords", { current: paginatedData.length, total: filteredData.length })}
+                {searchQuery && ` (${t("dashboard.filteredFrom", { total: data.length })})`}
               </span>
             )}
           </div>
@@ -257,7 +259,7 @@ export const DataExportTable: React.FC<DataExportTableProps> = ({ timeRange, cou
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 text-[#66dbe1] animate-spin" />
-            <span className="ml-3 text-[#ebebeb] text-sm">Loading outbreak data...</span>
+            <span className="ml-3 text-[#ebebeb] text-sm">{t("dashboard.loadingOutbreakData")}</span>
           </div>
         ) : error ? (
           <div className="flex items-center justify-center py-12 text-red-400">
@@ -267,30 +269,30 @@ export const DataExportTable: React.FC<DataExportTableProps> = ({ timeRange, cou
         ) : data.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-[#ebebeb99]">
             <Database className="w-12 h-12 mb-3 opacity-50" />
-            <span className="text-sm">No outbreak data found for the selected time range</span>
+            <span className="text-sm">{t("dashboard.noOutbreakDataFound")}</span>
           </div>
         ) : (
           <>
             {/* Summary Stats Cards - At Top */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
               <div className="bg-[#ffffff0a] rounded-lg p-3 border border-[#dae0e620]">
-                <p className="text-[10px] text-[#ebebeb99] uppercase tracking-wide mb-1">Total Records</p>
+                <p className="text-[10px] text-[#ebebeb99] uppercase tracking-wide mb-1">{t("dashboard.totalRecords")}</p>
                 <p className="text-2xl font-bold text-[#66dbe1]">{data.length.toLocaleString()}</p>
               </div>
               <div className="bg-[#ffffff0a] rounded-lg p-3 border border-[#dae0e620]">
-                <p className="text-[10px] text-[#ebebeb99] uppercase tracking-wide mb-1">Total Alerts</p>
+                <p className="text-[10px] text-[#ebebeb99] uppercase tracking-wide mb-1">{t("dashboard.totalAlerts")}</p>
                 <p className="text-2xl font-bold text-[#ffffff]">
                   {data.reduce((sum, r) => sum + r.alertCount, 0).toLocaleString()}
                 </p>
               </div>
               <div className="bg-[#ffffff0a] rounded-lg p-3 border border-[#dae0e620]">
-                <p className="text-[10px] text-[#ebebeb99] uppercase tracking-wide mb-1">Total Cases</p>
+                <p className="text-[10px] text-[#ebebeb99] uppercase tracking-wide mb-1">{t("dashboard.totalCases")}</p>
                 <p className="text-2xl font-bold text-[#fbbf24]">
                   {data.reduce((sum, r) => sum + r.confirmedCases, 0).toLocaleString()}
                 </p>
               </div>
               <div className="bg-[#ffffff0a] rounded-lg p-3 border border-[#dae0e620]">
-                <p className="text-[10px] text-[#ebebeb99] uppercase tracking-wide mb-1">Total Mortality</p>
+                <p className="text-[10px] text-[#ebebeb99] uppercase tracking-wide mb-1">{t("dashboard.totalMortality")}</p>
                 <p className="text-2xl font-bold text-[#f87171]">
                   {data.reduce((sum, r) => sum + r.mortality, 0).toLocaleString()}
                 </p>
@@ -306,13 +308,13 @@ export const DataExportTable: React.FC<DataExportTableProps> = ({ timeRange, cou
                       className="w-[8%] px-2 py-2 text-left text-[10px] font-semibold text-[#ebebeb] uppercase cursor-pointer hover:bg-[#ffffff14]"
                       onClick={() => handleSort('date')}
                     >
-                      <div className="flex items-center">Date{renderSortIcon('date')}</div>
+                      <div className="flex items-center">{t("dashboard.date")}{renderSortIcon('date')}</div>
                     </th>
                     <th 
                       className="w-[14%] px-2 py-2 text-left text-[10px] font-semibold text-[#ebebeb] uppercase cursor-pointer hover:bg-[#ffffff14]"
                       onClick={() => handleSort('disease')}
                     >
-                      <div className="flex items-center">Disease{renderSortIcon('disease')}</div>
+                      <div className="flex items-center">{t("dashboard.disease")}{renderSortIcon('disease')}</div>
                     </th>
                     <th 
                       className="w-[12%] px-2 py-2 text-left text-[10px] font-semibold text-[#ebebeb] uppercase cursor-pointer hover:bg-[#ffffff14]"
@@ -336,31 +338,31 @@ export const DataExportTable: React.FC<DataExportTableProps> = ({ timeRange, cou
                       className="w-[15%] px-2 py-2 text-left text-[10px] font-semibold text-[#ebebeb] uppercase cursor-pointer hover:bg-[#ffffff14]"
                       onClick={() => handleSort('location')}
                     >
-                      <div className="flex items-center">Location{renderSortIcon('location')}</div>
+                      <div className="flex items-center">{t("dashboard.location")}{renderSortIcon('location')}</div>
                     </th>
                     <th 
                       className="w-[7%] px-2 py-2 text-left text-[10px] font-semibold text-[#ebebeb] uppercase cursor-pointer hover:bg-[#ffffff14]"
                       onClick={() => handleSort('severity')}
                     >
-                      <div className="flex items-center">Sev{renderSortIcon('severity')}</div>
+                      <div className="flex items-center">{t("dashboard.severity")}{renderSortIcon('severity')}</div>
                     </th>
                     <th 
                       className="w-[7%] px-2 py-2 text-center text-[10px] font-semibold text-[#ebebeb] uppercase cursor-pointer hover:bg-[#ffffff14]"
                       onClick={() => handleSort('alertCount')}
                     >
-                      <div className="flex items-center justify-center">Alerts{renderSortIcon('alertCount')}</div>
+                      <div className="flex items-center justify-center">{t("dashboard.alert")}{renderSortIcon('alertCount')}</div>
                     </th>
                     <th 
                       className="w-[10%] px-2 py-2 text-center text-[10px] font-semibold text-[#ebebeb] uppercase cursor-pointer hover:bg-[#ffffff14]"
                       onClick={() => handleSort('confirmedCases')}
                     >
-                      <div className="flex items-center justify-center">Cases{renderSortIcon('confirmedCases')}</div>
+                      <div className="flex items-center justify-center">{t("dashboard.cases")}{renderSortIcon('confirmedCases')}</div>
                     </th>
                     <th 
                       className="w-[10%] px-2 py-2 text-center text-[10px] font-semibold text-[#ebebeb] uppercase cursor-pointer hover:bg-[#ffffff14]"
                       onClick={() => handleSort('mortality')}
                     >
-                      <div className="flex items-center justify-center">Deaths{renderSortIcon('mortality')}</div>
+                      <div className="flex items-center justify-center">{t("dashboard.mortality")}{renderSortIcon('mortality')}</div>
                     </th>
                   </tr>
                 </thead>
@@ -413,7 +415,7 @@ export const DataExportTable: React.FC<DataExportTableProps> = ({ timeRange, cou
             {totalPages > 1 && (
               <div className="flex items-center justify-between mt-4 px-2">
                 <div className="text-sm text-[#ebebeb99]">
-                  Page {currentPage} of {totalPages}
+                  {t("dashboard.page")} {currentPage} {t("dashboard.of")} {totalPages}
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
@@ -424,7 +426,7 @@ export const DataExportTable: React.FC<DataExportTableProps> = ({ timeRange, cou
                     className="bg-[#ffffff14] border-[#dae0e633] text-[#ebebeb] hover:bg-[#ffffff24] disabled:opacity-50"
                   >
                     <ChevronLeft className="w-4 h-4" />
-                    Prev
+                    {t("dashboard.prev")}
                   </Button>
                   
                   {/* Page numbers */}
@@ -464,7 +466,7 @@ export const DataExportTable: React.FC<DataExportTableProps> = ({ timeRange, cou
                     disabled={currentPage === totalPages}
                     className="bg-[#ffffff14] border-[#dae0e633] text-[#ebebeb] hover:bg-[#ffffff24] disabled:opacity-50"
                   >
-                    Next
+                    {t("dashboard.next")}
                     <ChevronRight className="w-4 h-4" />
                   </Button>
                 </div>
@@ -482,7 +484,7 @@ export const DataExportTable: React.FC<DataExportTableProps> = ({ timeRange, cou
               <div className="flex items-center justify-between px-5 py-4 border-b border-[#dae0e633]">
                 <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                   <FileSpreadsheet className="w-5 h-5 text-[#66dbe1]" />
-                  Export Data
+                  {t("dashboard.exportData")}
                 </h3>
                 <button
                   onClick={() => setShowExportDialog(false)}
@@ -495,7 +497,7 @@ export const DataExportTable: React.FC<DataExportTableProps> = ({ timeRange, cou
               {/* Dialog Content */}
               <div className="p-5 space-y-3">
                 <p className="text-sm text-[#ebebeb99]">
-                  Choose which data you want to export as CSV:
+                  {t("dashboard.chooseWhichDataToExport")}
                 </p>
                 
                 {/* Export Current Page Option - Most relevant */}
@@ -509,11 +511,11 @@ export const DataExportTable: React.FC<DataExportTableProps> = ({ timeRange, cou
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <h4 className="font-medium text-white">Export Current Page</h4>
-                        <span className="text-[10px] px-1.5 py-0.5 bg-[#66dbe1]/30 text-[#66dbe1] rounded">Recommended</span>
+                        <h4 className="font-medium text-white">{t("dashboard.exportCurrentPage")}</h4>
+                        <span className="text-[10px] px-1.5 py-0.5 bg-[#66dbe1]/30 text-[#66dbe1] rounded">{t("dashboard.recommended")}</span>
                       </div>
                       <p className="text-xs text-[#ebebeb99] mt-1">
-                        Download {paginatedData.length} records shown on page {currentPage} of {totalPages}
+                        {t("dashboard.downloadRecords", { count: paginatedData.length, page: currentPage, total: totalPages })}
                       </p>
                     </div>
                   </div>
@@ -530,12 +532,12 @@ export const DataExportTable: React.FC<DataExportTableProps> = ({ timeRange, cou
                       <Filter className="w-4 h-4 text-[#fbbf24]" />
                     </div>
                     <div>
-                      <h4 className="font-medium text-white text-sm">Export Filtered Data</h4>
+                      <h4 className="font-medium text-white text-sm">{t("dashboard.exportFilteredData")}</h4>
                       <p className="text-xs text-[#ebebeb99]">
                         {sortedData.length === data.length && !searchQuery ? (
-                          "No filters applied - same as all data"
+                          t("dashboard.noFiltersApplied")
                         ) : (
-                          <>All {sortedData.length.toLocaleString()} filtered records{searchQuery && ` (search: "${searchQuery}")`}</>
+                          <>{t("dashboard.allFilteredRecords", { count: sortedData.length })}{searchQuery && ` (${t("dashboard.search")}: "${searchQuery}")`}</>
                         )}
                       </p>
                     </div>
@@ -552,9 +554,9 @@ export const DataExportTable: React.FC<DataExportTableProps> = ({ timeRange, cou
                       <Database className="w-4 h-4 text-[#4eb7bd]" />
                     </div>
                     <div>
-                      <h4 className="font-medium text-white text-sm">Export All Data</h4>
+                      <h4 className="font-medium text-white text-sm">{t("dashboard.exportAllData")}</h4>
                       <p className="text-xs text-[#ebebeb99]">
-                        All {data.length.toLocaleString()} records from selected time range
+                        {t("dashboard.allRecordsFromTimeRange", { count: data.length })}
                       </p>
                     </div>
                   </div>
@@ -568,7 +570,7 @@ export const DataExportTable: React.FC<DataExportTableProps> = ({ timeRange, cou
                   onClick={() => setShowExportDialog(false)}
                   className="w-full bg-transparent border-[#dae0e633] text-[#ebebeb] hover:bg-[#ffffff14] hover:text-white"
                 >
-                  Cancel
+                  {t("dashboard.cancel")}
                 </Button>
               </div>
             </div>

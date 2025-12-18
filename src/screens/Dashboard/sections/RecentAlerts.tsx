@@ -3,15 +3,16 @@ import { Card, CardContent, CardHeader } from "../../../components/ui/card";
 import { Badge } from "../../../components/ui/badge";
 import { AlertTriangle, Info, AlertCircle, Loader2 } from "lucide-react";
 import { useRecentAlerts } from "../../../lib/useRecentAlerts";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
-const alertConfig = {
+const getAlertConfig = (t: any) => ({
   critical: {
     icon: <AlertTriangle className="w-5 h-5" />,
     bg: "bg-[#f8717133]",
     border: "border-[#f87171]",
     text: "text-[#f87171]",
     badgeBg: "bg-[#f87171]",
-    label: "Critical",
+    label: t("dashboard.critical"),
   },
   warning: {
     icon: <AlertCircle className="w-5 h-5" />,
@@ -19,7 +20,7 @@ const alertConfig = {
     border: "border-[#fbbf24]",
     text: "text-[#fbbf24]",
     badgeBg: "bg-[#fbbf24]",
-    label: "Warning",
+    label: t("dashboard.high"),
   },
   info: {
     icon: <Info className="w-5 h-5" />,
@@ -27,9 +28,9 @@ const alertConfig = {
     border: "border-[#66dbe1]",
     text: "text-[#66dbe1]",
     badgeBg: "bg-[#66dbe1]",
-    label: "Info",
+    label: t("dashboard.medium"),
   },
-};
+});
 
 interface RecentAlertsProps {
   searchQuery?: string;
@@ -39,6 +40,7 @@ interface RecentAlertsProps {
 
 export const RecentAlerts = ({ searchQuery = "", limit = 10, countryId }: RecentAlertsProps): JSX.Element => {
   const { alerts, loading, error } = useRecentAlerts(limit, countryId);
+  const { t } = useLanguage();
 
   // Normalize country name variations for search
   const normalizeCountryName = (countryName: string): string[] => {
@@ -107,7 +109,7 @@ export const RecentAlerts = ({ searchQuery = "", limit = 10, countryId }: Recent
       <Card className="bg-[#ffffff14] border-[#eaebf024]">
         <CardContent className="p-6">
           <p className="[font-family:'Roboto',Helvetica] font-medium text-[#f87171] text-sm">
-            Error loading alerts: {error}
+            {t("dashboard.errorLoadingAlerts", { error })}
           </p>
         </CardContent>
       </Card>
@@ -115,23 +117,23 @@ export const RecentAlerts = ({ searchQuery = "", limit = 10, countryId }: Recent
   }
 
   return (
-    <Card className="bg-[#ffffff14] border-[#eaebf024]">
+    <Card className="bg-[#ffffff14] border-[#eaebf024]" style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-lg">
-              Recent Alerts
+              {t("dashboard.recentAlerts")}
             </h3>
             <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm mt-1">
-              Latest outbreak notifications and updates
+              {t("dashboard.latestNotifications")}
             </p>
           </div>
-          <button className="[font-family:'Roboto',Helvetica] font-medium text-[#66dbe1] text-sm hover:underline">
-            View all
+          <button className="[font-family:'Roboto',Helvetica] font-medium text-[#66dbe1] text-sm hover:underline flex-shrink-0 ml-4">
+            {t("dashboard.viewAll")}
           </button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4" style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
         {loading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 text-[#66dbe1] animate-spin" />
@@ -139,11 +141,12 @@ export const RecentAlerts = ({ searchQuery = "", limit = 10, countryId }: Recent
         ) : filteredAlerts.length === 0 ? (
           <div className="flex items-center justify-center py-8">
             <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm">
-              {searchQuery ? `No alerts found for "${searchQuery}"` : "No recent alerts"}
+              {searchQuery ? t("dashboard.noAlertsFound", { query: searchQuery }) : t("dashboard.noRecentAlerts")}
             </p>
           </div>
         ) : (
           filteredAlerts.map((alert) => {
+            const alertConfig = getAlertConfig(t);
             const config = alertConfig[alert.type];
             return (
               <div

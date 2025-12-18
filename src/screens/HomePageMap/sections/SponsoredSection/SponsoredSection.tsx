@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Badge } from "../../../../components/ui/badge";
 import { useSponsoredContent, getPlanBadgeInfo, SponsoredContent } from "../../../../lib/useSponsoredContent";
 import { Loader2, Star, Pin, ExternalLink } from "lucide-react";
+import { useLanguage } from "../../../../contexts/LanguageContext";
 
 interface SponsoredCardProps {
   content: SponsoredContent;
@@ -162,15 +163,64 @@ const SponsoredCardSkeleton: React.FC = () => (
 );
 
 export const SponsoredSection = (): JSX.Element => {
+  const { t } = useLanguage();
   const { data, isLoading, error, trackView, trackClick } = useSponsoredContent({
     location: 'map',
     limit: 10,
   });
 
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const rotationIntervalRef = useRef<number | null>(null);
+
+  // Auto-rotate ads every 5 seconds (only if multiple ads)
+  useEffect(() => {
+    if (data.length <= 1 || isLoading || isPaused) {
+      if (rotationIntervalRef.current) {
+        clearInterval(rotationIntervalRef.current);
+        rotationIntervalRef.current = null;
+      }
+      return;
+    }
+
+    rotationIntervalRef.current = window.setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % data.length);
+    }, 3000); // Rotate every 5 seconds
+
+    return () => {
+      if (rotationIntervalRef.current) {
+        clearInterval(rotationIntervalRef.current);
+      }
+    };
+  }, [data.length, isLoading, isPaused]);
+
+  // Scroll to show the current ad when index changes
+  useEffect(() => {
+    if (!scrollContainerRef.current || data.length <= 1 || isLoading) {
+      return;
+    }
+
+    const container = scrollContainerRef.current;
+    const cardHeight = 80 + 10; // card height (h-20 = 80px) + gap (space-y-2.5 = 10px)
+    const scrollPosition = currentIndex * cardHeight;
+
+    container.scrollTo({
+      top: scrollPosition,
+      behavior: 'smooth',
+    });
+  }, [currentIndex, data.length, isLoading]);
+
+  // Pause on hover
+  const handleMouseEnter = () => setIsPaused(true);
+  const handleMouseLeave = () => setIsPaused(false);
+
   return (
     <div
-      className="w-full lg:w-[240px] rounded-lg border border-[#EAEBF024] bg-[#FFFFFF14] shadow-lg flex flex-col overflow-hidden lg:h-[380px] h-[500px] max-h-[60vh] lg:max-h-[380px]"
+      className="w-full lg:w-[240px] rounded-lg border border-[#EAEBF024] bg-[#FFFFFF14] shadow-lg flex flex-col overflow-hidden lg:h-[380px] h-[300px] max-h-[35vh] lg:max-h-[380px]"
       style={{ boxSizing: 'border-box' }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
       {/* Header */}
       <div className="px-4 pt-4 pb-3 border-b border-[#EAEBF024]/50 flex items-center justify-between">
@@ -178,15 +228,18 @@ export const SponsoredSection = (): JSX.Element => {
           variant="secondary"
           className="bg-transparent border-none [font-family:'Inter',Helvetica] font-medium text-[#a7a7a7] text-sm"
         >
-          Sponsored
+          {t("news.sponsored")}
         </Badge>
         {data.length > 0 && !isLoading && (
-          <span className="text-[10px] text-[#a7a7a7]/60">{data.length} ads</span>
+          <span className="text-[10px] text-[#a7a7a7]/60">{data.length} {t("news.ads")}</span>
         )}
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar px-4 py-3">
+      <div 
+        ref={scrollContainerRef}
+        className="flex-1 overflow-y-auto min-h-0 custom-scrollbar px-4 py-3"
+      >
         {isLoading ? (
           // Loading state
           <div className="space-y-2.5">
@@ -209,12 +262,12 @@ export const SponsoredSection = (): JSX.Element => {
         ) : data.length === 0 ? (
           // Empty state
           <div className="flex flex-col items-center justify-center h-full text-center py-8">
-            <div className="text-[#a7a7a7]/60 text-sm mb-2">No sponsored content</div>
+            <div className="text-[#a7a7a7]/60 text-sm mb-2">{t("news.noSponsoredContent")}</div>
             <a
               href="/?tab=advertise"
               className="text-xs text-primary hover:underline"
             >
-              Advertise with us
+              {t("news.advertiseWithUs")}
             </a>
           </div>
         ) : (
@@ -239,7 +292,7 @@ export const SponsoredSection = (): JSX.Element => {
             href="/?tab=advertise"
             className="text-[10px] text-[#a7a7a7]/60 hover:text-primary transition-colors block text-center"
           >
-            Want to advertise here? →
+            {t("news.wantToAdvertiseHere")} →
           </a>
         </div>
       )}

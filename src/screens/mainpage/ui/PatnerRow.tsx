@@ -1,3 +1,5 @@
+import { useLanguage } from "@/contexts/LanguageContext";
+
 export type Partner = {
   name: string;
   url: string;
@@ -33,11 +35,13 @@ const partners: Partner[] = [
 ];
 
 const PartnerRow = () => {
+  const { t } = useLanguage();
+
   return (
     <div className="section py-8">
       <div className="container-prose">
         <h2 className="text-center text-xl font-bold mb-6">
-          Proudly Supported By
+          {t("landing.partners.title")}
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
           {partners.map((p) => (

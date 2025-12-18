@@ -10,52 +10,44 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { AuthDialog } from '@/components/AuthDialog';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const advertisingPlans = [
   {
     id: 'basic',
-    name: 'Basic Plan',
-    price: '$50/month',
     priceValue: 50,
-    duration: '30 days',
-    features: [
-      'Map sponsored section placement',
-      '30-day display duration',
-      'Basic analytics (views & clicks)',
-      'Standard display priority'
+    featureKeys: [
+      'advertise.plans.basic.feature1',
+      'advertise.plans.basic.feature2',
+      'advertise.plans.basic.feature3',
+      'advertise.plans.basic.feature4'
     ],
     icon: Target
   },
   {
     id: 'professional',
-    name: 'Professional Plan',
-    price: '$150/month',
     priceValue: 150,
-    duration: '60 days',
-    features: [
-      'Map + Homepage banner placement',
-      '60-day display duration',
-      'Advanced analytics with engagement metrics',
-      'Featured placement with badge',
-      'Newsletter mentions',
-      'Social media promotion'
+    featureKeys: [
+      'advertise.plans.professional.feature1',
+      'advertise.plans.professional.feature2',
+      'advertise.plans.professional.feature3',
+      'advertise.plans.professional.feature4',
+      'advertise.plans.professional.feature5',
+      'advertise.plans.professional.feature6'
     ],
     icon: DollarSign
   },
   {
     id: 'enterprise',
-    name: 'Enterprise Plan',
-    price: '$300/month',
     priceValue: 300,
-    duration: '90 days',
-    features: [
-      'All platforms (Map, Homepage, Newsletter)',
-      '90-day display duration',
-      'Custom analytics with export',
-      'Pinned to top position',
-      'Custom content creation',
-      'Dedicated account manager',
-      'Priority support'
+    featureKeys: [
+      'advertise.plans.enterprise.feature1',
+      'advertise.plans.enterprise.feature2',
+      'advertise.plans.enterprise.feature3',
+      'advertise.plans.enterprise.feature4',
+      'advertise.plans.enterprise.feature5',
+      'advertise.plans.enterprise.feature6',
+      'advertise.plans.enterprise.feature7'
     ],
     icon: Zap
   }
@@ -80,6 +72,7 @@ interface FormData {
 const AdvertiseForm = () => {
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [submissionSuccess, setSubmissionSuccess] = useState(false);
@@ -113,8 +106,8 @@ const AdvertiseForm = () => {
     // Validate file size (max 10MB)
     if (file && file.size > 10 * 1024 * 1024) {
       toast({
-        title: "File too large",
-        description: "Please select a file smaller than 10MB.",
+        title: t("advertise.errors.fileTooLargeTitle"),
+        description: t("advertise.errors.fileTooLargeDesc"),
         variant: "destructive"
       });
       return;
@@ -129,8 +122,8 @@ const AdvertiseForm = () => {
     // Validate file type (images only)
     if (file && !file.type.startsWith('image/')) {
       toast({
-        title: "Invalid file type",
-        description: "Please select an image file (JPG, PNG, or WebP).",
+        title: t("advertise.errors.invalidFileTypeTitle"),
+        description: t("advertise.errors.invalidFileTypeDesc"),
         variant: "destructive"
       });
       return;
@@ -139,8 +132,8 @@ const AdvertiseForm = () => {
     // Validate file size (max 5MB for images)
     if (file && file.size > 5 * 1024 * 1024) {
       toast({
-        title: "Image too large",
-        description: "Please select an image smaller than 5MB.",
+        title: t("advertise.errors.imageTooLargeTitle"),
+        description: t("advertise.errors.imageTooLargeDesc"),
         variant: "destructive"
       });
       return;
@@ -171,8 +164,8 @@ const AdvertiseForm = () => {
             uploadError.message.includes('row-level security') ||
             uploadError.message.includes('permission')) {
           toast({
-            title: "Note",
-            description: "Document upload skipped - storage not configured or access denied. Your application will still be submitted.",
+            title: t("advertise.note.title"),
+            description: t("advertise.note.documentSkipped"),
             variant: "default"
           });
           return null;
@@ -225,8 +218,8 @@ const AdvertiseForm = () => {
         if (fallbackError) {
           console.error('Image upload error:', fallbackError);
           toast({
-            title: "Note",
-            description: "Image upload skipped - storage not configured. Your application will still be submitted.",
+            title: t("advertise.note.title"),
+            description: t("advertise.note.imageStorageSkipped"),
             variant: "default"
           });
           return null;
@@ -235,8 +228,8 @@ const AdvertiseForm = () => {
         console.error('Image upload error:', uploadError);
         if (uploadError.message.includes('row-level security') || uploadError.message.includes('permission')) {
           toast({
-            title: "Note",
-            description: "Image upload skipped - access denied. Your application will still be submitted.",
+            title: t("advertise.note.title"),
+            description: t("advertise.note.imageAccessSkipped"),
             variant: "default"
           });
           return null;
@@ -295,8 +288,8 @@ const AdvertiseForm = () => {
     if (!user) {
       setAuthDialogOpen(true);
       toast({
-        title: "Login Required",
-        description: "Please log in to submit an advertising application.",
+        title: t("advertise.errors.loginRequiredTitle"),
+        description: t("advertise.errors.loginRequiredDesc"),
         variant: "destructive"
       });
       return;
@@ -305,8 +298,8 @@ const AdvertiseForm = () => {
     // Check rate limits
     if (rateLimitCheck && !rateLimitCheck.allowed) {
       toast({
-        title: "Submission Limit Reached",
-        description: rateLimitCheck.reason || "You've reached your submission limit. Please try again later.",
+        title: t("advertise.errors.limitReachedTitle"),
+        description: rateLimitCheck.reason || t("advertise.errors.limitReachedDescFallback"),
         variant: "destructive"
       });
       return;
@@ -314,8 +307,8 @@ const AdvertiseForm = () => {
     
     if (!formData.companyName || !formData.contactName || !formData.email || !formData.selectedPlan) {
       toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields.",
+        title: t("advertise.errors.missingInfoTitle"),
+        description: t("advertise.errors.missingInfoDesc"),
         variant: "destructive"
       });
       return;
@@ -325,8 +318,8 @@ const AdvertiseForm = () => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
       toast({
-        title: "Invalid Email",
-        description: "Please enter a valid email address.",
+        title: t("advertise.errors.invalidEmailTitle"),
+        description: t("advertise.errors.invalidEmailDesc"),
         variant: "destructive"
       });
       return;
@@ -381,10 +374,10 @@ const AdvertiseForm = () => {
       setSubmissionId(data.id);
       setSubmissionSuccess(true);
     
-    toast({
-        title: "Application Submitted! 🎉",
-        description: "You'll receive a notification when your application is reviewed. Check the notification bell for updates!",
-    });
+      toast({
+        title: t("advertise.success.title"),
+        description: t("advertise.success.desc"),
+      });
 
       // Reset form
     setFormData({
@@ -406,8 +399,8 @@ const AdvertiseForm = () => {
     } catch (error: any) {
       console.error('Submission error:', error);
       toast({
-        title: "Submission Failed",
-        description: error.message || "There was an error submitting your application. Please try again.",
+        title: t("advertise.errors.submitFailedTitle"),
+        description: error.message || t("advertise.errors.submitFailedDesc"),
         variant: "destructive"
       });
     } finally {
@@ -426,41 +419,65 @@ const AdvertiseForm = () => {
             <Card className="shadow-elegant border-green-200 bg-green-50/50">
               <CardContent className="pt-8 pb-8 text-center">
                 <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-6" />
-                <h2 className="text-2xl font-bold mb-4 text-gray-900">Application Submitted Successfully!</h2>
+                <h2 className="text-2xl font-bold mb-4 text-gray-900">
+                  {t("advertise.success.titleShort")}
+                </h2>
                 <p className="text-gray-700 mb-6">
-                  Thank you for your interest in advertising with OutbreakNow. We've received your application and will review it within 24-48 hours. You'll receive a real-time notification in the app once our review is complete.
+                  {t("advertise.success.longDesc")}
                 </p>
                 
                 <div className="bg-white rounded-lg p-4 mb-6 text-left">
-                  <h3 className="font-semibold mb-4 text-gray-900">What happens next?</h3>
+                  <h3 className="font-semibold mb-4 text-gray-900">
+                    {t("advertise.success.nextStepsTitle")}
+                  </h3>
                   <ol className="space-y-3 text-sm">
                     <li className="flex items-start gap-3">
                       <span className="bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-semibold flex-shrink-0 mt-0.5">1</span>
-                      <span className="text-gray-800"><strong className="font-semibold text-gray-900">Application Review:</strong> Our team will review your submission within 24-48 hours. Please check your email regularly.</span>
+                      <span className="text-gray-800">
+                        <strong className="font-semibold text-gray-900">
+                          {t("advertise.success.step1Title")}
+                        </strong>{" "}
+                        {t("advertise.success.step1Body")}
+                      </span>
                     </li>
                     <li className="flex items-start gap-3">
                       <span className="bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-semibold flex-shrink-0 mt-0.5">2</span>
-                      <span className="text-gray-800"><strong className="font-semibold text-gray-900">Payment Link:</strong> If approved, you'll receive a notification with a payment link. Check the notification bell in the header.</span>
+                      <span className="text-gray-800">
+                        <strong className="font-semibold text-gray-900">
+                          {t("advertise.success.step2Title")}
+                        </strong>{" "}
+                        {t("advertise.success.step2Body")}
+                      </span>
                     </li>
                     <li className="flex items-start gap-3">
                       <span className="bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-semibold flex-shrink-0 mt-0.5">3</span>
-                      <span className="text-gray-800"><strong className="font-semibold text-gray-900">Complete Payment:</strong> Click the payment link in your email and complete the secure payment process to activate your advertisement.</span>
+                      <span className="text-gray-800">
+                        <strong className="font-semibold text-gray-900">
+                          {t("advertise.success.step3Title")}
+                        </strong>{" "}
+                        {t("advertise.success.step3Body")}
+                      </span>
                     </li>
                     <li className="flex items-start gap-3">
                       <span className="bg-primary text-white rounded-full w-6 h-6 flex items-center justify-center text-xs font-semibold flex-shrink-0 mt-0.5">4</span>
-                      <span className="text-gray-800"><strong className="font-semibold text-gray-900">Your Ad Goes Live:</strong> Once payment is confirmed, your advertisement will be activated and displayed on OutbreakNow!</span>
+                      <span className="text-gray-800">
+                        <strong className="font-semibold text-gray-900">
+                          {t("advertise.success.step4Title")}
+                        </strong>{" "}
+                        {t("advertise.success.step4Body")}
+                      </span>
                     </li>
                   </ol>
                   <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <p className="text-xs text-blue-900">
-                      <strong>Important:</strong> You'll receive real-time notifications in the app. Check the notification bell in the header for updates. You can also track your submission in your dashboard.
+                      {t("advertise.success.importantNote")}
                     </p>
                   </div>
                 </div>
 
                 {submissionId && (
                   <p className="text-xs text-gray-600 mb-4">
-                    Reference ID: {submissionId}
+                    {t("advertise.success.referenceId", { id: submissionId })}
                   </p>
                 )}
                 
@@ -471,7 +488,7 @@ const AdvertiseForm = () => {
                   }}
                   variant="outline"
                 >
-                  Submit Another Application
+                  {t("advertise.success.submitAnother")}
                 </Button>
               </CardContent>
             </Card>
@@ -488,11 +505,10 @@ const AdvertiseForm = () => {
         <div className="container-prose">
           <div className="mx-auto max-w-4xl text-center">
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight mb-6">
-              Advertise with OutbreakNow
+              {t("advertise.hero.title")}
             </h1>
             <p className="text-lg text-muted-foreground leading-relaxed mb-8">
-              Reach thousands of healthcare professionals, policymakers, researchers, and global health enthusiasts. 
-              Advertise your products, services, or initiatives on our platform and make a meaningful impact in global health surveillance.
+              {t("advertise.hero.body")}
             </p>
           </div>
         </div>
@@ -503,39 +519,47 @@ const AdvertiseForm = () => {
         <div className="container-prose">
           <div className="mx-auto max-w-4xl">
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-8 text-center">
-              Why Advertise with OutbreakNow?
+              {t("advertise.why.title")}
             </h2>
 
             <div className="grid md:grid-cols-2 gap-6 mb-10">
               <div className="rounded-xl border bg-card p-6 shadow-elegant hover-scale">
                 <Users className="w-10 h-10 mb-4 text-primary" />
-                <h3 className="text-xl font-semibold mb-2">Targeted Audience</h3>
+                <h3 className="text-xl font-semibold mb-2">
+                  {t("advertise.why.targetedTitle")}
+                </h3>
                 <p className="text-sm text-muted-foreground">
-                  Connect with 50,000+ active users including public health officials, epidemiologists, healthcare providers, and decision-makers
+                  {t("advertise.why.targetedBody")}
                 </p>
               </div>
 
               <div className="rounded-xl border bg-card p-6 shadow-elegant hover-scale">
                 <Globe2 className="w-10 h-10 mb-4 text-primary" />
-                <h3 className="text-xl font-semibold mb-2">Global Reach</h3>
+                <h3 className="text-xl font-semibold mb-2">
+                  {t("advertise.why.globalTitle")}
+                </h3>
                 <p className="text-sm text-muted-foreground">
-                  Your message reaches professionals across 200+ countries and territories worldwide
+                  {t("advertise.why.globalBody")}
                 </p>
               </div>
 
               <div className="rounded-xl border bg-card p-6 shadow-elegant hover-scale">
                 <TrendingUp className="w-10 h-10 mb-4 text-primary" />
-                <h3 className="text-xl font-semibold mb-2">High Engagement</h3>
+                <h3 className="text-xl font-semibold mb-2">
+                  {t("advertise.why.engagementTitle")}
+                </h3>
                 <p className="text-sm text-muted-foreground">
-                  Our platform sees daily engagement from users actively seeking outbreak intelligence and health solutions
+                  {t("advertise.why.engagementBody")}
                 </p>
               </div>
 
               <div className="rounded-xl border bg-card p-6 shadow-elegant hover-scale">
                 <Award className="w-10 h-10 mb-4 text-primary" />
-                <h3 className="text-xl font-semibold mb-2">Trusted Platform</h3>
+                <h3 className="text-xl font-semibold mb-2">
+                  {t("advertise.why.trustedTitle")}
+                </h3>
                 <p className="text-sm text-muted-foreground">
-                  Associate your brand with a credible source of real-time outbreak intelligence trusted globally
+                  {t("advertise.why.trustedBody")}
                 </p>
               </div>
             </div>
@@ -548,28 +572,36 @@ const AdvertiseForm = () => {
         <div className="container-prose">
           <div className="mx-auto max-w-4xl">
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-8 text-center">
-              Our Audience
+              {t("advertise.audience.title")}
             </h2>
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="text-center p-6 rounded-xl border bg-card shadow-elegant hover-scale">
                 <div className="text-3xl font-bold text-primary mb-2">40%</div>
-                <div className="text-sm text-muted-foreground">Public Health Officials</div>
+                <div className="text-sm text-muted-foreground">
+                  {t("advertise.audience.segmentPublicHealth")}
+                </div>
               </div>
 
               <div className="text-center p-6 rounded-xl border bg-card shadow-elegant hover-scale">
                 <div className="text-3xl font-bold text-primary mb-2">30%</div>
-                <div className="text-sm text-muted-foreground">Healthcare Providers</div>
+                <div className="text-sm text-muted-foreground">
+                  {t("advertise.audience.segmentProviders")}
+                </div>
               </div>
 
               <div className="text-center p-6 rounded-xl border bg-card shadow-elegant hover-scale">
                 <div className="text-3xl font-bold text-primary mb-2">20%</div>
-                <div className="text-sm text-muted-foreground">Researchers & Academics</div>
+                <div className="text-sm text-muted-foreground">
+                  {t("advertise.audience.segmentResearchers")}
+                </div>
               </div>
 
               <div className="text-center p-6 rounded-xl border bg-card shadow-elegant hover-scale">
                 <div className="text-3xl font-bold text-primary mb-2">10%</div>
-                <div className="text-sm text-muted-foreground">Policy Makers & NGOs</div>
+                <div className="text-sm text-muted-foreground">
+                  {t("advertise.audience.segmentPolicy")}
+                </div>
               </div>
             </div>
           </div>
@@ -581,7 +613,7 @@ const AdvertiseForm = () => {
         <div className="container-prose">
           <div className="mx-auto max-w-4xl">
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-8 text-center">
-              Advertising Opportunities
+              {t("advertise.opportunities.title")}
             </h2>
 
             <div className="space-y-6">
@@ -589,9 +621,11 @@ const AdvertiseForm = () => {
                 <div className="flex items-start gap-4">
                   <Eye className="w-8 h-8 text-primary flex-shrink-0 mt-1" />
                   <div>
-                    <h3 className="text-lg font-semibold mb-2">Map Sponsored Section</h3>
+                    <h3 className="text-lg font-semibold mb-2">
+                      {t("advertise.opportunities.mapTitle")}
+                    </h3>
                     <p className="text-sm text-muted-foreground">
-                      Premium placement in the sponsored section on our interactive outbreak map - the most visited page on OutbreakNow.
+                      {t("advertise.opportunities.mapBody")}
                     </p>
                   </div>
                 </div>
@@ -601,9 +635,11 @@ const AdvertiseForm = () => {
                 <div className="flex items-start gap-4">
                   <MousePointerClick className="w-8 h-8 text-primary flex-shrink-0 mt-1" />
                   <div>
-                    <h3 className="text-lg font-semibold mb-2">Homepage Banner</h3>
+                    <h3 className="text-lg font-semibold mb-2">
+                      {t("advertise.opportunities.homepageTitle")}
+                    </h3>
                     <p className="text-sm text-muted-foreground">
-                      High-visibility banner placement on our homepage, reaching visitors as they first arrive on our platform.
+                      {t("advertise.opportunities.homepageBody")}
                     </p>
                   </div>
                 </div>
@@ -613,9 +649,11 @@ const AdvertiseForm = () => {
                 <div className="flex items-start gap-4">
                   <BarChart3 className="w-8 h-8 text-primary flex-shrink-0 mt-1" />
                   <div>
-                    <h3 className="text-lg font-semibold mb-2">Newsletter Sponsorships</h3>
+                    <h3 className="text-lg font-semibold mb-2">
+                      {t("advertise.opportunities.newsletterTitle")}
+                    </h3>
                     <p className="text-sm text-muted-foreground">
-                      Reach our engaged subscriber base through dedicated newsletter features and mentions in our weekly outbreak intelligence updates.
+                      {t("advertise.opportunities.newsletterBody")}
                     </p>
                   </div>
                 </div>
@@ -630,13 +668,16 @@ const AdvertiseForm = () => {
         <div className="container-prose">
           <div className="mx-auto max-w-4xl">
             <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-8 text-center">
-              Advertising Plans
+              {t("advertise.plans.title")}
             </h2>
 
             <div className="grid gap-6 lg:grid-cols-3 mb-12">
               {advertisingPlans.map((plan) => {
                 const IconComponent = plan.icon;
                 const isSelected = formData.selectedPlan === plan.id;
+                const name = t(`advertise.plans.${plan.id}.name`);
+                const price = t(`advertise.plans.${plan.id}.price`);
+                const duration = t(`advertise.plans.${plan.id}.duration`);
                 return (
                   <Card 
                     key={plan.id} 
@@ -647,30 +688,34 @@ const AdvertiseForm = () => {
                   >
                     <CardHeader>
                       {plan.id === 'professional' && (
-                        <div className="text-xs font-semibold text-primary mb-2">MOST POPULAR</div>
+                        <div className="text-xs font-semibold text-primary mb-2">
+                          {t("advertise.plans.mostPopularBadge")}
+                        </div>
                       )}
                       <div className="flex items-center gap-3 mb-2">
                         <IconComponent className="h-8 w-8 text-primary" />
-                        <CardTitle>{plan.name}</CardTitle>
+                        <CardTitle>{name}</CardTitle>
                       </div>
-                      <CardDescription className="text-2xl font-bold text-primary">{plan.price}</CardDescription>
+                      <CardDescription className="text-2xl font-bold text-primary">
+                        {price}
+                      </CardDescription>
                       <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
                         <Clock className="w-4 h-4" />
-                        <span>{plan.duration}</span>
+                        <span>{duration}</span>
                       </div>
                     </CardHeader>
                     <CardContent>
                       <ul className="space-y-3">
-                        {plan.features.map((feature, index) => (
+                        {plan.featureKeys.map((featureKey, index) => (
                           <li key={index} className="flex items-start gap-2 text-sm">
                             <span className="text-primary mt-0.5">✓</span>
-                            <span>{feature}</span>
+                            <span>{t(featureKey)}</span>
                           </li>
                         ))}
                       </ul>
                       {isSelected && (
                         <div className="mt-4 p-2 bg-primary/10 rounded-lg text-center text-sm font-medium text-primary">
-                          Selected
+                          {t("advertise.form.selectedIndicator")}
                         </div>
                       )}
                     </CardContent>
@@ -681,7 +726,7 @@ const AdvertiseForm = () => {
 
             <div className="text-center mb-8">
               <p className="text-sm text-muted-foreground mb-6">
-                All plans include detailed analytics and dedicated support. You only pay after your application is approved.
+                {t("advertise.plans.notice")}
               </p>
             </div>
           </div>
@@ -694,18 +739,17 @@ const AdvertiseForm = () => {
           <div className="mx-auto max-w-3xl">
             <div className="text-center mb-8">
               <h2 className="text-3xl md:text-4xl font-bold tracking-tight mb-4">
-                Start Advertising Today
+                {t("advertise.form.title")}
               </h2>
               <p className="text-muted-foreground">
-                Fill out the form below. Our team will review your application and contact you within 24-48 hours. 
-                <strong className="text-primary"> You only pay after approval!</strong>
+                {t("advertise.form.subtitle")}
               </p>
             </div>
 
             <Card className="shadow-elegant">
               <CardHeader>
-                <CardTitle>Advertising Application</CardTitle>
-                <CardDescription>Tell us about your organization and advertising goals</CardDescription>
+                <CardTitle>{t("advertise.form.cardTitle")}</CardTitle>
+                <CardDescription>{t("advertise.form.cardDescription")}</CardDescription>
               </CardHeader>
               <CardContent>
                 {/* Authentication Check */}
@@ -714,15 +758,17 @@ const AdvertiseForm = () => {
                     <div className="flex items-start gap-3">
                       <LogIn className="h-5 w-5 text-yellow-600 mt-0.5" />
                       <div className="flex-1">
-                        <h4 className="font-semibold text-yellow-900 mb-1">Login Required</h4>
+                        <h4 className="font-semibold text-yellow-900 mb-1">
+                          {t("advertise.form.loginRequiredTitle")}
+                        </h4>
                         <p className="text-sm text-yellow-800 mb-3">
-                          You must be logged in to submit an advertising application. This helps us track your submissions and send you real-time updates.
+                          {t("advertise.form.loginRequiredBody")}
                         </p>
                         <Button
                           onClick={() => setAuthDialogOpen(true)}
                           className="bg-yellow-600 hover:bg-yellow-700 text-white"
                         >
-                          Log In to Continue
+                          {t("advertise.form.loginButton")}
                         </Button>
                       </div>
                     </div>
@@ -735,7 +781,9 @@ const AdvertiseForm = () => {
                     <div className="flex items-start gap-3">
                       <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
                       <div className="flex-1">
-                        <h4 className="font-semibold text-red-900 mb-1">Submission Limit Reached</h4>
+                        <h4 className="font-semibold text-red-900 mb-1">
+                          {t("advertise.errors.limitReachedTitle")}
+                        </h4>
                         <p className="text-sm text-red-800">
                           {rateLimitCheck.reason}
                         </p>
@@ -747,10 +795,12 @@ const AdvertiseForm = () => {
                 <form onSubmit={handleSubmit} className="space-y-5">
                   {/* Company Info */}
                   <div className="space-y-2">
-                    <Label htmlFor="companyName">Company Name *</Label>
+                    <Label htmlFor="companyName">
+                      {t("advertise.form.companyNameLabel")}
+                    </Label>
                     <Input
                       id="companyName"
-                      placeholder="Your Company Name"
+                      placeholder={t("advertise.form.companyNamePlaceholder")}
                       value={formData.companyName}
                       onChange={(e) => handleInputChange('companyName', e.target.value)}
                       required
@@ -759,10 +809,12 @@ const AdvertiseForm = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="contactName">Contact Person *</Label>
+                    <Label htmlFor="contactName">
+                      {t("advertise.form.contactNameLabel")}
+                    </Label>
                     <Input
                       id="contactName"
-                      placeholder="Full Name"
+                      placeholder={t("advertise.form.contactNamePlaceholder")}
                       value={formData.contactName}
                       onChange={(e) => handleInputChange('contactName', e.target.value)}
                       required
@@ -772,11 +824,13 @@ const AdvertiseForm = () => {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div className="space-y-2">
-                      <Label htmlFor="email">Email Address *</Label>
+                      <Label htmlFor="email">
+                        {t("advertise.form.emailLabel")}
+                      </Label>
                       <Input
                         id="email"
                         type="email"
-                        placeholder="contact@company.com"
+                        placeholder={t("advertise.form.emailPlaceholder")}
                         value={formData.email}
                         onChange={(e) => handleInputChange('email', e.target.value)}
                         required
@@ -785,11 +839,13 @@ const AdvertiseForm = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="phone">Phone Number</Label>
+                      <Label htmlFor="phone">
+                        {t("advertise.form.phoneLabel")}
+                      </Label>
                       <Input
                         id="phone"
                         type="tel"
-                        placeholder="+1 (555) 000-0000"
+                        placeholder={t("advertise.form.phonePlaceholder")}
                         value={formData.phone}
                         onChange={(e) => handleInputChange('phone', e.target.value)}
                         disabled={isSubmitting}
@@ -798,11 +854,13 @@ const AdvertiseForm = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="website">Website URL</Label>
+                    <Label htmlFor="website">
+                      {t("advertise.form.websiteLabel")}
+                    </Label>
                     <Input
                       id="website"
                       type="url"
-                      placeholder="https://yourcompany.com"
+                      placeholder={t("advertise.form.websitePlaceholder")}
                       value={formData.website}
                       onChange={(e) => handleInputChange('website', e.target.value)}
                       disabled={isSubmitting}
@@ -810,10 +868,12 @@ const AdvertiseForm = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="description">Advertising Goals & Description</Label>
+                    <Label htmlFor="description">
+                      {t("advertise.form.descriptionLabel")}
+                    </Label>
                     <Textarea
                       id="description"
-                      placeholder="Tell us about your products/services and what you hope to achieve through advertising on OutbreakNow..."
+                      placeholder={t("advertise.form.descriptionPlaceholder")}
                       rows={4}
                       value={formData.description}
                       onChange={(e) => handleInputChange('description', e.target.value)}
@@ -825,18 +885,20 @@ const AdvertiseForm = () => {
                   <div className="border-t pt-5 mt-5">
                     <h3 className="font-semibold mb-4 flex items-center gap-2">
                       <Eye className="w-5 h-5 text-primary" />
-                      Ad Content (Optional)
+                      {t("advertise.form.adContentTitle")}
                     </h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      You can provide ad content now or after approval. Our team can help create your ad if needed.
+                      {t("advertise.form.adContentBody")}
                     </p>
                     
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <Label htmlFor="adTitle">Ad Title</Label>
+                        <Label htmlFor="adTitle">
+                          {t("advertise.form.adTitleLabel")}
+                        </Label>
                         <Input
                           id="adTitle"
-                          placeholder="Your ad headline"
+                          placeholder={t("advertise.form.adTitlePlaceholder")}
                           value={formData.adTitle}
                           onChange={(e) => handleInputChange('adTitle', e.target.value)}
                           disabled={isSubmitting}
@@ -844,7 +906,9 @@ const AdvertiseForm = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="adImage">Ad Image (Optional)</Label>
+                        <Label htmlFor="adImage">
+                          {t("advertise.form.adImageLabel")}
+                        </Label>
                         <div className="flex items-center gap-3">
                           <Input
                             id="adImage"
@@ -861,12 +925,12 @@ const AdvertiseForm = () => {
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          Upload your ad image (JPG, PNG, or WebP, Max 5MB). This will be displayed on the map. If not provided, a default image will be used.
+                          {t("advertise.form.adImageHelp")}
                         </p>
                         {formData.adImage && (
                           <div className="mt-2">
                             <p className="text-sm text-primary mb-2">
-                              Selected: {formData.adImage.name}
+                              {t("advertise.form.selectedFile", { name: formData.adImage.name })}
                             </p>
                             <div className="relative w-full h-32 border rounded-lg overflow-hidden">
                               <img
@@ -879,7 +943,9 @@ const AdvertiseForm = () => {
                         )}
                         {formData.adImageUrl && !formData.adImage && (
                           <div className="mt-2">
-                            <p className="text-xs text-muted-foreground mb-2">Or enter image URL:</p>
+                            <p className="text-xs text-muted-foreground mb-2">
+                              {t("advertise.form.imageUrlLabel")}
+                            </p>
                             <Input
                               placeholder="https://example.com/image.jpg"
                               value={formData.adImageUrl}
@@ -891,11 +957,13 @@ const AdvertiseForm = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="adClickUrl">Click-through URL</Label>
+                        <Label htmlFor="adClickUrl">
+                          {t("advertise.form.clickUrlLabel")}
+                        </Label>
                         <Input
                           id="adClickUrl"
                           type="url"
-                          placeholder="https://yourcompany.com/landing-page"
+                          placeholder={t("advertise.form.clickUrlPlaceholder")}
                           value={formData.adClickUrl}
                           onChange={(e) => handleInputChange('adClickUrl', e.target.value)}
                           disabled={isSubmitting}
@@ -905,11 +973,11 @@ const AdvertiseForm = () => {
                       <div className="space-y-2">
                         <Label htmlFor="adLocation" className="flex items-center gap-2">
                           <MapPin className="w-4 h-4" />
-                          Display Location Text
+                          {t("advertise.form.locationLabel")}
                         </Label>
                         <Input
                           id="adLocation"
-                          placeholder="Global (or specific region)"
+                          placeholder={t("advertise.form.locationPlaceholder")}
                           value={formData.adLocation}
                           onChange={(e) => handleInputChange('adLocation', e.target.value)}
                           disabled={isSubmitting}
@@ -920,7 +988,7 @@ const AdvertiseForm = () => {
 
                   {/* Plan Selection */}
                   <div className="space-y-3 border-t pt-5">
-                    <Label>Select Advertising Plan *</Label>
+                    <Label>{t("advertise.form.planLabel")}</Label>
                     <RadioGroup
                       value={formData.selectedPlan}
                       onValueChange={(value) => handleInputChange('selectedPlan', value)}
@@ -949,7 +1017,10 @@ const AdvertiseForm = () => {
                     
                     {selectedPlanDetails && (
                       <div className="bg-muted/50 rounded-lg p-4 mt-3">
-                        <p className="text-sm font-medium mb-2">Selected: {selectedPlanDetails.name}</p>
+                        <p className="text-sm font-medium mb-2">
+                          {t("advertise.form.selectedPlanPrefix")}{" "}
+                          {t(`advertise.plans.${selectedPlanDetails.id}.name`)}
+                        </p>
                         <ul className="text-xs text-muted-foreground space-y-1">
                           {selectedPlanDetails.features.slice(0, 3).map((f, i) => (
                             <li key={i}>• {f}</li>
@@ -961,7 +1032,9 @@ const AdvertiseForm = () => {
 
                   {/* Document Upload */}
                   <div className="space-y-2">
-                    <Label htmlFor="document">Upload Advertisement Document</Label>
+                    <Label htmlFor="document">
+                      {t("advertise.form.documentLabel")}
+                    </Label>
                     <div className="flex items-center gap-3">
                       <Input
                         id="document"
@@ -978,11 +1051,11 @@ const AdvertiseForm = () => {
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Accepted formats: PDF, DOC, DOCX, JPG, PNG (Max 10MB)
+                      {t("advertise.form.documentHelp")}
                     </p>
                     {formData.document && (
                       <p className="text-sm text-primary">
-                        Selected: {formData.document.name}
+                        {t("advertise.form.selectedFile", { name: formData.document.name })}
                       </p>
                     )}
                   </div>
@@ -997,20 +1070,20 @@ const AdvertiseForm = () => {
                     {!user ? (
                       <>
                         <LogIn className="mr-2 h-4 w-4" />
-                        Log In to Submit
+                        {t("advertise.form.submitLogin")}
                       </>
                     ) : isSubmitting ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Submitting Application...
+                        {t("advertise.form.submitting")}
                       </>
                     ) : (
-                      'Submit Advertising Application'
+                      t("advertise.form.submit")
                     )}
                   </Button>
 
                   <p className="text-xs text-center text-muted-foreground">
-                    By submitting, you agree to our terms of service. You will only be charged after your application is approved.
+                    {t("advertise.form.submitDisclaimer")}
                   </p>
                 </form>
               </CardContent>

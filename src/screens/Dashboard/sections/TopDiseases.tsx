@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader } from "../../../components/ui/card";
 import { Badge } from "../../../components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { useDashboardDiseases } from "../../../lib/useDashboardDiseases";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 interface TopDiseasesProps {
   timeRange: string;
@@ -10,15 +11,16 @@ interface TopDiseasesProps {
   countryId?: string | null;
 }
 
-const severityConfig = {
-  critical: { label: "Critical", bg: "bg-[#f8717133]", text: "text-[#f87171]" },
-  high: { label: "High", bg: "bg-[#fbbf2433]", text: "text-[#fbbf24]" },
-  medium: { label: "Medium", bg: "bg-[#66dbe133]", text: "text-[#66dbe1]" },
-  low: { label: "Low", bg: "bg-[#4ade8033]", text: "text-[#4ade80]" },
-};
-
 export const TopDiseases = ({ timeRange, searchQuery = "", countryId }: TopDiseasesProps): JSX.Element => {
   const { diseases, loading, error } = useDashboardDiseases(timeRange, countryId);
+  const { t } = useLanguage();
+
+  const severityConfig = {
+    critical: { label: t("dashboard.critical"), bg: "bg-[#f8717133]", text: "text-[#f87171]" },
+    high: { label: t("dashboard.high"), bg: "bg-[#fbbf2433]", text: "text-[#fbbf24]" },
+    medium: { label: t("dashboard.medium"), bg: "bg-[#66dbe133]", text: "text-[#66dbe1]" },
+    low: { label: t("dashboard.low"), bg: "bg-[#4ade8033]", text: "text-[#4ade80]" },
+  };
 
   // Filter diseases based on search query
   const filteredDiseases = React.useMemo(() => {
@@ -35,7 +37,7 @@ export const TopDiseases = ({ timeRange, searchQuery = "", countryId }: TopDisea
       <Card className="bg-[#ffffff14] border-[#eaebf024]">
         <CardContent className="p-6">
           <p className="[font-family:'Roboto',Helvetica] font-medium text-[#f87171] text-sm">
-            Error loading diseases: {error}
+            {t("dashboard.errorLoadingDiseases", { error })}
           </p>
         </CardContent>
       </Card>
@@ -43,16 +45,16 @@ export const TopDiseases = ({ timeRange, searchQuery = "", countryId }: TopDisea
   }
 
   return (
-    <Card className="bg-[#ffffff14] border-[#eaebf024]">
+    <Card className="bg-[#ffffff14] border-[#eaebf024]" style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
       <CardHeader className="pb-4">
         <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-lg">
-          Top Active Diseases
+          {t("dashboard.topActiveDiseases")}
         </h3>
         <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm mt-1">
-          Ranked by number of outbreak reports
+          {t("dashboard.rankedByReports")}
         </p>
       </CardHeader>
-      <CardContent>
+      <CardContent style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
         {loading ? (
           <div className="flex items-center justify-center h-[350px]">
             <Loader2 className="w-6 h-6 text-[#66dbe1] animate-spin" />
@@ -60,7 +62,7 @@ export const TopDiseases = ({ timeRange, searchQuery = "", countryId }: TopDisea
         ) : filteredDiseases.length === 0 ? (
           <div className="flex items-center justify-center h-[350px]">
             <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm">
-              {searchQuery ? `No diseases found for "${searchQuery}"` : "No disease data available"}
+              {searchQuery ? t("dashboard.noDiseasesFound", { query: searchQuery }) : t("dashboard.noDiseaseData")}
             </p>
           </div>
         ) : (
@@ -80,7 +82,7 @@ export const TopDiseases = ({ timeRange, searchQuery = "", countryId }: TopDisea
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="[font-family:'Roboto',Helvetica] font-medium text-[#ebebeb99] text-xs">
-                        {(disease.reports || disease.cases).toLocaleString()} reports
+                        {(disease.reports || disease.cases).toLocaleString()} {t("dashboard.reports")}
                       </span>
                       <span className={`[font-family:'Roboto',Helvetica] font-medium text-xs ${disease.growth.startsWith('+') || disease.growth === 'New' ? 'text-[#f87171]' : 'text-[#4ade80]'}`}>
                         {disease.growth}

@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader } from "../../../components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { useRegionalRiskLevels } from "../../../lib/useRegionalRiskLevels";
 import { Loader2, AlertCircle } from "lucide-react";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 const REGION_COLORS: Record<string, string> = {
   "Africa": "#f87171",
@@ -24,6 +25,7 @@ interface RegionalBreakdownProps {
 
 export const RegionalBreakdown = ({ timeRange = "30d", countryId }: RegionalBreakdownProps): JSX.Element => {
   const { data, loading, error } = useRegionalRiskLevels(timeRange, countryId);
+  const { t } = useLanguage();
 
   const chartData = useMemo(() => {
     if (!data || data.length === 0) return [];
@@ -46,17 +48,17 @@ export const RegionalBreakdown = ({ timeRange = "30d", countryId }: RegionalBrea
       <Card className="bg-[#ffffff14] border-[#eaebf024]">
         <CardHeader className="pb-4">
           <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-lg">
-            Regional Distribution
+            {t("dashboard.regionalDistribution")}
           </h3>
           <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm mt-1">
-            Outbreak cases by continent
+            {t("dashboard.outbreakCasesByContinent")}
           </p>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center h-[300px]">
             <Loader2 className="w-6 h-6 text-[#66dbe1] animate-spin" />
             <span className="ml-2 [font-family:'Roboto',Helvetica] font-normal text-[#ebebeb] text-sm">
-              Loading data...
+              {t("common.loading")}
             </span>
           </div>
         </CardContent>
@@ -69,10 +71,10 @@ export const RegionalBreakdown = ({ timeRange = "30d", countryId }: RegionalBrea
       <Card className="bg-[#ffffff14] border-[#eaebf024]">
         <CardHeader className="pb-4">
           <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-lg">
-            Regional Distribution
+            {t("dashboard.regionalDistribution")}
           </h3>
           <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm mt-1">
-            Outbreak cases by continent
+            {t("dashboard.outbreakCasesByContinent")}
           </p>
         </CardHeader>
         <CardContent>
@@ -92,16 +94,16 @@ export const RegionalBreakdown = ({ timeRange = "30d", countryId }: RegionalBrea
       <Card className="bg-[#ffffff14] border-[#eaebf024]">
         <CardHeader className="pb-4">
           <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-lg">
-            Regional Distribution
+            {t("dashboard.regionalDistribution")}
           </h3>
           <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm mt-1">
-            Outbreak cases by continent
+            {t("dashboard.outbreakCasesByContinent")}
           </p>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-center h-[300px] text-[#ebebeb99]">
             <span className="[font-family:'Roboto',Helvetica] font-normal text-sm">
-              No data available
+              {t("dashboard.noDataAvailable")}
             </span>
           </div>
         </CardContent>
@@ -110,17 +112,18 @@ export const RegionalBreakdown = ({ timeRange = "30d", countryId }: RegionalBrea
   }
 
   return (
-    <Card className="bg-[#ffffff14] border-[#eaebf024]">
+    <Card className="bg-[#ffffff14] border-[#eaebf024]" style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
       <CardHeader className="pb-4">
         <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-lg">
-          Regional Distribution
+          {t("dashboard.regionalDistribution")}
         </h3>
         <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm mt-1">
-          Outbreak cases by continent
+          {t("dashboard.outbreakCasesByContinent")}
         </p>
       </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={300}>
+      <CardContent style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
+        <div style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
+          <ResponsiveContainer width="100%" height={300}>
           <PieChart>
             <Pie
               data={chartData}
@@ -146,21 +149,22 @@ export const RegionalBreakdown = ({ timeRange = "30d", countryId }: RegionalBrea
               labelStyle={{ color: '#ffffff' }}
               formatter={(value: number, name: string, props: any) => {
                 return [
-                  `${value} outbreaks${props.payload.totalCases > 0 ? ` (${props.payload.totalCases.toLocaleString()} cases)` : ''}`,
+                  `${value} ${t("dashboard.outbreaks")}${props.payload.totalCases > 0 ? ` (${props.payload.totalCases.toLocaleString()} ${t("dashboard.cases")})` : ''}`,
                   name
                 ];
               }}
             />
-          </PieChart>
-        </ResponsiveContainer>
-        <div className="mt-4 grid grid-cols-2 gap-3">
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="mt-4 grid grid-cols-2 gap-3" style={{ width: '100%', maxWidth: '100%' }}>
           {chartData.map((region, index) => (
-            <div key={index} className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: region.color }} />
-              <span className="[font-family:'Roboto',Helvetica] font-medium text-[#ebebeb] text-sm">
+            <div key={index} className="flex items-center gap-2" style={{ minWidth: 0, overflow: 'hidden' }}>
+              <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: region.color }} />
+              <span className="[font-family:'Roboto',Helvetica] font-medium text-[#ebebeb] text-sm truncate">
                 {region.name}
               </span>
-              <span className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-sm ml-auto">
+              <span className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-sm ml-auto flex-shrink-0">
                 {region.percentage}%
               </span>
             </div>

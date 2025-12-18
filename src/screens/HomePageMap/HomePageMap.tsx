@@ -33,6 +33,7 @@ export const HomePageMap = (): JSX.Element => {
   const { isFullscreen: isMapFullscreen, setIsFullscreen: setIsMapFullscreen } = useFullscreen();
   const mapContainerRef = React.useRef<HTMLDivElement>(null);
   const [categoryTop, setCategoryTop] = React.useState<string>('820px');
+  const [adsTop, setAdsTop] = React.useState<string>('calc(100vh - 136px)');
   const [isDialogOpen, setIsDialogOpen] = React.useState(false);
   const [showLocationNotification, setShowLocationNotification] = React.useState(false);
   const [showLocationError, setShowLocationError] = React.useState(true);
@@ -933,9 +934,67 @@ export const HomePageMap = (): JSX.Element => {
     };
   }, [isMapFullscreen, isMobile]); // Recalculate when fullscreen or mobile changes
 
+  // Calculate ads position relative to map container bottom (Desktop only)
+  React.useEffect(() => {
+    if (isMapFullscreen || isMobile) {
+      return;
+    }
+
+    const updateAdsPosition = () => {
+      const mapContainer = mapContainerRef.current;
+      if (!mapContainer) {
+        setAdsTop('calc(100vh - 136px)');
+        return;
+      }
+
+      const mapRect = mapContainer.getBoundingClientRect();
+      const containerRect = mapContainer.parentElement?.getBoundingClientRect();
+      if (!containerRect) {
+        setAdsTop('calc(100vh - 136px)');
+        return;
+      }
+
+      // Calculate position: map bottom + 24px spacing
+      const mapBottom = mapRect.bottom - containerRect.top;
+      const newTop = mapBottom + 24; // 24px gap below map
+      
+      setAdsTop(`${newTop}px`);
+    };
+
+    // Initial calculation
+    updateAdsPosition();
+    
+    // Update on window resize
+    window.addEventListener('resize', updateAdsPosition);
+    
+    // Update after delays to account for map rendering and transitions
+    const timeoutIds = [
+      setTimeout(updateAdsPosition, 100),
+      setTimeout(updateAdsPosition, 600), // After transition completes
+      setTimeout(updateAdsPosition, 1000), // Extra delay to ensure map is fully rendered
+    ];
+
+    // Use ResizeObserver to watch for map container size changes
+    let resizeObserver: ResizeObserver | null = null;
+    if (mapContainerRef.current) {
+      resizeObserver = new ResizeObserver(() => {
+        updateAdsPosition();
+      });
+      resizeObserver.observe(mapContainerRef.current);
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateAdsPosition);
+      timeoutIds.forEach(id => clearTimeout(id));
+      if (resizeObserver && mapContainerRef.current) {
+        resizeObserver.unobserve(mapContainerRef.current);
+      }
+    };
+  }, [isMapFullscreen, isMobile]); // Recalculate when fullscreen or mobile changes
+
   return (
-    <div className={`bg-[#2a4149] relative ${isMapFullscreen ? 'fixed inset-0 w-full h-full overflow-hidden z-[2000]' : isMobile ? 'absolute inset-0 w-full h-screen overflow-hidden' : ''}`}>
-      <div className={`relative w-full ${isMobile ? 'h-screen' : ''} ${isMobile ? '' : 'lg:min-w-[1280px]'}`} style={{ minHeight: isMobile ? '100vh' : 'calc(100vh - 60px)', paddingBottom: isMobile ? '0' : '200px', marginBottom: isMobile ? '0' : '40px' }}>
+    <div className={`bg-[#2a4149] relative ${isMapFullscreen ? 'fixed inset-0 w-full h-full overflow-hidden z-[2000]' : isMobile ? 'absolute inset-0 w-full h-screen overflow-hidden' : 'min-h-screen'}`}>
+      <div className={`relative w-full ${isMobile ? 'h-screen' : ''} ${isMobile ? '' : 'lg:min-w-[1280px]'}`} style={{ minHeight: isMobile ? '100vh' : 'calc(100vh + 320px)', paddingBottom: isMobile ? '0' : '320px', marginBottom: isMobile ? '0' : '0px' }}>
         {/* Location Detection Notification */}
         {showLocationNotification && location && (
           <div className={`absolute ${isMobile ? 'top-16' : 'top-20'} left-1/2 transform -translate-x-1/2 z-[1100] bg-[#67DBE2] text-[#2a4149] px-3 py-2 ${isMobile ? 'text-xs' : 'px-4 py-3'} rounded-lg shadow-lg flex items-center gap-2 ${isMobile ? 'max-w-[90vw]' : ''} animate-in fade-in slide-in-from-top-2 duration-300`}>
@@ -1408,7 +1467,7 @@ export const HomePageMap = (): JSX.Element => {
           ref={mapContainerRef}
           className={`${
             isMobile 
-              ? 'absolute top-0 left-0 right-0 bottom-0 w-full h-full rounded-none z-10' 
+              ? 'absolute left-0 right-0 w-full rounded-none z-10' 
               : 'absolute rounded-[12px] z-[1000] overflow-hidden shadow-2xl border border-[#67DBE2]/20 transition-all duration-500 ease-in-out'
           } ${
             isMapFullscreen 
@@ -1417,7 +1476,15 @@ export const HomePageMap = (): JSX.Element => {
                 ? ''
                 : 'top-[190px] left-[90px] w-[calc(100vw-550px)] h-[calc(100vh-350px)] min-w-[750px] min-h-[650px]'
           }`}
-          style={isMobile ? { 
+          style={isMobile && !isMapFullscreen ? { 
+            position: 'absolute', 
+            top: '160px', 
+            left: 0, 
+            right: 0, 
+            bottom: 0, 
+            width: '100%',
+            zIndex: 10
+          } : isMobile && isMapFullscreen ? {
             position: 'absolute', 
             top: 0, 
             left: 0, 
@@ -1444,6 +1511,70 @@ export const HomePageMap = (): JSX.Element => {
               )}
             </button>
           )}
+
+          {/* Desktop Near Me Controls - anchored inline with map controls */}
+          {location?.coordinates && !isMobile && (
+            <div
+              className={`hidden lg:flex absolute z-[1300] items-center gap-2 bg-[#23313c]/90 backdrop-blur-sm border border-[#EAEBF024] rounded-md px-3 py-2 transition-opacity duration-300 ${
+                isMapFullscreen || isDialogOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'
+              }`}
+              style={{
+                top: '12px',
+                left: '120px', // align near the points count badge for tighter grouping
+              }}
+            >
+              <label className="[font-family:'Roboto',Helvetica] text-xs font-semibold text-white whitespace-nowrap">
+                Near Me:
+              </label>
+              <select
+                value={nearMeRadius}
+                onChange={(e) => {
+                  const newRadius = Number(e.target.value);
+                  setNearMeRadius(newRadius);
+                  // If a category is currently selected, update the radius in the filter
+                  if (nearMeCategory && location?.coordinates) {
+                    setFilters(prev => ({
+                      ...prev,
+                      nearMe: {
+                        coordinates: location.coordinates,
+                        radiusKm: newRadius,
+                      },
+                    }));
+                  } else {
+                    // Clear near me category selection when radius changes and no category selected
+                    setNearMeCategory(null);
+                    handleNearMeCategoryChange(null);
+                  }
+                }}
+                className="bg-[#23313c] border border-[#EAEBF024] text-white text-xs h-7 px-2 rounded-md focus:outline-none focus:ring-2 focus:ring-[#67DBE2]/50 [&>option]:bg-[#23313c] [&>option]:text-white"
+                style={{ minWidth: '100px' }}
+              >
+                <option value={100}>100 km</option>
+                <option value={500}>500 km</option>
+                <option value={1000}>1000 km</option>
+                <option value={5000}>5000 km</option>
+              </select>
+              <select
+                value={nearMeCategory || ""}
+                onChange={(e) => handleNearMeCategoryChange(e.target.value || null)}
+                disabled={nearbyCategories.length === 0}
+                className="bg-[#23313c] border border-[#EAEBF024] text-white text-xs h-7 px-2 rounded-md focus:outline-none focus:ring-2 focus:ring-[#67DBE2]/50 [&>option]:bg-[#23313c] [&>option]:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ minWidth: '200px' }}
+              >
+                <option value="">
+                  {nearbyCategories.length === 0 
+                    ? location ? "No outbreaks nearby" : "Loading location..."
+                    : `Select category (${nearbyCategories.length} available)`}
+                </option>
+                {nearbyCategories.map((category) => (
+                  <option key={category} value={category}>
+                    {category}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <InteractiveMap 
             filters={filters}
             isFullscreen={isMapFullscreen || isMobile}
@@ -1470,14 +1601,13 @@ export const HomePageMap = (): JSX.Element => {
         {/* Premium Ads Section - Below Map */}
         {!isMapFullscreen && !isMobile && (
           <div 
-            className="absolute z-[900] transition-opacity duration-300 overflow-visible" 
+            className="hidden lg:block absolute z-[1400] transition-opacity duration-300 overflow-visible"
             style={{ 
-              top: 'calc(160px + calc(100vh - 320px) + 25px)',
+              top: adsTop, // Dynamically calculated based on map container bottom
               left: '90px',
               right: '260px',
               width: 'calc(100vw - 550px)',
               minWidth: '750px',
-              marginBottom: '20px',
               paddingRight: '0',
             }}
           >
@@ -1486,79 +1616,31 @@ export const HomePageMap = (): JSX.Element => {
         )}
 
         {/* News Section - Right Sidebar - Desktop Only */}
-        <div className={`hidden lg:block absolute top-[160px] z-[1000] transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} style={{ left: 'calc(90px + min(calc(100vw - 550px), calc(100vw - 260px)) + 10px)', width: '240px' }}>
+        <div 
+          className={`hidden lg:block absolute z-[1000] transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} 
+          style={{ 
+            // Align the top of the outbreak news section with the map container on laptop/desktop
+            top: '190px',
+            left: 'calc(90px + min(calc(100vw - 550px), calc(100vw - 260px)) + 10px)', 
+            width: '240px' 
+          }}
+        >
           <NewsSection />
         </div>
 
         {/* Sponsored Section - Right Sidebar, Below News - Desktop Only */}
-        <div className={`hidden lg:block absolute top-[560px] z-[1000] transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} style={{ left: 'calc(90px + min(calc(100vw - 550px), calc(100vw - 260px)) + 10px)', width: '240px' }}>
+        <div 
+          className={`hidden lg:block absolute z-[1000] transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} 
+          style={{ 
+            // Position below the news section with extra spacing so they aren't visually attached
+            top: '580px', 
+            left: 'calc(90px + min(calc(100vw - 550px), calc(100vw - 260px)) + 10px)', 
+            width: '240px' 
+          }}
+        >
           <SponsoredSection />
         </div>
 
-        {/* Categories Near Me Dropdown - Above Category Icons - Desktop Only */}
-        {location?.coordinates && !isMobile && (
-          <div 
-            className={`hidden lg:absolute z-[1000] transition-all duration-300 ${isMapFullscreen || isDialogOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-            style={{
-              top: isMapFullscreen ? 'auto' : `calc(${categoryTop} - 60px)`,
-              left: '300px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-            }}
-          >
-            <label className="[font-family:'Roboto',Helvetica] text-xs font-semibold text-white whitespace-nowrap">
-              Show Outbreaks Near My Location:
-            </label>
-            <select
-              value={nearMeRadius}
-              onChange={(e) => {
-                const newRadius = Number(e.target.value);
-                setNearMeRadius(newRadius);
-                // If a category is currently selected, update the radius in the filter
-                if (nearMeCategory && location?.coordinates) {
-                  setFilters(prev => ({
-                    ...prev,
-                    nearMe: {
-                      coordinates: location.coordinates,
-                      radiusKm: newRadius,
-                    },
-                  }));
-                } else {
-                  // Clear near me category selection when radius changes and no category selected
-                  setNearMeCategory(null);
-                  handleNearMeCategoryChange(null);
-                }
-              }}
-              className="bg-[#23313c] border border-[#EAEBF024] text-white text-xs h-7 px-2 rounded-md focus:outline-none focus:ring-2 focus:ring-[#67DBE2]/50 [&>option]:bg-[#23313c] [&>option]:text-white"
-              style={{ minWidth: '100px' }}
-            >
-              <option value={100}>100 km</option>
-              <option value={500}>500 km</option>
-              <option value={1000}>1000 km</option>
-              <option value={5000}>5000 km</option>
-            </select>
-            <select
-              value={nearMeCategory || ""}
-              onChange={(e) => handleNearMeCategoryChange(e.target.value || null)}
-              disabled={nearbyCategories.length === 0}
-              className="bg-[#23313c] border border-[#EAEBF024] text-white text-xs h-7 px-2 rounded-md focus:outline-none focus:ring-2 focus:ring-[#67DBE2]/50 [&>option]:bg-[#23313c] [&>option]:text-white disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ minWidth: '200px' }}
-            >
-              <option value="">
-                {nearbyCategories.length === 0 
-                  ? location ? "No outbreaks nearby" : "Loading location..."
-                  : `Select category (${nearbyCategories.length} available)`}
-              </option>
-              {nearbyCategories.map((category) => (
-                <option key={category} value={category}>
-                  {category}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-        
         {/* Mobile Near Me Controls */}
         {location?.coordinates && isMobile && !isMapFullscreen && (
           <div className="absolute bottom-20 left-2 right-2 z-[1000] bg-[#23313c] border border-[#EAEBF024] rounded-lg p-3 space-y-2 lg:hidden">
@@ -1617,7 +1699,7 @@ export const HomePageMap = (): JSX.Element => {
           <div 
             className={`absolute bottom-0 left-0 right-0 z-[1000] transition-all duration-300 ${isDialogOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'} bg-[#2a4149]/95 backdrop-blur-sm`}
             style={{
-              maxHeight: '60vh',
+              maxHeight: '40vh',
               display: 'flex',
               flexDirection: 'column',
             }}
@@ -1626,8 +1708,7 @@ export const HomePageMap = (): JSX.Element => {
             <div 
               className="overflow-y-auto flex-shrink-0 border-t border-[#67DBE2]/20"
               style={{
-                maxHeight: '60vh',
-                minHeight: '500px',
+                maxHeight: '40vh',
               }}
             >
               {/* Two-column layout: Sponsored (left) and News (right) */}

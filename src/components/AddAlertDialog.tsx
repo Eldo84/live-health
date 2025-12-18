@@ -104,6 +104,10 @@ export const AddAlertDialog: React.FC<AddAlertDialogProps> = ({ open, onOpenChan
     setSuccess(false);
 
     try {
+      if (!user) {
+        throw new Error("You must be logged in to submit an alert");
+      }
+
       // Determine the disease name
       const diseaseName = values.disease === "custom" 
         ? values.customDisease!.trim() 
@@ -111,6 +115,23 @@ export const AddAlertDialog: React.FC<AddAlertDialogProps> = ({ open, onOpenChan
 
       if (!diseaseName) {
         throw new Error("Invalid disease selection");
+      }
+
+      // Get disease ID if it exists
+      let diseaseId: string | null = null;
+      if (values.disease !== "custom") {
+        diseaseId = values.disease;
+      } else {
+        // Check if custom disease already exists
+        const { data: existingDisease } = await supabase
+          .from("diseases")
+          .select("id")
+          .eq("name", diseaseName)
+          .maybeSingle();
+        
+        if (existingDisease) {
+          diseaseId = existingDisease.id;
+        }
       }
 
       // Geocode location
@@ -136,104 +157,7 @@ export const AddAlertDialog: React.FC<AddAlertDialogProps> = ({ open, onOpenChan
         throw new Error("Could not geocode the location. Please provide a more specific location (e.g., 'New York, USA' or 'London, UK').");
       }
 
-      // Get or create news source (use a default "User Submitted" source)
-      let sourceId: string;
-      const { data: existingSource } = await supabase
-        .from("news_sources")
-        .select("id")
-        .eq("name", "User Submitted")
-        .maybeSingle();
-
-      if (existingSource) {
-        sourceId = existingSource.id;
-      } else {
-        const { data: newSource, error: sourceError } = await supabase
-          .from("news_sources")
-          .insert({
-            name: "User Submitted",
-            url: null,
-            type: "user_submission",
-            reliability_score: 0.7,
-            is_active: true,
-          })
-          .select("id")
-          .single();
-
-        if (sourceError || !newSource) {
-          throw new Error("Failed to create news source");
-        }
-        sourceId = newSource.id;
-      }
-
-      // Get or create news article
-      const publishedDate = new Date(values.date);
-      const { data: existingArticle } = await supabase
-        .from("news_articles")
-        .select("id")
-        .eq("url", values.url)
-        .maybeSingle();
-
-      let articleId: string;
-      if (existingArticle) {
-        articleId = existingArticle.id;
-      } else {
-        const locationData = {
-          country: countryName || values.location,
-          lat: coordinates[0],
-          lng: coordinates[1],
-        };
-
-        const { data: newArticle, error: articleError } = await supabase
-          .from("news_articles")
-          .insert({
-            source_id: sourceId,
-            title: values.headline,
-            content: values.description,
-            url: values.url,
-            published_at: publishedDate.toISOString(),
-            location_extracted: locationData,
-            diseases_mentioned: [diseaseName.toLowerCase()],
-            sentiment_score: -0.5, // Default neutral-negative for user submissions
-            is_verified: false,
-          })
-          .select("id")
-          .single();
-
-        if (articleError || !newArticle) {
-          throw new Error("Failed to create news article: " + (articleError?.message || "Unknown error"));
-        }
-        articleId = newArticle.id;
-      }
-
-      // Get or create disease
-      let diseaseId: string;
-      const { data: existingDisease } = await supabase
-        .from("diseases")
-        .select("id")
-        .eq("name", diseaseName)
-        .maybeSingle();
-
-      if (existingDisease) {
-        diseaseId = existingDisease.id;
-      } else {
-        const { data: newDisease, error: diseaseError } = await supabase
-          .from("diseases")
-          .insert({
-            name: diseaseName,
-            severity_level: "medium",
-            color_code: "#66dbe1",
-            description: values.description,
-          })
-          .select("id")
-          .single();
-
-        if (diseaseError || !newDisease) {
-          throw new Error("Failed to create disease: " + (diseaseError?.message || "Unknown error"));
-        }
-        diseaseId = newDisease.id;
-      }
-
-      // Get or create country
+      // Get country ID if country name exists
       let countryId: string | null = null;
       if (countryName) {
         const { data: existingCountry } = await supabase
@@ -244,43 +168,31 @@ export const AddAlertDialog: React.FC<AddAlertDialogProps> = ({ open, onOpenChan
 
         if (existingCountry) {
           countryId = existingCountry.id;
-        } else {
-          // Try to get country code from geocoding result if available
-          const { data: newCountry, error: countryError } = await supabase
-            .from("countries")
-            .insert({
-              name: countryName,
-              code: countryName.substring(0, 2).toUpperCase(), // Simple fallback
-              continent: "Unknown",
-              population: 0,
-            })
-            .select("id")
-            .single();
-
-          if (!countryError && newCountry) {
-            countryId = newCountry.id;
-          }
         }
       }
 
-      // Create outbreak signal
-      const { error: signalError } = await supabase
-        .from("outbreak_signals")
+      // Save alert submission for admin review
+      const { error: submissionError } = await supabase
+        .from("user_alert_submissions")
         .insert({
-          article_id: articleId,
+          user_id: user.id,
+          user_email: values.email,
+          url: values.url,
+          headline: values.headline,
+          location: values.location,
+          date: values.date,
           disease_id: diseaseId,
-          country_id: countryId,
+          disease_name: diseaseName,
+          description: values.description,
           latitude: coordinates[0],
           longitude: coordinates[1],
-          confidence_score: 0.8, // User submissions have high confidence
-          case_count_mentioned: 0,
-          severity_assessment: "medium",
-          is_new_outbreak: true,
-          detected_at: publishedDate.toISOString(),
+          country_name: countryName,
+          country_id: countryId,
+          status: "pending_review",
         });
 
-      if (signalError) {
-        throw new Error("Failed to create outbreak signal: " + signalError.message);
+      if (submissionError) {
+        throw new Error("Failed to submit alert: " + submissionError.message);
       }
 
       setSuccess(true);
@@ -500,7 +412,7 @@ export const AddAlertDialog: React.FC<AddAlertDialogProps> = ({ open, onOpenChan
             {success && (
               <div className="flex items-center justify-center p-3 bg-green-900/30 border border-green-500/50 rounded-lg">
                 <div className="text-xs text-green-300 [font-family:'Roboto',Helvetica]">
-                  Alert submitted successfully! The dialog will close shortly.
+                  Alert submitted successfully! It has been sent for admin review and will appear on the map once approved.
                 </div>
               </div>
             )}

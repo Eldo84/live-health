@@ -5,6 +5,7 @@ import { AlertCircle, Loader2 } from "lucide-react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import { Icon } from "leaflet";
 import "leaflet/dist/leaflet.css";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 const RISK_COLORS = {
   low: "#4ade80",
@@ -13,12 +14,7 @@ const RISK_COLORS = {
   critical: "#f87171",
 };
 
-const RISK_LABELS = {
-  low: "Low",
-  medium: "Medium",
-  high: "High",
-  critical: "Critical",
-};
+// RISK_LABELS will be translated in component
 
 // Map resize handler for dashboard
 const MapResizeHandler = () => {
@@ -65,23 +61,31 @@ interface GlobalHealthMapProps {
 
 export const GlobalHealthMap = ({ timeRange = "30d", countryId }: GlobalHealthMapProps): JSX.Element => {
   const { points, loading, error } = useCountryRiskPoints(timeRange, countryId);
+  const { t } = useLanguage();
+
+  const RISK_LABELS = {
+    low: t("dashboard.low"),
+    medium: t("dashboard.medium"),
+    high: t("dashboard.high"),
+    critical: t("dashboard.critical"),
+  };
 
   return (
-    <Card className="bg-[#ffffff14] border-[#eaebf024]">
+    <Card className="bg-[#ffffff14] border-[#eaebf024]" style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
       <CardHeader className="pb-4">
         <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-lg">
-          Global Health Heatmap
+          {t("dashboard.globalHealthHeatmap")}
         </h3>
         <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm mt-1">
-          Risk levels by region
+          {t("dashboard.riskLevelsByRegion")}
         </p>
       </CardHeader>
-      <CardContent>
+      <CardContent style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
         {loading ? (
           <div className="flex items-center justify-center h-[300px]">
             <Loader2 className="w-6 h-6 text-[#66dbe1] animate-spin" />
             <span className="ml-2 [font-family:'Roboto',Helvetica] font-normal text-[#ebebeb] text-sm">
-              Loading risk data...
+              {t("dashboard.loadingRiskData")}
             </span>
           </div>
         ) : error ? (
@@ -94,7 +98,7 @@ export const GlobalHealthMap = ({ timeRange = "30d", countryId }: GlobalHealthMa
         ) : points.length === 0 ? (
           <div className="flex items-center justify-center h-[300px] text-[#ebebeb99]">
             <span className="[font-family:'Roboto',Helvetica] font-normal text-sm">
-              No risk data available
+              {t("dashboard.noRiskData")}
             </span>
           </div>
         ) : (
@@ -126,10 +130,10 @@ export const GlobalHealthMap = ({ timeRange = "30d", countryId }: GlobalHealthMa
                         </div>
                         <div className="text-xs text-[#2a4149] space-y-0.5">
                           <div>
-                            <span className="font-medium">Region:</span> {point.region}
+                            <span className="font-medium">{t("dashboard.region")}:</span> {point.region}
                           </div>
                           <div>
-                            <span className="font-medium">Risk:</span>{" "}
+                            <span className="font-medium">{t("dashboard.risk")}:</span>{" "}
                             <span
                               style={{ color: RISK_COLORS[point.riskLevel] }}
                               className="font-semibold"
@@ -138,11 +142,11 @@ export const GlobalHealthMap = ({ timeRange = "30d", countryId }: GlobalHealthMa
                             </span>
                           </div>
                           <div>
-                            <span className="font-medium">Outbreaks:</span> {point.outbreakCount}
+                            <span className="font-medium">{t("dashboard.outbreaks")}:</span> {point.outbreakCount}
                           </div>
                           {point.totalCases > 0 && (
                             <div>
-                              <span className="font-medium">Cases:</span> {point.totalCases.toLocaleString()}
+                              <span className="font-medium">{t("dashboard.cases")}:</span> {point.totalCases.toLocaleString()}
                             </div>
                           )}
                         </div>
@@ -156,7 +160,7 @@ export const GlobalHealthMap = ({ timeRange = "30d", countryId }: GlobalHealthMa
             {/* Risk Level Legend - Moved to bottom */}
             <div className="flex items-center justify-between bg-[#00000099] backdrop-blur-sm rounded-lg p-2.5">
               <span className="[font-family:'Roboto',Helvetica] font-medium text-[#ffffff] text-xs">
-                Risk Level:
+                {t("dashboard.riskLevel")}:
               </span>
               <div className="flex items-center gap-2">
                 {Object.entries(RISK_COLORS).map(([level, color]) => (

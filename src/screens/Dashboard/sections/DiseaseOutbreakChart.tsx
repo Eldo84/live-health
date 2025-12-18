@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import { Loader2 } from "lucide-react";
 import { useDashboardChart } from "../../../lib/useDashboardChart";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 interface DiseaseOutbreakChartProps {
   timeRange: string;
@@ -30,6 +31,7 @@ const colorPalette = [
 
 export const DiseaseOutbreakChart = ({ timeRange, searchQuery = "", countryId }: DiseaseOutbreakChartProps): JSX.Element => {
   const { chartData, loading, error } = useDashboardChart(timeRange, countryId);
+  const { t } = useLanguage();
 
   // Extract unique diseases from data and filter by search query
   const diseases = useMemo(() => {
@@ -76,7 +78,7 @@ export const DiseaseOutbreakChart = ({ timeRange, searchQuery = "", countryId }:
       <Card className="bg-[#ffffff14] border-[#eaebf024]">
         <CardContent className="p-6">
           <p className="[font-family:'Roboto',Helvetica] font-medium text-[#f87171] text-sm">
-            Error loading chart data: {error}
+            {t("dashboard.errorLoadingChart", { error })}
           </p>
         </CardContent>
       </Card>
@@ -84,20 +86,20 @@ export const DiseaseOutbreakChart = ({ timeRange, searchQuery = "", countryId }:
   }
 
   return (
-    <Card className="bg-[#ffffff14] border-[#eaebf024]">
+    <Card className="bg-[#ffffff14] border-[#eaebf024]" style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-lg">
-              Disease Outbreak Trends
+              {t("dashboard.diseaseOutbreakTrends")}
             </h3>
             <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm mt-1">
-              Cases reported over time by disease type
+              {t("dashboard.casesReportedOverTime")}
             </p>
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
         {loading ? (
           <div className="flex items-center justify-center h-[350px]">
             <Loader2 className="w-8 h-8 text-[#66dbe1] animate-spin" />
@@ -105,11 +107,12 @@ export const DiseaseOutbreakChart = ({ timeRange, searchQuery = "", countryId }:
         ) : filteredChartData.length === 0 || diseases.length === 0 ? (
           <div className="flex items-center justify-center h-[350px]">
             <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm">
-              {searchQuery ? `No data found for "${searchQuery}"` : "No data available for the selected time range"}
+              {searchQuery ? t("dashboard.noDataFound", { query: searchQuery }) : t("dashboard.noDataAvailable")}
             </p>
           </div>
         ) : (
-          <ResponsiveContainer width="100%" height={350}>
+          <div style={{ width: '100%', maxWidth: '100%', overflow: 'hidden' }}>
+            <ResponsiveContainer width="100%" height={350}>
             <AreaChart data={filteredChartData}>
               <defs>
                 {diseases.map((disease, index) => {
@@ -161,6 +164,7 @@ export const DiseaseOutbreakChart = ({ timeRange, searchQuery = "", countryId }:
               })}
             </AreaChart>
           </ResponsiveContainer>
+          </div>
         )}
       </CardContent>
     </Card>

@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import { Card, CardContent, CardHeader } from "../../../components/ui/card";
 import { Clock, AlertCircle, CheckCircle, TrendingUp, Loader2 } from "lucide-react";
 import { useRecentAlerts } from "../../../lib/useRecentAlerts";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 interface TimelineEvent {
   id: string;
@@ -14,28 +15,7 @@ interface TimelineEvent {
   color: string;
 }
 
-const eventConfig = {
-  detected: {
-    icon: <AlertCircle className="w-5 h-5" />,
-    label: "Detected",
-    bg: "bg-[#f8717133]",
-  },
-  escalated: {
-    icon: <TrendingUp className="w-5 h-5" />,
-    label: "Escalated",
-    bg: "bg-[#fbbf2433]",
-  },
-  contained: {
-    icon: <CheckCircle className="w-5 h-5" />,
-    label: "Contained",
-    bg: "bg-[#66dbe133]",
-  },
-  resolved: {
-    icon: <CheckCircle className="w-5 h-5" />,
-    label: "Resolved",
-    bg: "bg-[#4ade8033]",
-  },
-};
+// eventConfig will be created in component with translations
 
 const severityColors: Record<string, string> = {
   critical: "#f87171",
@@ -50,6 +30,30 @@ interface AlertTimelineProps {
 
 export const AlertTimeline = ({ countryId }: AlertTimelineProps): JSX.Element => {
   const { alerts, loading, error } = useRecentAlerts(20, countryId);
+  const { t } = useLanguage();
+
+  const eventConfig = {
+    detected: {
+      icon: <AlertCircle className="w-5 h-5" />,
+      label: t("dashboard.detected"),
+      bg: "bg-[#f8717133]",
+    },
+    escalated: {
+      icon: <TrendingUp className="w-5 h-5" />,
+      label: t("dashboard.escalated"),
+      bg: "bg-[#fbbf2433]",
+    },
+    contained: {
+      icon: <CheckCircle className="w-5 h-5" />,
+      label: t("dashboard.contained"),
+      bg: "bg-[#66dbe133]",
+    },
+    resolved: {
+      icon: <CheckCircle className="w-5 h-5" />,
+      label: t("dashboard.resolved"),
+      bg: "bg-[#4ade8033]",
+    },
+  };
 
   // Transform alerts to timeline events
   const events = useMemo(() => {
@@ -109,7 +113,7 @@ export const AlertTimeline = ({ countryId }: AlertTimelineProps): JSX.Element =>
       <Card className="bg-[#ffffff14] border-[#eaebf024]">
         <CardContent className="p-6">
           <p className="[font-family:'Roboto',Helvetica] font-medium text-[#f87171] text-sm">
-            Error loading timeline: {error}
+            {t("dashboard.errorLoadingTimeline", { error })}
           </p>
         </CardContent>
       </Card>
@@ -121,10 +125,10 @@ export const AlertTimeline = ({ countryId }: AlertTimelineProps): JSX.Element =>
         <div>
           <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-lg flex items-center gap-2">
             <Clock className="w-5 h-5 text-[#66dbe1]" />
-            Alert Timeline
+            {t("dashboard.alertTimeline")}
           </h3>
           <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm mt-1">
-            Chronological tracking of outbreak events and response actions
+            {t("dashboard.chronologicalTrackingOfOutbreakEvents")}
           </p>
         </div>
       </CardHeader>
@@ -136,7 +140,7 @@ export const AlertTimeline = ({ countryId }: AlertTimelineProps): JSX.Element =>
         ) : events.length === 0 ? (
           <div className="flex items-center justify-center py-12">
             <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm">
-              No timeline events available
+              {t("dashboard.noTimelineEventsAvailable")}
             </p>
           </div>
         ) : (
@@ -186,7 +190,7 @@ export const AlertTimeline = ({ countryId }: AlertTimelineProps): JSX.Element =>
                           {event.affectedPopulation > 0 && (
                             <div className="flex items-center gap-2">
                               <span className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-xs">
-                                Affected:
+                                {t("dashboard.affected")}:
                               </span>
                               <span className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-xs">
                                 {event.affectedPopulation.toLocaleString()}
@@ -207,7 +211,7 @@ export const AlertTimeline = ({ countryId }: AlertTimelineProps): JSX.Element =>
                   {eventCounts.detected}
                 </div>
                 <div className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-xs mt-1">
-                  Detected
+                  {t("dashboard.detected")}
                 </div>
               </div>
               <div className="bg-[#fbbf2433] rounded-lg p-3 text-center">
@@ -215,7 +219,7 @@ export const AlertTimeline = ({ countryId }: AlertTimelineProps): JSX.Element =>
                   {eventCounts.escalated}
                 </div>
                 <div className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-xs mt-1">
-                  Escalated
+                  {t("dashboard.escalated")}
                 </div>
               </div>
               <div className="bg-[#66dbe133] rounded-lg p-3 text-center">
@@ -223,7 +227,7 @@ export const AlertTimeline = ({ countryId }: AlertTimelineProps): JSX.Element =>
                   {eventCounts.contained}
                 </div>
                 <div className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-xs mt-1">
-                  Contained
+                  {t("dashboard.contained")}
                 </div>
               </div>
               <div className="bg-[#4ade8033] rounded-lg p-3 text-center">
@@ -231,7 +235,7 @@ export const AlertTimeline = ({ countryId }: AlertTimelineProps): JSX.Element =>
                   {eventCounts.resolved}
                 </div>
                 <div className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-xs mt-1">
-                  Resolved
+                  {t("dashboard.resolved")}
                 </div>
               </div>
             </div>

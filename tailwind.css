@@ -351,6 +351,44 @@
     background: rgba(103, 219, 226, 0.6);
   }
 
+  /* Custom scrollbar for language dropdown */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 3px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(78, 183, 189, 0.4);
+    border-radius: 3px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(78, 183, 189, 0.6);
+  }
+
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
+
+  /* RTL support for dashboard */
+  [dir="rtl"] .dashboard-controls {
+    direction: rtl;
+  }
+
+  [dir="rtl"] .dashboard-tabs {
+    direction: rtl;
+  }
+
   /* Landing page utility classes */
   .container-prose {
     @apply mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl;

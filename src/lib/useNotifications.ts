@@ -7,8 +7,19 @@ import { useNavigate } from 'react-router-dom';
 export interface Notification {
   id: string;
   user_id: string;
-  type: 'submission_created' | 'submission_approved' | 'submission_rejected' | 
-        'payment_required' | 'payment_received' | 'ad_live' | 'ad_expiring' | 'ad_expired';
+  type:
+    | 'submission_created'
+    | 'submission_approved'
+    | 'submission_rejected'
+    | 'payment_required'
+    | 'payment_received'
+    | 'ad_live'
+    | 'ad_expiring'
+    | 'ad_expired'
+    | 'alert_approved'
+    | 'alert_rejected'
+    | 'admin_broadcast'
+    | 'weekly_top_diseases';
   title: string;
   message: string;
   action_url: string | null;
@@ -168,11 +179,15 @@ export const useNotifications = () => {
         },
         (payload) => {
           const updatedNotification = payload.new as Notification;
-          setNotifications(prev =>
-            prev.map(n =>
+          setNotifications(prev => {
+            const next = prev.map(n =>
               n.id === updatedNotification.id ? updatedNotification : n
-            )
-          );
+            );
+            // Recalculate unread count so the bell badge stays in sync
+            const nextUnread = next.filter(n => !n.read).length;
+            setUnreadCount(nextUnread);
+            return next;
+          });
         }
       )
       .subscribe();

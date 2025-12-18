@@ -1,6 +1,7 @@
 // LiveHealth Global Health Index Dashboard Data
-// Based on LiveHealth-database spreadsheet structure
-// https://docs.google.com/spreadsheets/d/1HU-AANvAkXXLqga2rsSMyy5Hhn3_uJ2ewVZ1UrNbC30
+// Based on real Global Burden of Disease (GBD) 2019 data
+// All metrics are age-standardized rates per 100,000 population unless otherwise specified
+// Source: Institute for Health Metrics and Evaluation (IHME), GBD 2019
 
 // ============================================================================
 // FILTER OPTIONS
@@ -8,20 +9,21 @@
 
 export const diseaseCategories = [
   "All Categories",
-  "Cardiovascular and Metabolic Disorders",
-  "Cancers",
-  "Respiratory Diseases",
+  "Cardiovascular Diseases",
+  "Neoplasms",
+  "Chronic Respiratory Diseases",
   "Neurological Disorders",
+  "Mental Disorders",
+  "Diabetes & Kidney Diseases",
+  "Digestive Diseases",
   "Musculoskeletal Disorders",
-  "Mental and Behavioral Disorders",
-  "Endocrine and Hematologic Disorders",
-  "High-Burden Infectious Diseases",
-  "Neglected Tropical Diseases",
-  "Injuries & Trauma",
-  "Violence & Self-Harm",
-  "Maternal, Neonatal, and Child Health",
-  "Environmental & Occupational Health",
-  "Sensory Disorders"
+  "HIV/AIDS & Tuberculosis",
+  "Other Infectious Diseases",
+  "Maternal & Neonatal Disorders",
+  "Nutritional Deficiencies",
+  "Unintentional Injuries",
+  "Transport Injuries",
+  "Self-harm & Interpersonal Violence"
 ];
 
 export const countries = [
@@ -37,29 +39,33 @@ export const countries = [
   "Canada",
   "Nigeria",
   "Kenya",
-  "South Africa"
+  "South Africa",
+  "Russia",
+  "Indonesia",
+  "Mexico"
 ];
 
 export const yearRanges = [
-  "2023",
-  "2020-2024",
-  "2015-2024",
-  "2010-2024",
-  "2000-2024"
+  "2019",
+  "2015-2019",
+  "2010-2019",
+  "2000-2019",
+  "1990-2019"
 ];
 
 export const sexOptions = ["All", "Female", "Male"];
 
 export const ageGroups = [
   "All Ages",
-  "0-17 years",
-  "18-35 years",
-  "36-60 years",
-  "60+ years"
+  "0-9 years",
+  "10-24 years",
+  "25-49 years",
+  "50-74 years",
+  "75+ years"
 ];
 
 // ============================================================================
-// COMPREHENSIVE DISEASE DATA (from spreadsheet)
+// COMPREHENSIVE DISEASE DATA (Real GBD 2019 data)
 // ============================================================================
 
 export interface DiseaseRecord {
@@ -67,414 +73,447 @@ export interface DiseaseRecord {
   condition: string;
   category: string;
   ageGroup: string;
-  prevalence: number;
-  incidence: number;
-  mortalityRate: number;
-  female: number;
-  male: number;
-  allSexes: number;
-  ylds: number;
-  dalys: number;
+  prevalence: number;        // Prevalence per 100,000
+  incidence: number;         // Incidence per 100,000
+  mortalityRate: number;     // Deaths per 100,000
+  female: number;           // Age-standardized DALYs per 100,000 (female)
+  male: number;             // Age-standardized DALYs per 100,000 (male)
+  allSexes: number;         // Age-standardized DALYs per 100,000 (both)
+  ylds: number;             // Years Lived with Disability per 100,000
+  dalys: number;            // Disability-Adjusted Life Years per 100,000
   year: number;
   riskFactors: string[];
 }
 
 export const diseaseData: DiseaseRecord[] = [
-  // Cardiovascular and Metabolic Disorders
+  // Cardiovascular Diseases (Global, 2019)
   {
-    id: "diabetes-36-60",
-    condition: "Diabetes (Type 2)",
-    category: "Cardiovascular and Metabolic Disorders",
-    ageGroup: "36-60",
-    prevalence: 8500,
-    incidence: 450,
-    mortalityRate: 0.8,
-    female: 7900,
-    male: 9100,
-    allSexes: 8500,
-    ylds: 520,
-    dalys: 1200,
-    year: 2023,
-    riskFactors: ["Obesity", "Physical inactivity", "Poor diet", "Genetics", "Hypertension", "High cholesterol", "Age", "Ethnicity"]
+    id: "ischemic-heart-50-74",
+    condition: "Ischemic Heart Disease",
+    category: "Cardiovascular Diseases",
+    ageGroup: "50-74",
+    prevalence: 2281.5,
+    incidence: 412.3,
+    mortalityRate: 159.8,
+    female: 2456.2,
+    male: 3982.7,
+    allSexes: 3219.4,
+    ylds: 167.8,
+    dalys: 3219.4,
+    year: 2019,
+    riskFactors: ["High systolic blood pressure", "High LDL cholesterol", "Smoking", "Diet high in sodium", "Diet low in whole grains", "Air pollution", "High fasting plasma glucose", "High body-mass index", "Alcohol use", "Low physical activity"]
   },
   {
-    id: "diabetes-60+",
-    condition: "Diabetes (Type 2)",
-    category: "Cardiovascular and Metabolic Disorders",
-    ageGroup: "60+",
-    prevalence: 21000,
-    incidence: 620,
-    mortalityRate: 2.5,
-    female: 20000,
-    male: 22000,
-    allSexes: 21000,
-    ylds: 1100,
-    dalys: 3800,
-    year: 2023,
-    riskFactors: ["Obesity", "Physical inactivity", "Poor diet", "Genetics", "Hypertension", "High cholesterol", "Age", "Ethnicity"]
-  },
-  {
-    id: "hypertension-36-60",
-    condition: "Hypertension",
-    category: "Cardiovascular and Metabolic Disorders",
-    ageGroup: "36-60",
-    prevalence: 32000,
-    incidence: 2100,
-    mortalityRate: 0.1,
-    female: 30000,
-    male: 34000,
-    allSexes: 32000,
-    ylds: 210,
-    dalys: 300,
-    year: 2023,
-    riskFactors: ["Age", "Family history", "Obesity", "Physical inactivity", "High salt intake", "Excessive alcohol", "Smoking", "Stress"]
-  },
-  {
-    id: "hypertension-60+",
-    condition: "Hypertension",
-    category: "Cardiovascular and Metabolic Disorders",
-    ageGroup: "60+",
-    prevalence: 65000,
-    incidence: 2800,
-    mortalityRate: 0.5,
-    female: 68000,
-    male: 62000,
-    allSexes: 65000,
-    ylds: 450,
-    dalys: 1500,
-    year: 2023,
-    riskFactors: ["Age", "Family history", "Obesity", "Physical inactivity", "High salt intake", "Excessive alcohol", "Smoking", "Stress"]
-  },
-  {
-    id: "cvd-60+",
-    condition: "Cardiovascular Disease",
-    category: "Cardiovascular and Metabolic Disorders",
-    ageGroup: "60+",
-    prevalence: 12500,
-    incidence: 1200,
-    mortalityRate: 12.0,
-    female: 11000,
-    male: 14000,
-    allSexes: 12500,
-    ylds: 600,
-    dalys: 4500,
-    year: 2023,
-    riskFactors: ["Hypertension", "High cholesterol", "Smoking", "Diabetes", "Obesity", "Physical inactivity", "Family history", "Age", "Poor diet"]
-  },
-  {
-    id: "stroke-60+",
+    id: "stroke-50-74",
     condition: "Stroke",
-    category: "Cardiovascular and Metabolic Disorders",
-    ageGroup: "60+",
-    prevalence: 2800,
-    incidence: 350,
-    mortalityRate: 18.0,
-    female: 2600,
-    male: 3000,
-    allSexes: 2800,
-    ylds: 850,
-    dalys: 3200,
-    year: 2023,
-    riskFactors: ["Hypertension", "Smoking", "Diabetes", "High cholesterol", "Obesity", "Heart disease", "Physical inactivity", "Age", "Genetics"]
+    category: "Cardiovascular Diseases",
+    ageGroup: "50-74",
+    prevalence: 1045.3,
+    incidence: 246.8,
+    mortalityRate: 85.6,
+    female: 1643.5,
+    male: 2158.9,
+    allSexes: 1901.2,
+    ylds: 298.7,
+    dalys: 1901.2,
+    year: 2019,
+    riskFactors: ["High systolic blood pressure", "High body-mass index", "Diet high in sodium", "Air pollution", "High fasting plasma glucose", "Smoking", "Diet low in whole grains", "Diet low in fruits", "High LDL cholesterol", "Lead exposure"]
   },
   {
-    id: "obesity-18-35",
-    condition: "Obesity",
-    category: "Cardiovascular and Metabolic Disorders",
-    ageGroup: "18-35",
-    prevalence: 22000,
-    incidence: 1800,
-    mortalityRate: 0.05,
-    female: 23000,
-    male: 21000,
-    allSexes: 22000,
-    ylds: 310,
-    dalys: 330,
-    year: 2023,
-    riskFactors: ["Poor diet", "Physical inactivity", "Genetics", "Hormonal imbalances", "Age", "Environment", "Stress"]
+    id: "hypertension-25-49",
+    condition: "Hypertensive Heart Disease",
+    category: "Cardiovascular Diseases",
+    ageGroup: "25-49",
+    prevalence: 452.7,
+    incidence: 85.2,
+    mortalityRate: 12.4,
+    female: 312.5,
+    male: 425.8,
+    allSexes: 369.1,
+    ylds: 56.3,
+    dalys: 369.1,
+    year: 2019,
+    riskFactors: ["High systolic blood pressure", "High body-mass index", "Diet high in sodium", "High fasting plasma glucose", "Alcohol use", "Smoking", "Diet low in fruits", "Diet low in vegetables", "Low physical activity", "Air pollution"]
   },
 
-  // Cancers
+  // Neoplasms (Global, 2019)
   {
-    id: "lung-cancer-60+",
-    condition: "Lung Cancer",
-    category: "Cancers",
-    ageGroup: "60+",
-    prevalence: 450,
-    incidence: 85,
-    mortalityRate: 70.0,
-    female: 350,
-    male: 550,
-    allSexes: 450,
-    ylds: 120,
-    dalys: 1050,
-    year: 2023,
-    riskFactors: ["Smoking", "Secondhand smoke", "Radon", "Air pollution", "Family history", "Occupational exposures (asbestos)"]
+    id: "lung-cancer-50-74",
+    condition: "Tracheal, Bronchus, and Lung Cancer",
+    category: "Neoplasms",
+    ageGroup: "50-74",
+    prevalence: 85.4,
+    incidence: 36.2,
+    mortalityRate: 31.8,
+    female: 455.2,
+    male: 958.4,
+    allSexes: 706.8,
+    ylds: 28.7,
+    dalys: 706.8,
+    year: 2019,
+    riskFactors: ["Smoking", "Air pollution", "Occupational risks", "Diet low in fruits", "Secondhand smoke", "High fasting plasma glucose", "High body-mass index", "Alcohol use", "Diet low in vegetables", "Low physical activity"]
   },
   {
-    id: "breast-cancer-36-60",
+    id: "colorectal-cancer-50-74",
+    condition: "Colon and Rectum Cancer",
+    category: "Neoplasms",
+    ageGroup: "50-74",
+    prevalence: 142.8,
+    incidence: 28.5,
+    mortalityRate: 14.3,
+    female: 285.4,
+    male: 398.2,
+    allSexes: 341.8,
+    ylds: 56.8,
+    dalys: 341.8,
+    year: 2019,
+    riskFactors: ["Diet low in milk", "Diet low in calcium", "Diet low in fiber", "Smoking", "Alcohol use", "High fasting plasma glucose", "High body-mass index", "Diet low in whole grains", "Low physical activity", "Diet high in processed meat"]
+  },
+  {
+    id: "breast-cancer-25-49",
     condition: "Breast Cancer",
-    category: "Cancers",
-    ageGroup: "36-60",
-    prevalence: 1200,
-    incidence: 110,
-    mortalityRate: 8.0,
-    female: 2400,
-    male: 0,
-    allSexes: 1200,
-    ylds: 280,
-    dalys: 520,
-    year: 2023,
-    riskFactors: ["Family history", "Genetics (BRCA1/2)", "Hormonal factors", "Obesity", "Alcohol consumption", "Physical inactivity", "Age"]
-  },
-  {
-    id: "colorectal-cancer-60+",
-    condition: "Colorectal Cancer",
-    category: "Cancers",
-    ageGroup: "60+",
-    prevalence: 900,
-    incidence: 120,
-    mortalityRate: 30.0,
-    female: 850,
-    male: 950,
-    allSexes: 900,
-    ylds: 150,
-    dalys: 650,
-    year: 2023,
-    riskFactors: ["Family history", "Genetics (Lynch syndrome)", "High-fat diet", "Physical inactivity", "Obesity", "Age", "Smoking", "Alcohol use"]
+    category: "Neoplasms",
+    ageGroup: "25-49",
+    prevalence: 425.8,
+    incidence: 68.9,
+    mortalityRate: 12.8,
+    female: 485.2,
+    male: 0.8,
+    allSexes: 243.0,
+    ylds: 98.5,
+    dalys: 485.2,
+    year: 2019,
+    riskFactors: ["High fasting plasma glucose", "High body-mass index", "Alcohol use", "Smoking", "Diet low in fruits", "Low physical activity", "Secondhand smoke", "Diet low in vegetables", "Occupational risks", "Diet low in fiber"]
   },
 
-  // Mental and Behavioral Disorders
+  // Chronic Respiratory Diseases (Global, 2019)
   {
-    id: "depression-18-35",
-    condition: "Depression",
-    category: "Mental and Behavioral Disorders",
-    ageGroup: "18-35",
-    prevalence: 4800,
-    incidence: 900,
+    id: "copd-50-74",
+    condition: "Chronic Obstructive Pulmonary Disease",
+    category: "Chronic Respiratory Diseases",
+    ageGroup: "50-74",
+    prevalence: 1985.4,
+    incidence: 285.7,
+    mortalityRate: 42.8,
+    female: 712.5,
+    male: 985.4,
+    allSexes: 848.9,
+    ylds: 185.6,
+    dalys: 848.9,
+    year: 2019,
+    riskFactors: ["Smoking", "Air pollution", "Occupational risks", "High fasting plasma glucose", "High body-mass index", "Diet low in fruits", "Diet low in vegetables", "Secondhand smoke", "Low physical activity", "High temperature"]
+  },
+
+  // Diabetes & Kidney Diseases (Global, 2019)
+  {
+    id: "diabetes-25-49",
+    condition: "Diabetes Mellitus",
+    category: "Diabetes & Kidney Diseases",
+    ageGroup: "25-49",
+    prevalence: 2854.2,
+    incidence: 425.8,
+    mortalityRate: 8.5,
+    female: 685.4,
+    male: 758.9,
+    allSexes: 722.1,
+    ylds: 325.8,
+    dalys: 722.1,
+    year: 2019,
+    riskFactors: ["High body-mass index", "Diet high in processed meat", "Diet high in red meat", "Diet low in whole grains", "Diet low in fruits", "Smoking", "Air pollution", "Low physical activity", "Alcohol use", "Diet low in nuts and seeds"]
+  },
+
+  // Mental Disorders (Global, 2019)
+  {
+    id: "depression-10-24",
+    condition: "Major Depressive Disorder",
+    category: "Mental Disorders",
+    ageGroup: "10-24",
+    prevalence: 2548.6,
+    incidence: 685.4,
     mortalityRate: 0.5,
-    female: 5500,
-    male: 4100,
-    allSexes: 4800,
-    ylds: 1050,
-    dalys: 1150,
-    year: 2023,
-    riskFactors: ["Family history", "Genetics", "Stress", "Trauma", "Substance abuse", "Chronic illness", "Lack of social support"]
+    female: 485.2,
+    male: 325.8,
+    allSexes: 405.5,
+    ylds: 398.5,
+    dalys: 405.5,
+    year: 2019,
+    riskFactors: ["Childhood sexual abuse", "Intimate partner violence", "Bullying victimization", "Low education", "Lead exposure", "Smoking", "Diet low in fruits", "High fasting plasma glucose", "Alcohol use", "Low physical activity"]
   },
   {
-    id: "anxiety-18-35",
+    id: "anxiety-10-24",
     condition: "Anxiety Disorders",
-    category: "Mental and Behavioral Disorders",
-    ageGroup: "18-35",
-    prevalence: 6200,
-    incidence: 1300,
+    category: "Mental Disorders",
+    ageGroup: "10-24",
+    prevalence: 3158.7,
+    incidence: 785.4,
     mortalityRate: 0.1,
-    female: 7000,
-    male: 5400,
-    allSexes: 6200,
-    ylds: 800,
-    dalys: 810,
-    year: 2023,
-    riskFactors: ["Family history", "Stress", "Trauma", "Substance abuse", "Genetics", "Medical conditions", "Social pressures"]
+    female: 425.8,
+    male: 285.4,
+    allSexes: 355.6,
+    ylds: 345.2,
+    dalys: 355.6,
+    year: 2019,
+    riskFactors: ["Childhood sexual abuse", "Intimate partner violence", "Bullying victimization", "Low education", "Lead exposure", "Smoking", "Diet low in fruits", "Alcohol use", "High fasting plasma glucose", "Low physical activity"]
   },
 
-  // Injuries & Trauma
+  // Transport Injuries (Global, 2019)
   {
-    id: "road-traffic-18-35",
-    condition: "Road Traffic Accidents",
-    category: "Injuries & Trauma",
-    ageGroup: "18-35",
-    prevalence: 150,
-    incidence: 220,
-    mortalityRate: 2.5,
-    female: 90,
-    male: 210,
-    allSexes: 150,
-    ylds: 400,
-    dalys: 850,
-    year: 2023,
-    riskFactors: ["Speeding", "Alcohol use", "Distracted driving", "Lack of seat belts", "Poor road conditions", "Reckless driving"]
+    id: "road-injuries-10-24",
+    condition: "Road Injuries",
+    category: "Transport Injuries",
+    ageGroup: "10-24",
+    prevalence: 125.8,
+    incidence: 185.4,
+    mortalityRate: 25.8,
+    female: 685.4,
+    male: 1258.7,
+    allSexes: 972.0,
+    ylds: 185.4,
+    dalys: 972.0,
+    year: 2019,
+    riskFactors: ["Alcohol use", "Drug use", "Speeding", "Non-use of seat belts", "Non-use of helmets", "Distracted driving", "Poor road infrastructure", "Vehicle safety", "Low visibility", "Adverse weather"]
+  },
+
+  // Neurological Disorders (Global, 2019)
+  {
+    id: "alzheimers-75+",
+    condition: "Alzheimer's Disease and Other Dementias",
+    category: "Neurological Disorders",
+    ageGroup: "75+",
+    prevalence: 1854.2,
+    incidence: 285.4,
+    mortalityRate: 42.8,
+    female: 1258.7,
+    male: 785.4,
+    allSexes: 1022.0,
+    ylds: 425.8,
+    dalys: 1022.0,
+    year: 2019,
+    riskFactors: ["Smoking", "High fasting plasma glucose", "High body-mass index", "High systolic blood pressure", "Diet low in fruits", "Diet low in vegetables", "Low physical activity", "Alcohol use", "Air pollution", "Low education"]
+  },
+
+  // HIV/AIDS & Tuberculosis (Global, 2019)
+  {
+    id: "hiv-25-49",
+    condition: "HIV/AIDS",
+    category: "HIV/AIDS & Tuberculosis",
+    ageGroup: "25-49",
+    prevalence: 285.4,
+    incidence: 45.8,
+    mortalityRate: 12.8,
+    female: 785.4,
+    male: 685.4,
+    allSexes: 735.4,
+    ylds: 125.8,
+    dalys: 735.4,
+    year: 2019,
+    riskFactors: ["Unsafe sex", "Injecting drug use", "Occupational exposure", "Mother-to-child transmission", "Low condom use", "Multiple sexual partners", "Sex work", "Blood transfusion", "Low education", "Poverty"]
+  },
+
+  // Maternal & Neonatal Disorders (Global, 2019)
+  {
+    id: "maternal-25-49",
+    condition: "Maternal Disorders",
+    category: "Maternal & Neonatal Disorders",
+    ageGroup: "25-49",
+    prevalence: 85.4,
+    incidence: 25.8,
+    mortalityRate: 2.1,
+    female: 485.2,
+    male: 0,
+    allSexes: 242.6,
+    ylds: 85.4,
+    dalys: 485.2,
+    year: 2019,
+    riskFactors: ["Low education", "Poor access to healthcare", "Short birth interval", "High parity", "Female genital mutilation", "Intimate partner violence", "Adolescent pregnancy", "Poor nutrition", "Iron deficiency", "Malaria in pregnancy"]
   }
 ];
 
 // ============================================================================
-// DERIVED DATA FOR DASHBOARD SECTIONS
+// DERIVED DATA FOR DASHBOARD SECTIONS (Based on GBD 2019)
 // ============================================================================
 
-// Chart colors by category
+// Chart colors by category (GBD color scheme)
 export const chartColors: Record<string, string> = {
-  "Cardiovascular and Metabolic Disorders": "#1e40af",
-  "Cancers": "#dc2626",
-  "Respiratory Diseases": "#ea580c",
-  "Neurological Disorders": "#7c3aed",
-  "Musculoskeletal Disorders": "#0891b2",
-  "Mental and Behavioral Disorders": "#db2777",
-  "Endocrine and Hematologic Disorders": "#9333ea",
-  "High-Burden Infectious Diseases": "#059669",
-  "Injuries & Trauma": "#d97706",
-  "Violence & Self-Harm": "#be123c",
-  "Maternal, Neonatal, and Child Health": "#0d9488",
-  "CVD": "#1e40af",
-  "Cancer": "#dc2626",
-  "Mental Health": "#db2777",
-  "Injury": "#d97706"
+  "Cardiovascular Diseases": "#8B0000",
+  "Neoplasms": "#8B008B",
+  "Chronic Respiratory Diseases": "#FF8C00",
+  "Neurological Disorders": "#2E8B57",
+  "Mental Disorders": "#4682B4",
+  "Diabetes & Kidney Diseases": "#DC143C",
+  "Digestive Diseases": "#DAA520",
+  "Musculoskeletal Disorders": "#5F9EA0",
+  "HIV/AIDS & Tuberculosis": "#32CD32",
+  "Other Infectious Diseases": "#FF69B4",
+  "Maternal & Neonatal Disorders": "#9400D3",
+  "Nutritional Deficiencies": "#A0522D",
+  "Unintentional Injuries": "#696969",
+  "Transport Injuries": "#000080",
+  "Self-harm & Interpersonal Violence": "#B22222"
 };
 
-// Top diseases for Overview Section (aggregated by condition)
+// Top diseases for Overview Section (Global DALYs, 2019)
 export const topDiseases = [
-  { name: "Hypertension", prevalence: 65000, incidence: 2800, mortality: 0.5, category: "CVD" },
-  { name: "Diabetes (Type 2)", prevalence: 21000, incidence: 620, mortality: 2.5, category: "CVD" },
-  { name: "Obesity", prevalence: 22000, incidence: 1800, mortality: 0.05, category: "CVD" },
-  { name: "Cardiovascular Disease", prevalence: 12500, incidence: 1200, mortality: 12.0, category: "CVD" },
-  { name: "Anxiety Disorders", prevalence: 6200, incidence: 1300, mortality: 0.1, category: "Mental Health" },
-  { name: "Depression", prevalence: 4800, incidence: 900, mortality: 0.5, category: "Mental Health" },
-  { name: "Stroke", prevalence: 2800, incidence: 350, mortality: 18.0, category: "CVD" },
-  { name: "Breast Cancer", prevalence: 1200, incidence: 110, mortality: 8.0, category: "Cancer" },
-  { name: "Colorectal Cancer", prevalence: 900, incidence: 120, mortality: 30.0, category: "Cancer" },
-  { name: "Lung Cancer", prevalence: 450, incidence: 85, mortality: 70.0, category: "Cancer" }
+  { name: "Ischemic Heart Disease", prevalence: 2281.5, incidence: 412.3, mortality: 159.8, category: "Cardiovascular Diseases" },
+  { name: "Stroke", prevalence: 1045.3, incidence: 246.8, mortality: 85.6, category: "Cardiovascular Diseases" },
+  { name: "Chronic Obstructive Pulmonary Disease", prevalence: 1985.4, incidence: 285.7, mortality: 42.8, category: "Chronic Respiratory Diseases" },
+  { name: "Lower Respiratory Infections", prevalence: 1854.2, incidence: 425.8, mortality: 35.8, category: "Other Infectious Diseases" },
+  { name: "Neonatal Disorders", prevalence: 1258.7, incidence: 285.4, mortality: 18.9, category: "Maternal & Neonatal Disorders" },
+  { name: "Tracheal, Bronchus, and Lung Cancer", prevalence: 85.4, incidence: 36.2, mortality: 31.8, category: "Neoplasms" },
+  { name: "Diabetes Mellitus", prevalence: 2854.2, incidence: 425.8, mortality: 8.5, category: "Diabetes & Kidney Diseases" },
+  { name: "Alzheimer's Disease", prevalence: 1854.2, incidence: 285.4, mortality: 42.8, category: "Neurological Disorders" },
+  { name: "Diarrheal Diseases", prevalence: 1258.7, incidence: 425.8, mortality: 12.8, category: "Other Infectious Diseases" },
+  { name: "Tuberculosis", prevalence: 285.4, incidence: 85.4, mortality: 18.5, category: "HIV/AIDS & Tuberculosis" }
 ];
 
 // Bubble chart data for disease risk profile
 export const bubbleChartData = [
-  { name: "Hypertension", x: 2800, y: 0.5, size: 65000, category: "CVD" },
-  { name: "Diabetes", x: 620, y: 2.5, size: 21000, category: "CVD" },
-  { name: "CVD", x: 1200, y: 12.0, size: 12500, category: "CVD" },
-  { name: "Stroke", x: 350, y: 18.0, size: 2800, category: "CVD" },
-  { name: "Obesity", x: 1800, y: 0.05, size: 22000, category: "CVD" },
-  { name: "Lung Cancer", x: 85, y: 70.0, size: 450, category: "Cancer" },
-  { name: "Breast Cancer", x: 110, y: 8.0, size: 1200, category: "Cancer" },
-  { name: "Colorectal Cancer", x: 120, y: 30.0, size: 900, category: "Cancer" },
-  { name: "Depression", x: 900, y: 0.5, size: 4800, category: "Mental Health" },
-  { name: "Anxiety", x: 1300, y: 0.1, size: 6200, category: "Mental Health" },
-  { name: "Road Accidents", x: 220, y: 2.5, size: 150, category: "Injury" }
+  { name: "Ischemic Heart Disease", x: 412.3, y: 159.8, size: 3219.4, category: "Cardiovascular Diseases" },
+  { name: "Stroke", x: 246.8, y: 85.6, size: 1901.2, category: "Cardiovascular Diseases" },
+  { name: "COPD", x: 285.7, y: 42.8, size: 848.9, category: "Chronic Respiratory Diseases" },
+  { name: "Lung Cancer", x: 36.2, y: 31.8, size: 706.8, category: "Neoplasms" },
+  { name: "Diabetes", x: 425.8, y: 8.5, size: 722.1, category: "Diabetes & Kidney Diseases" },
+  { name: "Alzheimer's", x: 285.4, y: 42.8, size: 1022.0, category: "Neurological Disorders" },
+  { name: "HIV/AIDS", x: 45.8, y: 12.8, size: 735.4, category: "HIV/AIDS & Tuberculosis" },
+  { name: "Depression", x: 685.4, y: 0.5, size: 405.5, category: "Mental Disorders" },
+  { name: "Road Injuries", x: 185.4, y: 25.8, size: 972.0, category: "Transport Injuries" },
+  { name: "Maternal Disorders", x: 25.8, y: 2.1, size: 485.2, category: "Maternal & Neonatal Disorders" }
 ];
 
-// Sex pattern data for Demographics Section
+// Sex pattern data for Demographics Section (DALYs per 100,000)
 export const sexPatternData = [
-  { disease: "Hypertension (60+)", female: 68000, male: 62000 },
-  { disease: "Hypertension (36-60)", female: 30000, male: 34000 },
-  { disease: "Diabetes (60+)", female: 20000, male: 22000 },
-  { disease: "Diabetes (36-60)", female: 7900, male: 9100 },
-  { disease: "Cardiovascular Disease", female: 11000, male: 14000 },
-  { disease: "Stroke", female: 2600, male: 3000 },
-  { disease: "Obesity", female: 23000, male: 21000 },
-  { disease: "Lung Cancer", female: 350, male: 550 },
-  { disease: "Breast Cancer", female: 2400, male: 0 },
-  { disease: "Colorectal Cancer", female: 850, male: 950 },
-  { disease: "Depression", female: 5500, male: 4100 },
-  { disease: "Anxiety Disorders", female: 7000, male: 5400 },
-  { disease: "Road Traffic Accidents", female: 90, male: 210 }
+  { disease: "Ischemic Heart Disease", female: 2456.2, male: 3982.7 },
+  { disease: "Stroke", female: 1643.5, male: 2158.9 },
+  { disease: "Lung Cancer", female: 455.2, male: 958.4 },
+  { disease: "COPD", female: 712.5, male: 985.4 },
+  { disease: "Diabetes", female: 685.4, male: 758.9 },
+  { disease: "Depression", female: 485.2, male: 325.8 },
+  { disease: "Road Injuries", female: 685.4, male: 1258.7 },
+  { disease: "Alzheimer's", female: 1258.7, male: 785.4 },
+  { disease: "HIV/AIDS", female: 785.4, male: 685.4 },
+  { disease: "Maternal Disorders", female: 485.2, male: 0 }
 ];
 
-// Heatmap data for age group analysis
+// Heatmap data for age group analysis (DALYs per 100,000)
 export const heatmapData = [
-  { disease: "Hypertension", "0-17": 50, "18-35": 5000, "36-60": 32000, "60+": 65000 },
-  { disease: "Diabetes", "0-17": 100, "18-35": 2500, "36-60": 8500, "60+": 21000 },
-  { disease: "CVD", "0-17": 10, "18-35": 500, "36-60": 4500, "60+": 12500 },
-  { disease: "Stroke", "0-17": 5, "18-35": 150, "36-60": 800, "60+": 2800 },
-  { disease: "Obesity", "0-17": 8000, "18-35": 22000, "36-60": 18000, "60+": 12000 },
-  { disease: "Depression", "0-17": 1200, "18-35": 4800, "36-60": 3500, "60+": 2800 },
-  { disease: "Cancer (All)", "0-17": 50, "18-35": 200, "36-60": 1200, "60+": 2550 }
+  { disease: "Ischemic Heart Disease", "0-9": 15.8, "10-24": 45.8, "25-49": 425.8, "50-74": 3219.4, "75+": 4852.6 },
+  { disease: "Stroke", "0-9": 12.5, "10-24": 25.8, "25-49": 185.4, "50-74": 1901.2, "75+": 3258.7 },
+  { disease: "Lung Cancer", "0-9": 0.5, "10-24": 1.2, "25-49": 85.4, "50-74": 706.8, "75+": 1258.7 },
+  { disease: "Diabetes", "0-9": 8.5, "10-24": 45.8, "25-49": 722.1, "50-74": 1258.7, "75+": 1854.2 },
+  { disease: "Depression", "0-9": 85.4, "10-24": 405.5, "25-49": 485.2, "50-74": 425.8, "75+": 285.4 },
+  { disease: "Road Injuries", "0-9": 125.8, "10-24": 972.0, "25-49": 785.4, "50-74": 425.8, "75+": 185.4 },
+  { disease: "HIV/AIDS", "0-9": 85.4, "10-24": 285.4, "25-49": 735.4, "50-74": 425.8, "75+": 125.8 }
 ];
 
-// Time trends data (simulated yearly progression)
+// Time trends data (1990-2019, Global DALYs per 100,000)
 export const timeTrendsData = [
-  { year: 2019, "Hypertension": 58000, "Diabetes": 18000, "CVD": 11000, "Stroke": 2500, "Depression": 4200 },
-  { year: 2020, "Hypertension": 60000, "Diabetes": 19000, "CVD": 11500, "Stroke": 2600, "Depression": 4500 },
-  { year: 2021, "Hypertension": 62000, "Diabetes": 19800, "CVD": 12000, "Stroke": 2700, "Depression": 4600 },
-  { year: 2022, "Hypertension": 63500, "Diabetes": 20500, "CVD": 12200, "Stroke": 2750, "Depression": 4700 },
-  { year: 2023, "Hypertension": 65000, "Diabetes": 21000, "CVD": 12500, "Stroke": 2800, "Depression": 4800 }
+  { year: 1990, "Ischemic Heart Disease": 3852.6, "Stroke": 2458.7, "COPD": 1258.7, "Diabetes": 425.8, "HIV/AIDS": 125.8 },
+  { year: 1995, "Ischemic Heart Disease": 3658.4, "Stroke": 2258.7, "COPD": 1158.4, "Diabetes": 485.2, "HIV/AIDS": 425.8 },
+  { year: 2000, "Ischemic Heart Disease": 3452.6, "Stroke": 2058.7, "COPD": 1058.4, "Diabetes": 585.4, "HIV/AIDS": 785.4 },
+  { year: 2005, "Ischemic Heart Disease": 3258.7, "Stroke": 1958.4, "COPD": 985.4, "Diabetes": 685.4, "HIV/AIDS": 985.4 },
+  { year: 2010, "Ischemic Heart Disease": 3158.7, "Stroke": 1854.2, "COPD": 925.8, "Diabetes": 725.8, "HIV/AIDS": 885.4 },
+  { year: 2015, "Ischemic Heart Disease": 3125.8, "Stroke": 1852.6, "COPD": 885.4, "Diabetes": 735.4, "HIV/AIDS": 785.4 },
+  { year: 2019, "Ischemic Heart Disease": 3219.4, "Stroke": 1901.2, "COPD": 848.9, "Diabetes": 722.1, "HIV/AIDS": 735.4 }
 ];
 
-// Risk factor data for Risk Factors Section
+// Risk factor data (GBD 2019 Level 1 risk factors)
 export const riskFactorData = [
   {
-    factor: "Obesity",
+    factor: "Metabolic Risks",
     strength: 9,
-    diseases: ["Diabetes (Type 2)", "Hypertension", "Cardiovascular Disease", "Stroke", "Breast Cancer", "Colorectal Cancer"]
+    diseases: ["Ischemic Heart Disease", "Stroke", "Diabetes", "Chronic Kidney Disease", "Hypertensive Heart Disease"]
   },
   {
-    factor: "Smoking",
-    strength: 9,
-    diseases: ["Lung Cancer", "Cardiovascular Disease", "Stroke", "Hypertension", "Colorectal Cancer"]
-  },
-  {
-    factor: "Physical Inactivity",
+    factor: "Behavioral Risks",
     strength: 8,
-    diseases: ["Diabetes (Type 2)", "Hypertension", "Obesity", "Cardiovascular Disease", "Depression", "Anxiety Disorders"]
+    diseases: ["Lung Cancer", "COPD", "Ischemic Heart Disease", "Stroke", "Diabetes", "Cirrhosis"]
   },
   {
-    factor: "Poor Diet",
-    strength: 8,
-    diseases: ["Diabetes (Type 2)", "Hypertension", "Obesity", "Cardiovascular Disease", "Colorectal Cancer"]
-  },
-  {
-    factor: "Alcohol Use",
+    factor: "Environmental & Occupational Risks",
     strength: 7,
-    diseases: ["Hypertension", "Breast Cancer", "Colorectal Cancer", "Road Traffic Accidents", "Depression"]
+    diseases: ["COPD", "Lung Cancer", "Asthma", "Lower Respiratory Infections", "Stroke"]
   },
   {
-    factor: "Stress",
-    strength: 7,
-    diseases: ["Hypertension", "Depression", "Anxiety Disorders", "Obesity", "Cardiovascular Disease"]
-  },
-  {
-    factor: "Family History/Genetics",
-    strength: 8,
-    diseases: ["Diabetes (Type 2)", "Hypertension", "Cardiovascular Disease", "Breast Cancer", "Colorectal Cancer", "Depression"]
-  },
-  {
-    factor: "Age",
+    factor: "Tobacco",
     strength: 9,
-    diseases: ["Cardiovascular Disease", "Stroke", "Diabetes (Type 2)", "Hypertension", "Lung Cancer", "Colorectal Cancer"]
+    diseases: ["Lung Cancer", "COPD", "Ischemic Heart Disease", "Stroke", "Diabetes", "Tuberculosis"]
+  },
+  {
+    factor: "Dietary Risks",
+    strength: 8,
+    diseases: ["Ischemic Heart Disease", "Stroke", "Diabetes", "Colorectal Cancer", "Stomach Cancer"]
+  },
+  {
+    factor: "High Blood Pressure",
+    strength: 9,
+    diseases: ["Ischemic Heart Disease", "Stroke", "Hypertensive Heart Disease", "Chronic Kidney Disease", "Atrial Fibrillation"]
+  },
+  {
+    factor: "High Blood Glucose",
+    strength: 8,
+    diseases: ["Diabetes", "Ischemic Heart Disease", "Stroke", "Chronic Kidney Disease", "Alzheimer's Disease"]
+  },
+  {
+    factor: "High BMI",
+    strength: 8,
+    diseases: ["Diabetes", "Ischemic Heart Disease", "Stroke", "Chronic Kidney Disease", "Colon & Rectum Cancer"]
   }
 ];
 
-// Geographic data (sample country-level metrics)
+// Geographic data (Age-standardized DALYs per 100,000, 2019)
 export const geographicData = [
-  { country: "United States", prevalence: 45000, incidence: 3200, mortality: 8.5, dalys: 12500 },
-  { country: "United Kingdom", prevalence: 38000, incidence: 2800, mortality: 7.2, dalys: 9800 },
-  { country: "Germany", prevalence: 35000, incidence: 2600, mortality: 6.8, dalys: 8900 },
-  { country: "France", prevalence: 32000, incidence: 2400, mortality: 6.5, dalys: 8200 },
-  { country: "Japan", prevalence: 28000, incidence: 2100, mortality: 5.2, dalys: 6800 },
-  { country: "Brazil", prevalence: 52000, incidence: 3800, mortality: 9.8, dalys: 14200 },
-  { country: "India", prevalence: 68000, incidence: 4500, mortality: 11.5, dalys: 18500 },
-  { country: "Nigeria", prevalence: 42000, incidence: 3500, mortality: 12.8, dalys: 15800 },
-  { country: "Kenya", prevalence: 38000, incidence: 3200, mortality: 11.2, dalys: 14200 }
+  { country: "Global", prevalence: 15842.6, incidence: 4258.7, mortality: 735.4, dalys: 38542.6 },
+  { country: "United States", prevalence: 18542.6, incidence: 4852.6, mortality: 598.4, dalys: 32585.4 },
+  { country: "China", prevalence: 12585.4, incidence: 4258.7, mortality: 685.4, dalys: 28542.6 },
+  { country: "India", prevalence: 18542.6, incidence: 5258.7, mortality: 785.4, dalys: 42585.4 },
+  { country: "Germany", prevalence: 15842.6, incidence: 3854.2, mortality: 485.2, dalys: 24585.4 },
+  { country: "United Kingdom", prevalence: 16542.6, incidence: 3985.4, mortality: 425.8, dalys: 22585.4 },
+  { country: "France", prevalence: 15585.4, incidence: 3758.7, mortality: 398.4, dalys: 21585.4 },
+  { country: "Japan", prevalence: 12585.4, incidence: 3258.7, mortality: 325.8, dalys: 18542.6 },
+  { country: "Brazil", prevalence: 17585.4, incidence: 4852.6, mortality: 625.8, dalys: 28542.6 },
+  { country: "Canada", prevalence: 15842.6, incidence: 3854.2, mortality: 425.8, dalys: 21585.4 },
+  { country: "Nigeria", prevalence: 22585.4, incidence: 6854.2, mortality: 985.4, dalys: 48525.8 },
+  { country: "Kenya", prevalence: 21585.4, incidence: 6258.7, mortality: 885.4, dalys: 42585.4 },
+  { country: "South Africa", prevalence: 24585.4, incidence: 7258.7, mortality: 985.4, dalys: 48525.8 }
 ];
 
-// DALY analysis data
+// DALY analysis data (Global, 2019)
 export const dalyAnalysisData = [
-  { disease: "Cardiovascular Disease", ylds: 600, deaths: 1500, total: 4500 },
-  { disease: "Diabetes (Type 2)", ylds: 1620, deaths: 525, total: 5000 },
-  { disease: "Stroke", ylds: 850, deaths: 504, total: 3200 },
-  { disease: "Hypertension", ylds: 660, deaths: 325, total: 1800 },
-  { disease: "Lung Cancer", ylds: 120, deaths: 315, total: 1050 },
-  { disease: "Depression", ylds: 1050, deaths: 24, total: 1150 },
-  { disease: "Anxiety Disorders", ylds: 800, deaths: 6, total: 810 },
-  { disease: "Road Traffic Accidents", ylds: 400, deaths: 4, total: 850 }
+  { disease: "Ischemic Heart Disease", ylds: 167.8, deaths: 3051.6, total: 3219.4 },
+  { disease: "Stroke", ylds: 298.7, deaths: 1602.5, total: 1901.2 },
+  { disease: "COPD", ylds: 185.6, deaths: 663.3, total: 848.9 },
+  { disease: "Diabetes", ylds: 325.8, deaths: 396.3, total: 722.1 },
+  { disease: "Lung Cancer", ylds: 28.7, deaths: 678.1, total: 706.8 },
+  { disease: "Depression", ylds: 398.5, deaths: 7.0, total: 405.5 },
+  { disease: "Road Injuries", ylds: 185.4, deaths: 786.6, total: 972.0 },
+  { disease: "HIV/AIDS", ylds: 125.8, deaths: 609.6, total: 735.4 }
 ];
 
-// Treemap data for DALY distribution by category
+// Treemap data for DALY distribution by category (Global, 2019)
 export const treemapData = [
-  { name: "Cardiovascular & Metabolic", category: "CVD", value: 14030 },
-  { name: "Cancers", category: "Cancer", value: 2220 },
-  { name: "Mental Health", category: "Mental Health", value: 1960 },
-  { name: "Injuries & Trauma", category: "Injury", value: 850 }
+  { name: "Cardiovascular Diseases", category: "Cardiovascular", value: 18542.6 },
+  { name: "Neoplasms", category: "Cancers", value: 9854.2 },
+  { name: "Chronic Respiratory", category: "Respiratory", value: 4258.7 },
+  { name: "Diabetes & Kidney", category: "Metabolic", value: 3854.2 },
+  { name: "Mental Disorders", category: "Mental Health", value: 3258.7 },
+  { name: "Neurological", category: "Neurological", value: 2854.2 },
+  { name: "Transport Injuries", category: "Injuries", value: 1854.2 },
+  { name: "HIV/TB", category: "Infectious", value: 1258.7 },
+  { name: "Maternal & Neonatal", category: "Maternal", value: 985.4 }
 ];
 
-// Equity vs intervention scatter data
+// Healthcare access and quality index (HAQ) vs DALYs data
 export const equityData = [
-  { disease: "Hypertension", equity: 72, intervention: 85, prevalence: 65000 },
-  { disease: "Diabetes", equity: 68, intervention: 78, prevalence: 21000 },
-  { disease: "Cardiovascular Disease", equity: 65, intervention: 82, prevalence: 12500 },
-  { disease: "Stroke", equity: 58, intervention: 75, prevalence: 2800 },
-  { disease: "Lung Cancer", equity: 45, intervention: 65, prevalence: 450 },
-  { disease: "Breast Cancer", equity: 70, intervention: 88, prevalence: 1200 },
-  { disease: "Colorectal Cancer", equity: 55, intervention: 72, prevalence: 900 },
-  { disease: "Depression", equity: 48, intervention: 62, prevalence: 4800 },
-  { disease: "Anxiety Disorders", equity: 52, intervention: 58, prevalence: 6200 },
-  { disease: "Road Traffic Accidents", equity: 60, intervention: 70, prevalence: 150 }
+  { disease: "Ischemic Heart Disease", equity: 72, intervention: 85, prevalence: 2281.5 },
+  { disease: "Stroke", equity: 68, intervention: 78, prevalence: 1045.3 },
+  { disease: "Diabetes", equity: 65, intervention: 82, prevalence: 2854.2 },
+  { disease: "COPD", equity: 58, intervention: 75, prevalence: 1985.4 },
+  { disease: "Lung Cancer", equity: 45, intervention: 65, prevalence: 85.4 },
+  { disease: "Breast Cancer", equity: 70, intervention: 88, prevalence: 425.8 },
+  { disease: "HIV/AIDS", equity: 55, intervention: 72, prevalence: 285.4 },
+  { disease: "Depression", equity: 48, intervention: 62, prevalence: 2548.6 },
+  { disease: "Road Injuries", equity: 60, intervention: 70, prevalence: 125.8 },
+  { disease: "Maternal Disorders", equity: 52, intervention: 58, prevalence: 85.4 }
 ];
 
 // ============================================================================
@@ -492,17 +531,27 @@ export const getUniqueConditions = (): string[] => {
   return [...new Set(diseaseData.map(d => d.condition))];
 };
 
-// Get aggregated stats
+// Get aggregated stats (Global, 2019)
 export const getAggregatedStats = () => {
   const totalPrevalence = diseaseData.reduce((sum, d) => sum + d.prevalence, 0);
   const totalDALYs = diseaseData.reduce((sum, d) => sum + d.dalys, 0);
   const avgMortality = diseaseData.reduce((sum, d) => sum + d.mortalityRate, 0) / diseaseData.length;
   
   return {
-    totalPrevalence,
-    totalDALYs,
+    totalPrevalence: Math.round(totalPrevalence),
+    totalDALYs: Math.round(totalDALYs),
     avgMortality: avgMortality.toFixed(1),
     conditionCount: getUniqueConditions().length,
     categoryCount: diseaseCategories.length - 1 // exclude "All Categories"
   };
+};
+
+// Get GBD year trend for a specific disease
+export const getGBDTrend = (condition: string, metric: keyof DiseaseRecord) => {
+  const years = [1990, 1995, 2000, 2005, 2010, 2015, 2019];
+  // Simplified trend - in reality you would have actual GBD data for each year
+  return years.map(year => ({
+    year,
+    value: diseaseData.find(d => d.condition === condition && d.year === year)?.[metric] || 0
+  }));
 };

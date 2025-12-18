@@ -11,6 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { Building2, GraduationCap, Hospital, Cpu, Heart, HandCoins, Globe2, TrendingUp, Shield, Lightbulb, Users, Zap } from "lucide-react";
 import outbreakNowLogo from "@/assets/outbreaknow-logo.png";
 import { Footer } from "@/components/Footer";
+import { useLanguage, SUPPORTED_LANGUAGES } from "@/contexts/LanguageContext";
 
 const schema = z.object({
   name: z.string().min(2, "Please enter your name"),
@@ -28,6 +29,8 @@ const Partnership = () => {
     resolver: zodResolver(schema),
     defaultValues: { name: "", organization: "", email: "", message: "" },
   });
+
+  const { language, setLanguage, t } = useLanguage();
 
   const onSubmit = (values: FormValues) => {
     console.log("Partnership inquiry submitted:", values);
@@ -56,19 +59,38 @@ const Partnership = () => {
             <div className="flex-1 flex items-center justify-end gap-4">
               <Link to="/">
                 <Button variant="ghost" size="sm">
-                  Home
+                  {t("common.home")}
                 </Button>
               </Link>
               <Link to="/map">
                 <Button variant="ghost" size="sm">
-                  Map
+                  {t("common.map")}
                 </Button>
               </Link>
               <Link to="/dashboard">
                 <Button variant="ghost" size="sm">
-                  Dashboard
+                  {t("common.dashboard")}
                 </Button>
               </Link>
+
+              {/* Language Selector */}
+              <div className="ml-4">
+                <label className="sr-only" htmlFor="partnership-language-select">
+                  Select language
+                </label>
+                <select
+                  id="partnership-language-select"
+                  className="border border-border rounded-md px-2 py-1 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value as any)}
+                >
+                  {SUPPORTED_LANGUAGES.map((lang) => (
+                    <option key={lang.code} value={lang.code}>
+                      {lang.nativeName}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
         </div>
@@ -80,13 +102,13 @@ const Partnership = () => {
           <div className="container-prose">
             <div className="mx-auto max-w-5xl text-center">
               <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-4 bg-gradient-to-r from-primary to-primary/60 bg-clip-text text-transparent">
-                Become a Partner
+                {t("landing.partnership.heroTitle")}
               </h1>
               <p className="text-xl md:text-2xl font-semibold mb-4 text-foreground/90">
-                Join Us in Shaping the Future of Outbreak Response
+                {t("landing.partnership.heroSubtitle")}
               </p>
               <p className="text-base md:text-lg text-muted-foreground leading-relaxed max-w-3xl mx-auto">
-                OutbreakNow is building the next generation of real-time global outbreak intelligence. Partner with us to strengthen early detection systems, accelerate data-sharing, and deliver life-saving insights worldwide.
+                {t("landing.partnership.heroBody")}
               </p>
             </div>
           </div>
@@ -97,44 +119,56 @@ const Partnership = () => {
           <div className="container-prose">
             <div className="mx-auto max-w-6xl">
               <h2 className="text-2xl md:text-3xl font-bold tracking-tight mb-8 text-center">
-                We Actively Collaborate With
+                {t("landing.partnership.collaborateTitle")}
               </h2>
 
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
                 <div className="rounded-lg border bg-card p-4 shadow-sm hover:shadow-md transition-all hover:scale-105 group">
                   <Building2 className="w-8 h-8 mb-2 text-primary mx-auto" />
-                  <h3 className="text-xs font-semibold text-center">Public Health Agencies</h3>
+                  <h3 className="text-xs font-semibold text-center">
+                    {t("landing.partnership.collaboratePublicHealth")}
+                  </h3>
                 </div>
 
                 <div className="rounded-lg border bg-card p-4 shadow-sm hover:shadow-md transition-all hover:scale-105 group">
                   <GraduationCap className="w-8 h-8 mb-2 text-primary mx-auto" />
-                  <h3 className="text-xs font-semibold text-center">Universities & Research</h3>
+                  <h3 className="text-xs font-semibold text-center">
+                    {t("landing.partnership.collaborateUniversities")}
+                  </h3>
                 </div>
 
                 <div className="rounded-lg border bg-card p-4 shadow-sm hover:shadow-md transition-all hover:scale-105 group">
                   <Hospital className="w-8 h-8 mb-2 text-primary mx-auto" />
-                  <h3 className="text-xs font-semibold text-center">Healthcare Systems</h3>
+                  <h3 className="text-xs font-semibold text-center">
+                    {t("landing.partnership.collaborateHealthcare")}
+                  </h3>
                 </div>
 
                 <div className="rounded-lg border bg-card p-4 shadow-sm hover:shadow-md transition-all hover:scale-105 group">
                   <Cpu className="w-8 h-8 mb-2 text-primary mx-auto" />
-                  <h3 className="text-xs font-semibold text-center">Technology Partners</h3>
+                  <h3 className="text-xs font-semibold text-center">
+                    {t("landing.partnership.collaborateTechnology")}
+                  </h3>
                 </div>
 
                 <div className="rounded-lg border bg-card p-4 shadow-sm hover:shadow-md transition-all hover:scale-105 group">
                   <Heart className="w-8 h-8 mb-2 text-primary mx-auto" />
-                  <h3 className="text-xs font-semibold text-center">NGOs & Networks</h3>
+                  <h3 className="text-xs font-semibold text-center">
+                    {t("landing.partnership.collaborateNgos")}
+                  </h3>
                 </div>
 
                 <div className="rounded-lg border bg-card p-4 shadow-sm hover:shadow-md transition-all hover:scale-105 group">
                   <HandCoins className="w-8 h-8 mb-2 text-primary mx-auto" />
-                  <h3 className="text-xs font-semibold text-center">Foundations</h3>
+                  <h3 className="text-xs font-semibold text-center">
+                    {t("landing.partnership.collaborateFoundations")}
+                  </h3>
                 </div>
               </div>
 
               <div className="p-5 rounded-lg bg-primary/5 border border-primary/20">
                 <p className="text-center text-sm text-foreground/80 leading-relaxed">
-                  Your partnership can directly contribute to expanding global surveillance coverage, improving predictive modeling, and making critical outbreak information more accessible worldwide.
+                  {t("landing.partnership.collaborateNote")}
                 </p>
               </div>
             </div>
@@ -146,65 +180,77 @@ const Partnership = () => {
           <div className="container-prose">
             <div className="mx-auto max-w-6xl">
               <h2 className="text-2xl md:text-3xl font-bold tracking-tight mb-8 text-center">
-                Why Partner With Us?
+                {t("landing.partnership.whyTitle")}
               </h2>
 
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <div className="rounded-lg border bg-card p-5 shadow-sm hover:shadow-md transition-all group">
                   <Globe2 className="w-8 h-8 mb-3 text-primary" />
-                  <h3 className="text-base font-semibold mb-2">Advance Global Preparedness</h3>
+                  <h3 className="text-base font-semibold mb-2">
+                    {t("landing.partnership.whyAdvanceTitle")}
+                  </h3>
                   <p className="text-sm text-muted-foreground">
-                    Support rapid response systems that detect and contain outbreaks before they escalate
+                    {t("landing.partnership.whyAdvanceBody")}
                   </p>
                 </div>
 
                 <div className="rounded-lg border bg-card p-5 shadow-sm hover:shadow-md transition-all group">
                   <TrendingUp className="w-8 h-8 mb-3 text-primary" />
-                  <h3 className="text-base font-semibold mb-2">Cutting-Edge Technology</h3>
+                  <h3 className="text-base font-semibold mb-2">
+                    {t("landing.partnership.whyTechTitle")}
+                  </h3>
                   <p className="text-sm text-muted-foreground">
-                    Support digital epidemiology and AI-driven surveillance innovation
+                    {t("landing.partnership.whyTechBody")}
                   </p>
                 </div>
 
                 <div className="rounded-lg border bg-card p-5 shadow-sm hover:shadow-md transition-all group">
                   <Shield className="w-8 h-8 mb-3 text-primary" />
-                  <h3 className="text-base font-semibold mb-2">Strengthen Health Systems</h3>
+                  <h3 className="text-base font-semibold mb-2">
+                    {t("landing.partnership.whySystemsTitle")}
+                  </h3>
                   <p className="text-sm text-muted-foreground">
-                    Help vulnerable and underserved regions access critical surveillance tools
+                    {t("landing.partnership.whySystemsBody")}
                   </p>
                 </div>
 
                 <div className="rounded-lg border bg-card p-5 shadow-sm hover:shadow-md transition-all group">
                   <Lightbulb className="w-8 h-8 mb-3 text-primary" />
-                  <h3 className="text-base font-semibold mb-2">Drive Innovation</h3>
+                  <h3 className="text-base font-semibold mb-2">
+                    {t("landing.partnership.whyInnovationTitle")}
+                  </h3>
                   <p className="text-sm text-muted-foreground">
-                    Contribute to research, innovation, and scientific advancement
+                    {t("landing.partnership.whyInnovationBody")}
                   </p>
                 </div>
 
                 <div className="rounded-lg border bg-card p-5 shadow-sm hover:shadow-md transition-all group">
                   <Users className="w-8 h-8 mb-3 text-primary" />
-                  <h3 className="text-base font-semibold mb-2">Protect Populations</h3>
+                  <h3 className="text-base font-semibold mb-2">
+                    {t("landing.partnership.whyProtectTitle")}
+                  </h3>
                   <p className="text-sm text-muted-foreground">
-                    Shape a platform that safeguards communities and saves lives
+                    {t("landing.partnership.whyProtectBody")}
                   </p>
                 </div>
 
                 <div className="rounded-lg border bg-card p-5 shadow-sm hover:shadow-md transition-all group">
                   <Zap className="w-8 h-8 mb-3 text-primary" />
-                  <h3 className="text-base font-semibold mb-2">Prevent Pandemics</h3>
+                  <h3 className="text-base font-semibold mb-2">
+                    {t("landing.partnership.whyPreventTitle")}
+                  </h3>
                   <p className="text-sm text-muted-foreground">
-                    Join the movement to stop outbreaks faster and prevent the next pandemic
+                    {t("landing.partnership.whyPreventBody")}
                   </p>
                 </div>
               </div>
 
               <div className="mt-8 text-center p-6 rounded-lg bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10 border border-primary/20">
                 <p className="text-base md:text-lg font-semibold mb-1 text-foreground/90">
-                  OutbreakNow is more than a tool—
+                  {t("landing.partnership.movementLine1")}
                 </p>
                 <p className="text-lg md:text-xl font-bold text-primary">
-                  It's a global movement to stop outbreaks faster and prevent the next pandemic.
+                  {t("landing.partnership.movementLine2")}
                 </p>
               </div>
             </div>
@@ -217,10 +263,10 @@ const Partnership = () => {
             <div className="max-w-3xl mx-auto">
               <div className="text-center mb-6">
                 <h2 className="text-2xl md:text-3xl font-bold tracking-tight mb-3">
-                  🤝 Let's Partner Together
+                  {t("landing.partnership.formTitle")}
                 </h2>
                 <p className="text-base text-muted-foreground">
-                  Join us in building a safer, more resilient world. Together, we can make outbreaks visible before they become emergencies.
+                  {t("landing.partnership.formSubtitle")}
                 </p>
               </div>
 
@@ -233,9 +279,9 @@ const Partnership = () => {
                         name="name"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Full Name</FormLabel>
+                            <FormLabel>{t("landing.partnership.formNameLabel")}</FormLabel>
                             <FormControl>
-                              <Input placeholder="Dr. Jane Doe" {...field} />
+                              <Input placeholder={t("landing.partnership.formNamePlaceholder")} {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -246,9 +292,9 @@ const Partnership = () => {
                         name="organization"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Organization</FormLabel>
+                            <FormLabel>{t("landing.partnership.formOrgLabel")}</FormLabel>
                             <FormControl>
-                              <Input placeholder="Your institution" {...field} />
+                              <Input placeholder={t("landing.partnership.formOrgPlaceholder")} {...field} />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -260,9 +306,9 @@ const Partnership = () => {
                       name="email"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Email Address</FormLabel>
+                          <FormLabel>{t("landing.partnership.formEmailLabel")}</FormLabel>
                           <FormControl>
-                            <Input type="email" placeholder="contact@organization.org" {...field} />
+                            <Input type="email" placeholder={t("landing.partnership.formEmailPlaceholder")} {...field} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -273,10 +319,10 @@ const Partnership = () => {
                       name="message"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Partnership Inquiry</FormLabel>
+                          <FormLabel>{t("landing.partnership.formMessageLabel")}</FormLabel>
                           <FormControl>
                             <Textarea
-                              placeholder="Tell us about your organization and how you'd like to collaborate..."
+                              placeholder={t("landing.partnership.formMessagePlaceholder")}
                               rows={5}
                               {...field}
                             />
@@ -286,7 +332,7 @@ const Partnership = () => {
                       )}
                     />
                     <Button type="submit" size="lg" className="w-full">
-                      Submit Partnership Inquiry
+                      {t("landing.partnership.formSubmit")}
                     </Button>
                   </form>
                 </Form>

@@ -1,8 +1,7 @@
-import React, { useMemo } from "react";
-import { Card, CardContent } from "../../../components/ui/card";
+import React, { useMemo, useState, useEffect } from "react";
 import { useGoogleTrendsRegions } from "../../../lib/useGoogleTrendsRegions";
-import { AlertCircle, Loader2 } from "lucide-react";
-import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import { AlertCircle, Loader2, ChevronDown } from "lucide-react";
+import { MapContainer, TileLayer, Marker, Popup, Tooltip, useMap } from "react-leaflet";
 import { Icon } from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -84,6 +83,18 @@ export const DiseaseRegionMap = ({
     timeRange
   );
 
+  // Disease used for sorting the ranked region list (like "Interest for Malaria")
+  const [sortDisease, setSortDisease] = useState<string | null>(
+    selectedDiseases[0] ?? null
+  );
+
+  // Keep sort disease in sync when selection changes
+  useEffect(() => {
+    if (!sortDisease || !selectedDiseases.includes(sortDisease)) {
+      setSortDisease(selectedDiseases[0] ?? null);
+    }
+  }, [selectedDiseases.join(","), sortDisease]);
+
   // Get disease colors
   const diseaseColorMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -99,11 +110,12 @@ export const DiseaseRegionMap = ({
       string,
       {
         position: [number, number];
-        regions: Array<{
+        regionName: string;
+        regions: Map<string, {
           disease: string;
           region: string;
           score: number;
-        }>;
+        }>; // Use Map to deduplicate by disease name
       }
     >();
 
@@ -115,19 +127,30 @@ export const DiseaseRegionMap = ({
         if (!markerMap.has(key)) {
           markerMap.set(key, {
             position: region.coordinates,
-            regions: [],
+            regionName: region.region,
+            regions: new Map(),
           });
         }
 
-        markerMap.get(key)!.regions.push({
-          disease: diseaseData.disease,
-          region: region.region,
-          score: region.popularity_score,
-        });
+        const marker = markerMap.get(key)!;
+        // Only keep the highest score for each disease at this location
+        const existing = marker.regions.get(diseaseData.disease);
+        if (!existing || region.popularity_score > existing.score) {
+          marker.regions.set(diseaseData.disease, {
+            disease: diseaseData.disease,
+            region: region.region,
+            score: region.popularity_score,
+          });
+        }
       });
     });
 
-    return Array.from(markerMap.values());
+    // Convert Map values to arrays
+    return Array.from(markerMap.values()).map(marker => ({
+      position: marker.position,
+      regionName: marker.regionName,
+      regions: Array.from(marker.regions.values()),
+    }));
   }, [regionData]);
 
   // Calculate map bounds to fit all markers
@@ -142,6 +165,44 @@ export const DiseaseRegionMap = ({
       [Math.max(...lats), Math.max(...lngs)],
     ] as [[number, number], [number, number]];
   }, [markers]);
+
+  // Build a ranked region list similar to Google Trends "Compared breakdown by region"
+  const rankedRegions = useMemo(() => {
+    if (!sortDisease) return [];
+
+    // Aggregate scores per region across diseases
+    const regionMap = new Map<
+      string,
+      {
+        regionName: string;
+        scores: Record<string, number>;
+      }
+    >();
+
+    regionData.forEach((diseaseData) => {
+      diseaseData.regions.forEach((region) => {
+        const key = region.region;
+        if (!regionMap.has(key)) {
+          regionMap.set(key, {
+            regionName: region.region,
+            scores: {},
+          });
+        }
+        const entry = regionMap.get(key)!;
+        entry.scores[diseaseData.disease] = region.popularity_score;
+      });
+    });
+
+    const regionsArray = Array.from(regionMap.values());
+
+    // Sort by selected disease interest descending
+    regionsArray.sort(
+      (a, b) =>
+        (b.scores[sortDisease] ?? 0) - (a.scores[sortDisease] ?? 0)
+    );
+
+    return regionsArray;
+  }, [regionData, sortDisease]);
 
   if (loading) {
     return (
@@ -183,6 +244,7 @@ export const DiseaseRegionMap = ({
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
+      {/* Header */}
       <div className="p-4 border-b border-gray-200">
         <div className="flex items-center justify-between">
           <div>
@@ -195,121 +257,299 @@ export const DiseaseRegionMap = ({
               fraction of total searches.
             </p>
           </div>
+
+          <div className="flex items-center gap-4">
+            {/* Region selector – fixed to Worldwide for now */}
+            <div className="flex items-center gap-2 text-xs text-gray-600">
+              <span>Region</span>
+              <button
+                type="button"
+                className="inline-flex items-center gap-1 rounded-full border border-gray-200 px-3 py-1 bg-white text-xs text-gray-700"
+              >
+                Worldwide
+                <ChevronDown className="w-3 h-3" />
+              </button>
+            </div>
+
+            {/* Sort dropdown – Interest for <disease> */}
+            {sortDisease && (
+              <div className="flex items-center gap-2 text-xs text-gray-600">
+                <span className="text-gray-500">Sort:</span>
+                <div className="relative">
+                  <select
+                    className="appearance-none pl-3 pr-7 py-1 rounded-full border border-gray-200 bg-white text-xs text-gray-800 font-medium cursor-pointer"
+                    value={sortDisease}
+                    onChange={(e) => setSortDisease(e.target.value)}
+                  >
+                    {selectedDiseases.map((disease) => (
+                      <option key={disease} value={disease}>
+                        Interest for {disease}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-500" />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      <div className="relative" style={{ height: "500px" }}>
-        <MapContainer
-          center={bounds ? undefined : [20, 0]}
-          zoom={bounds ? undefined : 2}
-          bounds={bounds || undefined}
-          boundsOptions={{ padding: [50, 50] }}
-          style={{ height: "100%", width: "100%", zIndex: 0 }}
-          scrollWheelZoom={true}
-        >
-          <MapResizeHandler />
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
+      {/* Main content: map left, ranked list right */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-0" style={{ minHeight: "500px" }}>
+        {/* LEFT: Map + legend */}
+        <div className="lg:col-span-7 border-b lg:border-b-0 lg:border-r border-gray-200">
+          <div className="relative" style={{ height: "500px" }}>
+            <MapContainer
+              center={bounds ? undefined : [20, 0]}
+              zoom={bounds ? undefined : 2}
+              bounds={bounds || undefined}
+              boundsOptions={{ padding: [50, 50] }}
+              style={{ height: "100%", width: "100%", zIndex: 0 }}
+              scrollWheelZoom={true}
+            >
+              <MapResizeHandler />
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
 
-          {markers.map((marker, index) => {
-            // For multiple diseases, show the highest score or use first disease color
-            const topRegion = marker.regions.sort((a, b) => b.score - a.score)[0];
-            const diseaseColor = diseaseColorMap[topRegion.disease];
+              {markers.map((marker, index) => {
+                const topRegion = marker.regions.sort((a, b) => b.score - a.score)[0];
+                const diseaseColor = diseaseColorMap[topRegion.disease];
 
-            return (
-              <Marker
-                key={`marker-${index}`}
-                position={marker.position}
-                icon={createPopularityIcon(
-                  topRegion.score,
-                  selectedDiseases.length === 1 ? undefined : diseaseColor
-                )}
-              >
-                <Popup className="custom-popup" maxWidth={300}>
-                  <div className="p-2">
-                    <div className="font-semibold text-sm text-gray-900 mb-2">
-                      {marker.regions[0].region}
-                    </div>
-                    <div className="space-y-1.5">
-                      {marker.regions
-                        .sort((a, b) => b.score - a.score)
-                        .map((region) => (
-                          <div
-                            key={region.disease}
-                            className="flex items-center justify-between text-xs"
-                          >
-                            <div className="flex items-center gap-2">
+                return (
+                  <Marker
+                    key={`marker-${index}`}
+                    position={marker.position}
+                    icon={createPopularityIcon(
+                      topRegion.score,
+                      selectedDiseases.length === 1 ? undefined : diseaseColor
+                    )}
+                  >
+                    <Tooltip
+                      permanent={false}
+                      direction="top"
+                      offset={[0, -10]}
+                      className="custom-tooltip"
+                    >
+                      <div className="p-2 min-w-[200px]">
+                        <div className="font-semibold text-sm text-gray-900 mb-2">
+                          {marker.regionName}
+                        </div>
+                        <div className="space-y-1.5">
+                          {marker.regions
+                            .sort((a, b) => b.score - a.score)
+                            .map((region) => (
                               <div
-                                className="w-3 h-3 rounded-full"
-                                style={{
-                                  backgroundColor:
-                                    diseaseColorMap[region.disease] ||
-                                    getPopularityColor(region.score),
-                                }}
-                              />
-                              <span className="text-gray-700 capitalize">
-                                {region.disease}
-                              </span>
-                            </div>
-                            <span
-                              className="font-bold"
-                              style={{
-                                color:
-                                  diseaseColorMap[region.disease] ||
-                                  getPopularityColor(region.score),
-                              }}
-                            >
-                              {region.score}
-                            </span>
-                          </div>
-                        ))}
+                                key={region.disease}
+                                className="flex items-center justify-between text-xs"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <div
+                                    className="w-3 h-3 rounded-full"
+                                    style={{
+                                      backgroundColor:
+                                        diseaseColorMap[region.disease] ||
+                                        getPopularityColor(region.score),
+                                    }}
+                                  />
+                                  <span className="text-gray-700 capitalize">
+                                    {region.disease}
+                                  </span>
+                                </div>
+                                <span
+                                  className="font-bold"
+                                  style={{
+                                    color:
+                                      diseaseColorMap[region.disease] ||
+                                      getPopularityColor(region.score),
+                                  }}
+                                >
+                                  {region.score}
+                                </span>
+                              </div>
+                            ))}
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-gray-200 text-[10px] text-gray-500">
+                          Higher value = higher proportion of searches in this region
+                        </div>
+                      </div>
+                    </Tooltip>
+
+                    <Popup className="custom-popup" maxWidth={300}>
+                      <div className="p-2">
+                        <div className="font-semibold text-sm text-gray-900 mb-2">
+                          {marker.regionName}
+                        </div>
+                        <div className="space-y-1.5">
+                          {marker.regions
+                            .sort((a, b) => b.score - a.score)
+                            .map((region) => (
+                              <div
+                                key={region.disease}
+                                className="flex items-center justify-between text-xs"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <div
+                                    className="w-3 h-3 rounded-full"
+                                    style={{
+                                      backgroundColor:
+                                        diseaseColorMap[region.disease] ||
+                                        getPopularityColor(region.score),
+                                    }}
+                                  />
+                                  <span className="text-gray-700 capitalize">
+                                    {region.disease}
+                                  </span>
+                                </div>
+                                <span
+                                  className="font-bold"
+                                  style={{
+                                    color:
+                                      diseaseColorMap[region.disease] ||
+                                      getPopularityColor(region.score),
+                                  }}
+                                >
+                                  {region.score}
+                                </span>
+                              </div>
+                            ))}
+                        </div>
+                        <div className="mt-2 pt-2 border-t border-gray-200 text-[10px] text-gray-500">
+                          Higher value = higher proportion of searches in this region
+                        </div>
+                      </div>
+                    </Popup>
+                  </Marker>
+                );
+              })}
+            </MapContainer>
+          </div>
+
+          {/* Legend */}
+          <div className="p-4 border-t border-gray-200 bg-gray-50">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-gray-700">Popularity Scale:</span>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-full bg-[#bfdbfe]" title="0-20" />
+                  <div className="w-3 h-3 rounded-full bg-[#93c5fd]" title="21-40" />
+                  <div className="w-3 h-3 rounded-full bg-[#60a5fa]" title="41-60" />
+                  <div className="w-3 h-3 rounded-full bg-[#3b82f6]" title="61-80" />
+                  <div className="w-3 h-3 rounded-full bg-[#1d4ed8]" title="81-100" />
+                </div>
+                <span className="text-xs text-gray-500">Low → High</span>
+              </div>
+
+              {selectedDiseases.length > 1 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium text-gray-700">Diseases:</span>
+                  {selectedDiseases.map((disease, index) => (
+                    <div key={disease} className="flex items-center gap-1">
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{
+                          backgroundColor:
+                            DISEASE_COLORS[index % DISEASE_COLORS.length],
+                        }}
+                      />
+                      <span className="text-xs text-gray-600 capitalize">
+                        {disease}
+                      </span>
                     </div>
-                    <div className="mt-2 pt-2 border-t border-gray-200 text-[10px] text-gray-500">
-                      Higher value = higher proportion of searches in this region
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT: Ranked regions list with stacked bars */}
+        <div className="lg:col-span-5">
+          <div className="h-full flex flex-col">
+            <div className="px-5 pt-4 pb-2 border-b border-gray-200 flex items-center justify-between">
+              <div className="text-xs text-gray-500">
+                Showing top {Math.min(rankedRegions.length, 10)} of{" "}
+                {rankedRegions.length} regions
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+              {rankedRegions.slice(0, 10).map((region, index) => {
+                const sortScore = region.scores[sortDisease || ""] ?? 0;
+                const maxScoreForRow = Math.max(
+                  ...selectedDiseases.map((d) => region.scores[d] ?? 0),
+                  1
+                );
+
+                return (
+                  <div key={region.regionName} className="flex items-center gap-4">
+                    <div className="w-6 text-xs text-gray-500">{index + 1}</div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm text-gray-800">
+                          {region.regionName}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {Math.round(sortScore)}
+                        </span>
+                      </div>
+
+                      {/* Stacked bar */}
+                      <div className="w-full h-3 rounded-full bg-gray-100 overflow-hidden flex">
+                        {selectedDiseases.map((disease) => {
+                          const score = region.scores[disease] ?? 0;
+                          if (score <= 0) return null;
+
+                          return (
+                            <div
+                              key={disease}
+                              className="h-full"
+                              style={{
+                                width: `${(score / maxScoreForRow) * 100}%`,
+                                backgroundColor:
+                                  disease === sortDisease
+                                    ? diseaseColorMap[disease]
+                                    : `${diseaseColorMap[disease]}cc`,
+                              }}
+                              title={`${disease}: ${Math.round(score)}`}
+                            />
+                          );
+                        })}
+                      </div>
+
+                      {selectedDiseases.length > 1 && (
+                        <div className="mt-1 flex flex-wrap gap-2">
+                          {selectedDiseases.map((disease) => {
+                            const score = region.scores[disease] ?? 0;
+                            if (score <= 0) return null;
+                            return (
+                              <div
+                                key={`${region.regionName}-${disease}`}
+                                className="flex items-center gap-1 text-[10px] text-gray-600"
+                              >
+                                <span
+                                  className="inline-block w-2 h-2 rounded-full"
+                                  style={{
+                                    backgroundColor: diseaseColorMap[disease],
+                                  }}
+                                />
+                                <span className="capitalize">{disease}</span>
+                                <span className="text-gray-400">
+                                  {Math.round(score)}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   </div>
-                </Popup>
-              </Marker>
-            );
-          })}
-        </MapContainer>
-      </div>
-
-      {/* Legend */}
-      <div className="p-4 border-t border-gray-200 bg-gray-50">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-medium text-gray-700">Popularity Scale:</span>
-            <div className="flex items-center gap-1">
-              <div className="w-3 h-3 rounded-full bg-[#bfdbfe]" title="0-20" />
-              <div className="w-3 h-3 rounded-full bg-[#93c5fd]" title="21-40" />
-              <div className="w-3 h-3 rounded-full bg-[#60a5fa]" title="41-60" />
-              <div className="w-3 h-3 rounded-full bg-[#3b82f6]" title="61-80" />
-              <div className="w-3 h-3 rounded-full bg-[#1d4ed8]" title="81-100" />
+                );
+              })}
             </div>
-            <span className="text-xs text-gray-500">Low → High</span>
           </div>
-          {selectedDiseases.length > 1 && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-medium text-gray-700">Diseases:</span>
-              {selectedDiseases.map((disease, index) => (
-                <div key={disease} className="flex items-center gap-1">
-                  <div
-                    className="w-3 h-3 rounded-full"
-                    style={{
-                      backgroundColor:
-                        DISEASE_COLORS[index % DISEASE_COLORS.length],
-                    }}
-                  />
-                  <span className="text-xs text-gray-600 capitalize">
-                    {disease}
-                  </span>
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
     </div>

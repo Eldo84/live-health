@@ -17,6 +17,7 @@ export interface OutbreakSignal {
   source?: string; // News source name
   severity?: string;
   confidence?: number;
+  isUserSubmitted?: boolean; // True if this alert was manually added by a user
 }
 
 const DATE_RANGE_MS: Record<string, number> = {
@@ -500,8 +501,16 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
         const data: any[] = await response.json();
         console.log('📦 Raw data received:', data.length, 'signals');
         
-        // Fetch category and pathogen mappings in parallel for better performance
-        const [categoryResponse, pathogenResponse] = await Promise.all([
+        // Fetch user alert submissions, category and pathogen mappings in parallel for better performance
+        const [userSubmissionsResponse, categoryResponse, pathogenResponse] = await Promise.all([
+          // Fetch user alert submissions to identify manually added alerts
+          fetch(`${supabaseUrl}/rest/v1/user_alert_submissions?select=outbreak_signal_id&status=eq.approved&outbreak_signal_id=not.is.null&limit=1000`, {
+            headers: {
+              apikey: supabaseKey,
+              Authorization: `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+            },
+          }),
           fetch(`${supabaseUrl}/rest/v1/disease_categories?select=disease_id,outbreak_categories!category_id(name,color)`, {
             headers: {
               apikey: supabaseKey,
@@ -515,6 +524,38 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
             },
           })
         ]);
+        
+        // Parse user submissions to identify manually added alerts
+        let userSubmittedSignalIds: Set<string> = new Set();
+        try {
+          if (userSubmissionsResponse.ok) {
+            const userSubmissions: any[] = await userSubmissionsResponse.json();
+            console.log('📋 Raw user submissions response:', userSubmissions);
+            console.log('📋 Response type:', Array.isArray(userSubmissions) ? 'array' : typeof userSubmissions);
+            
+            if (Array.isArray(userSubmissions)) {
+              userSubmissions.forEach((submission: any) => {
+                const signalId = submission.outbreak_signal_id;
+                if (signalId) {
+                  userSubmittedSignalIds.add(String(signalId)); // Ensure it's a string
+                  console.log('✓ Added user-submitted signal ID:', signalId);
+                } else {
+                  console.warn('⚠️ Submission missing outbreak_signal_id:', submission);
+                }
+              });
+            } else {
+              console.warn('⚠️ User submissions response is not an array:', userSubmissions);
+            }
+            
+            console.log('✓ Found', userSubmittedSignalIds.size, 'user-submitted alerts');
+            console.log('✓ User-submitted signal IDs:', Array.from(userSubmittedSignalIds));
+          } else {
+            const errorText = await userSubmissionsResponse.text();
+            console.warn('⚠️ Failed to fetch user submissions:', userSubmissionsResponse.status, userSubmissionsResponse.statusText, errorText);
+          }
+        } catch (error: any) {
+          console.error('❌ Error parsing user submissions:', error);
+        }
         
         // Parse category mapping
         let diseaseCategoryMap: Record<string, { name: string; color: string }> = {};
@@ -664,6 +705,18 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
               }
             }
 
+            // Check if this signal is from a user submission
+            // Ensure both are strings for comparison
+            const signalIdStr = String(signal.id);
+            const isUserSubmitted = userSubmittedSignalIds.has(signalIdStr);
+            
+            if (isUserSubmitted) {
+              console.log('✓ Marking signal as user-submitted:', signalIdStr, displayDiseaseName);
+            } else if (userSubmittedSignalIds.size > 0) {
+              // Only log if we have user submissions but this one doesn't match (for debugging)
+              console.debug('Signal not in user submissions:', signalIdStr, 'Set contains:', Array.from(userSubmittedSignalIds), 'Match check:', userSubmittedSignalIds.has(signalIdStr));
+            }
+            
             const outbreakSignal: OutbreakSignal = {
               id: signal.id,
               disease: displayDiseaseName,
@@ -679,6 +732,7 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
               source: sourceName,
               severity: signal.severity_assessment,
               confidence: signal.confidence_score,
+              isUserSubmitted: isUserSubmitted,
             };
             
             // Add country name, detected_disease_name, disease_type, and original category name to the signal for filtering

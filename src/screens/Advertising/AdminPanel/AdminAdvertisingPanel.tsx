@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -279,11 +279,9 @@ export const AdminAdvertisingPanel: React.FC = () => {
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" asChild>
-                <Link to="/map">
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Map
-                </Link>
+              <Button variant="ghost" size="sm" onClick={() => navigate('/admin')}>
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Admin Dashboard
               </Button>
               <div className="flex items-center gap-2">
                 <Shield className="w-6 h-6 text-primary" />

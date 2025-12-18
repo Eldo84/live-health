@@ -7,49 +7,51 @@ import {
   CollapsibleTrigger,
 } from "../../../../components/ui/collapsible";
 import { ChevronLeft, ChevronRight, Home } from "lucide-react";
-
-const menuItems = [
-  {
-    id: "home",
-    label: "Home",
-    icon: "home", // Special identifier for Home icon
-    isActive: false,
-  },
-  {
-    id: "map",
-    label: "Map",
-    icon: "/group-1377.png",
-    isActive: true,
-  },
-  {
-    id: "dashboard",
-    label: "Dashboard",
-    icon: "/group-1378.png",
-    dropdownIcon: "/group-1589.png",
-    isActive: false,
-    subItems: [
-      { label: "Disease Outbreak", tab: "overview" },
-      { label: "AI Powered Prediction", tab: "predictions" },
-      { label: "Global Population Health Index", tab: "health-index" },
-      { label: "Disease Tracking", tab: "disease-tracking" },
-      { label: "My Advertising", path: "/dashboard/advertising" },
-    ],
-  },
-  {
-    id: "dataset",
-    label: "Dataset",
-    icon: "/group-969.png",
-    isActive: false,
-  },
-];
+import { useLanguage } from "../../../../contexts/LanguageContext";
 
 export const SidebarMenuSection = (): JSX.Element => {
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useLanguage();
 
   const isActive = (path: string) => location.pathname === path;
+
+  const menuItems = [
+    {
+      id: "home",
+      label: t("common.home"),
+      icon: "home", // Special identifier for Home icon
+      isActive: false,
+    },
+    {
+      id: "map",
+      label: t("common.map"),
+      icon: "/group-1377.png",
+      isActive: true,
+    },
+    {
+      id: "dashboard",
+      label: t("common.dashboard"),
+      icon: "/group-1378.png",
+      dropdownIcon: "/group-1589.png",
+      isActive: false,
+      subItems: [
+        { label: t("header.diseaseOutbreak"), tab: "overview" },
+        { label: t("header.aiPrediction"), tab: "predictions" },
+        { label: t("header.globalHealthIndex"), tab: "health-index" },
+        { label: t("header.diseaseTracking"), tab: "disease-tracking" },
+        { label: t("common.myAdvertising"), path: "/dashboard/advertising" },
+      ],
+    },
+    {
+      id: "dataset",
+      label: t("common.dataset"),
+      icon: "/group-969.png",
+      isActive: false,
+    },
+  ];
 
   return (
     <nav className={`flex flex-col items-center gap-[22px] pt-4 pb-6 px-0 bg-[#2a4149] border-r [border-right-style:solid] border-[#eaebf024] transition-all duration-300 ${isCollapsed ? 'w-[70px]' : 'w-[160px]'}`}>
@@ -59,7 +61,7 @@ export const SidebarMenuSection = (): JSX.Element => {
           variant="ghost"
           onClick={() => setIsCollapsed(!isCollapsed)}
           className="h-8 w-8 p-0 hover:bg-[#ffffff1a] rounded"
-          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-label={isCollapsed ? t("sidebar.expandSidebar") : t("sidebar.collapseSidebar")}
         >
           {isCollapsed ? (
             <ChevronRight className="w-4 h-4 text-white" />

@@ -1,0 +1,12 @@
+This is a helper template file documenting the landing.partner keys used across locales.
+It is not imported anywhere in the app.
+
+Required keys per locale:
+- landing.partner.title
+- landing.partner.body
+- landing.partner.cta
+
+
+
+
+

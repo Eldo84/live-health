@@ -1,6 +1,6 @@
 import { ChevronDownIcon, Menu, Home, ChevronRight, LogOut, User, Plus, Shield, Megaphone } from "lucide-react";
 import { NotificationBell } from "../../../../components/NotificationBell";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "../../../../components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "../../../../components/ui/sheet";
@@ -12,16 +12,9 @@ import {
 import { AuthDialog } from "../../../../components/AuthDialog";
 import { AddAlertDialog } from "../../../../components/AddAlertDialog";
 import { useAuth } from "../../../../contexts/AuthContext";
+import { useLanguage, SUPPORTED_LANGUAGES } from "../../../../contexts/LanguageContext";
 import { supabase } from "../../../../lib/supabase";
 import outbreakNowLogo from "@/assets/outbreaknow-logo.png";
-
-const navigationItems = [
-  { label: "About", hasDropdown: false },
-  { label: "Resources", hasDropdown: true },
-  { label: "Contact", hasDropdown: false },
-  { label: "Help", hasDropdown: false },
-  { label: "ENG", hasDropdown: true },
-];
 
 const menuItems = [
   {
@@ -63,9 +56,12 @@ export const HeaderSection = (): JSX.Element => {
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [addAlertDialogOpen, setAddAlertDialogOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false);
+  const languageDropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { user, signOut } = useAuth();
+  const { language, setLanguage, t } = useLanguage();
 
   // Check if user is admin
   useEffect(() => {
@@ -106,6 +102,23 @@ export const HeaderSection = (): JSX.Element => {
 
     checkAdminRole();
   }, [user]);
+
+  // Close language dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (languageDropdownRef.current && !languageDropdownRef.current.contains(event.target as Node)) {
+        setLanguageDropdownOpen(false);
+      }
+    };
+
+    if (languageDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [languageDropdownOpen]);
 
   const isActive = (path: string) => {
     if (path === "/") {
@@ -149,7 +162,7 @@ export const HeaderSection = (): JSX.Element => {
   };
 
   return (
-    <div className="w-full bg-[#2a4149] border-b border-[#89898947]">
+    <div className="w-full bg-[#2a4149] border-b border-[#89898947] relative z-[10000]">
       <header className="flex items-center justify-center bg-transparent">
         <div className="flex w-full max-w-[1280px] h-[56px] items-center justify-between px-4">
           <img
@@ -161,19 +174,66 @@ export const HeaderSection = (): JSX.Element => {
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-10">
             <div className="flex items-center gap-8">
-              {navigationItems.map((item, index) => (
+              <div className="flex items-center gap-2 cursor-pointer">
+                <span className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-base tracking-[0] leading-6 whitespace-nowrap">
+                  {t("common.about")}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 cursor-pointer">
+                <span className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-base tracking-[0] leading-6 whitespace-nowrap">
+                  {t("common.resources")}
+                </span>
+                <ChevronDownIcon className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex items-center gap-2 cursor-pointer">
+                <span className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-base tracking-[0] leading-6 whitespace-nowrap">
+                  {t("common.contact")}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 cursor-pointer">
+                <span className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-base tracking-[0] leading-6 whitespace-nowrap">
+                  {t("common.help")}
+                </span>
+              </div>
+              {/* Language Selector */}
+              <div className="relative" ref={languageDropdownRef}>
                 <div
-                  key={index}
-                  className="flex items-center gap-2 cursor-pointer"
+                  className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                  onClick={() => setLanguageDropdownOpen(!languageDropdownOpen)}
                 >
                   <span className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-base tracking-[0] leading-6 whitespace-nowrap">
-                    {item.label}
+                    {SUPPORTED_LANGUAGES.find(l => l.code === language)?.nativeName.toUpperCase() || "ENG"}
                   </span>
-                  {item.hasDropdown && (
-                    <ChevronDownIcon className="w-5 h-5 text-white" />
-                  )}
+                  <ChevronDownIcon className={`w-5 h-5 text-white transition-transform ${languageDropdownOpen ? 'rotate-180' : ''}`} />
                 </div>
-              ))}
+                {languageDropdownOpen && (
+                  <div className="absolute top-full right-0 mt-2 w-56 bg-[#2a4149] border-2 border-[#4eb7bd]/50 rounded-lg shadow-2xl z-[9999] overflow-hidden backdrop-blur-sm">
+                    <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+                      {SUPPORTED_LANGUAGES.map((lang) => (
+                        <button
+                          key={lang.code}
+                          onClick={() => {
+                            setLanguage(lang.code);
+                            setLanguageDropdownOpen(false);
+                          }}
+                          className={`w-full text-left px-4 py-3 hover:bg-[#4eb7bd]/20 transition-all duration-200 border-b border-[#89898947]/30 last:border-b-0 ${
+                            language === lang.code ? 'bg-[#4eb7bd]/15 border-l-2 border-l-[#4eb7bd]' : ''
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="[font-family:'Roboto',Helvetica] font-medium text-[#ffffff] text-sm">
+                              {lang.nativeName}
+                            </span>
+                            {language === lang.code && (
+                              <span className="text-app-primary text-base font-bold">✓</span>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </nav>
 
@@ -185,7 +245,7 @@ export const HeaderSection = (): JSX.Element => {
               className="h-auto px-[18px] py-2.5 rounded-lg [font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-base tracking-[0] leading-6 hover:bg-white/10 border border-[#4eb7bd]/50 hover:border-[#4eb7bd] transition-colors flex items-center gap-2"
             >
               <Plus className="w-4 h-4" />
-              Add alert
+              {t("common.addAlert")}
             </Button>
             {user ? (
               <>
@@ -196,17 +256,17 @@ export const HeaderSection = (): JSX.Element => {
                   title="My Advertising"
                 >
                   <Megaphone className="w-4 h-4" />
-                  My Ads
+                  {t("common.myAds")}
                 </Button>
                 {isAdmin && (
                   <Button
                     variant="ghost"
-                    onClick={() => navigate('/admin/advertising')}
+                    onClick={() => navigate('/admin')}
                     className="h-auto px-[18px] py-2.5 rounded-lg [font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-base tracking-[0] leading-6 hover:bg-white/10 border border-yellow-500/50 hover:border-yellow-500 transition-colors flex items-center gap-2"
-                    title="Admin Panel"
+                    title={t("common.adminPanel")}
                   >
                     <Shield className="w-4 h-4" />
-                    Admin
+                    {t("common.admin")}
                   </Button>
                 )}
                 <div className="flex items-center gap-2 px-3 py-2 text-white">
@@ -222,7 +282,7 @@ export const HeaderSection = (): JSX.Element => {
                   className="h-auto px-[18px] py-2.5 rounded-lg [font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-base tracking-[0] leading-6 hover:bg-white/10 flex items-center gap-2"
                 >
                   <LogOut className="w-4 h-4" />
-                  Log out
+                  {t("common.logOut")}
                 </Button>
               </>
             ) : (
@@ -232,14 +292,14 @@ export const HeaderSection = (): JSX.Element => {
                   onClick={() => openAuthDialog("login")}
                   className="h-auto px-[18px] py-2.5 rounded-lg [font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-base tracking-[0] leading-6 hover:bg-white/10"
                 >
-                  Log in
+                  {t("common.logIn")}
                 </Button>
 
                 <Button
                   onClick={() => openAuthDialog("signup")}
                   className="h-auto bg-app-primary border border-solid border-[#4eb7bd] shadow-shadow-xs px-[18px] py-2.5 rounded-lg [font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-base tracking-[0] leading-6 hover:bg-app-primary/90"
                 >
-                  Sign up
+                  {t("common.signUp")}
                 </Button>
               </>
             )}
@@ -261,7 +321,7 @@ export const HeaderSection = (): JSX.Element => {
               <SheetContent side="left" className="w-[280px] bg-[#2a4149] border-r border-[#eaebf024] [&>button]:text-white [&>button]:hover:text-white [&>button]:hover:bg-white/10">
                 <SheetHeader>
                   <SheetTitle className="text-left text-white [font-family:'Roboto',Helvetica]">
-                    Navigation
+                    {t("common.navigation")}
                   </SheetTitle>
                 </SheetHeader>
                 <nav className="flex flex-col gap-2 mt-6">
@@ -321,7 +381,10 @@ export const HeaderSection = (): JSX.Element => {
                                     <span className={`flex-1 [font-family:'Inter',Helvetica] font-semibold text-xs ${
                                       isActiveItem ? "text-[#66dbe1]" : "text-[#ffffff80]"
                                     }`}>
-                                      {subItem.label}
+                                      {subItem.tab === "overview" ? t("header.diseaseOutbreak") :
+                                       subItem.tab === "predictions" ? t("header.aiPrediction") :
+                                       subItem.tab === "health-index" ? t("header.globalHealthIndex") :
+                                       subItem.label}
                                     </span>
                                   </button>
                                 );
@@ -372,7 +435,7 @@ export const HeaderSection = (): JSX.Element => {
                     >
                       <Plus className="w-[22px] h-[22px] flex-shrink-0" />
                       <span className="flex-1 text-left ml-3 [font-family:'Roboto',Helvetica] font-semibold text-[15px]">
-                        Add alert
+                        {t("common.addAlert")}
                       </span>
                     </Button>
                     {user ? (
@@ -387,7 +450,7 @@ export const HeaderSection = (): JSX.Element => {
                         >
                           <Megaphone className="w-[22px] h-[22px] flex-shrink-0" />
                           <span className="flex-1 text-left ml-3 [font-family:'Roboto',Helvetica] font-semibold text-[15px]">
-                            My Advertising
+                            {t("common.myAdvertising")}
                           </span>
                         </Button>
                         {isAdmin && (
@@ -401,7 +464,7 @@ export const HeaderSection = (): JSX.Element => {
                           >
                             <Shield className="w-[22px] h-[22px] flex-shrink-0" />
                             <span className="flex-1 text-left ml-3 [font-family:'Roboto',Helvetica] font-semibold text-[15px]">
-                              Admin Panel
+                              {t("common.adminPanel")}
                             </span>
                           </Button>
                         )}
@@ -419,7 +482,7 @@ export const HeaderSection = (): JSX.Element => {
                         >
                           <LogOut className="w-[22px] h-[22px] flex-shrink-0" />
                           <span className="flex-1 text-left ml-3 [font-family:'Roboto',Helvetica] font-normal text-[#ffffff99] text-[15px]">
-                            Log out
+                            {t("common.logOut")}
                           </span>
                         </Button>
                       </>
@@ -434,7 +497,7 @@ export const HeaderSection = (): JSX.Element => {
                           className="w-full justify-start h-[46px] px-4 hover:bg-[#ffffff1a] rounded-none text-white"
                         >
                           <span className="flex-1 text-left [font-family:'Roboto',Helvetica] font-normal text-[#ffffff99] text-[15px]">
-                            Log in
+                            {t("common.logIn")}
                           </span>
                         </Button>
                         <Button
@@ -445,7 +508,7 @@ export const HeaderSection = (): JSX.Element => {
                           className="w-full justify-start h-[46px] px-4 bg-app-primary hover:bg-app-primary/90 rounded-none text-white"
                         >
                           <span className="flex-1 text-left [font-family:'Roboto',Helvetica] font-semibold text-[15px]">
-                            Sign up
+                            {t("common.signUp")}
                           </span>
                         </Button>
                       </>

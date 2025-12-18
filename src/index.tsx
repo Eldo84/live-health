@@ -8,6 +8,7 @@ import { AppLayout } from "./layouts/AppLayout";
 import { MainPageLayout } from "./layouts/MainPageLayout";
 import { FullscreenProvider } from "./contexts/FullscreenContext";
 import { AuthProvider } from "./contexts/AuthContext";
+import { LanguageProvider } from "./contexts/LanguageContext";
 import HomePage from "./screens/mainpage/pages/index";
 import Partnership from "./screens/mainpage/pages/Partnership";
 
@@ -20,13 +21,20 @@ import {
   AdminAdvertisingPanel 
 } from "./screens/Advertising";
 
+// Admin pages
+import { AdminDashboard } from "./screens/Admin/AdminDashboard";
+import { AdminAlertReviewPanel } from "./screens/Admin/AdminAlertReviewPanel";
+import { AdminNotificationPanel } from "./screens/Admin/AdminNotificationPanel";
+import { WeeklyReport } from "./screens/Dashboard/WeeklyReport";
+
 createRoot(document.getElementById("app") as HTMLElement).render(
   <StrictMode>
     <HelmetProvider>
       <BrowserRouter>
-        <AuthProvider>
-          <FullscreenProvider>
-            <Routes>
+        <LanguageProvider>
+          <AuthProvider>
+            <FullscreenProvider>
+              <Routes>
               {/* Main landing pages - no AppLayout (header/sidebar) */}
               <Route path="/" element={<MainPageLayout />}>
                 <Route index element={<HomePage />} />
@@ -37,6 +45,7 @@ createRoot(document.getElementById("app") as HTMLElement).render(
               <Route path="/app" element={<AppLayout />}>
                 <Route path="map" element={<HomePageMap />} />
                 <Route path="dashboard" element={<Dashboard />} />
+                <Route path="dashboard/weekly-report" element={<WeeklyReport />} />
               </Route>
               
               {/* Legacy routes - with AppLayout for backward compatibility */}
@@ -64,13 +73,17 @@ createRoot(document.getElementById("app") as HTMLElement).render(
                 <Route index element={<UserAdvertisingDashboard />} />
               </Route>
               
-              {/* Admin advertising panel */}
-              <Route path="/admin/advertising" element={<AppLayout />}>
-                <Route index element={<AdminAdvertisingPanel />} />
+              {/* Admin routes */}
+              <Route path="/admin" element={<AppLayout />}>
+                <Route index element={<AdminDashboard />} />
+                <Route path="advertising" element={<AdminAdvertisingPanel />} />
+                <Route path="alerts" element={<AdminAlertReviewPanel />} />
+                <Route path="notifications" element={<AdminNotificationPanel />} />
               </Route>
-            </Routes>
-          </FullscreenProvider>
-        </AuthProvider>
+              </Routes>
+            </FullscreenProvider>
+          </AuthProvider>
+        </LanguageProvider>
       </BrowserRouter>
     </HelmetProvider>
   </StrictMode>,

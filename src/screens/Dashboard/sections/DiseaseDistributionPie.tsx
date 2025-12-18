@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader } from "../../../components/ui/card";
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { Loader2 } from "lucide-react";
 import { useDiseaseDistribution } from "../../../lib/useDiseaseDistribution";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 interface DiseaseDistributionPieProps {
   timeRange: string;
@@ -36,6 +37,7 @@ const colorPalette = [
 
 export const DiseaseDistributionPie = ({ timeRange, searchQuery = "", countryId }: DiseaseDistributionPieProps): JSX.Element => {
   const { data, loading, error } = useDiseaseDistribution(timeRange, countryId);
+  const { t } = useLanguage();
 
   // Filter data based on search query and assign unique colors
   const filteredData = React.useMemo(() => {
@@ -72,7 +74,7 @@ export const DiseaseDistributionPie = ({ timeRange, searchQuery = "", countryId 
       <Card className="bg-[#ffffff14] border-[#eaebf024]">
         <CardContent className="p-6">
           <p className="[font-family:'Roboto',Helvetica] font-medium text-[#f87171] text-sm">
-            Error loading distribution: {error}
+            {t("dashboard.errorLoadingDistribution", { error })}
           </p>
         </CardContent>
       </Card>
@@ -83,10 +85,10 @@ export const DiseaseDistributionPie = ({ timeRange, searchQuery = "", countryId 
     <Card className="bg-[#ffffff14] border-[#eaebf024]">
       <CardHeader className="pb-4">
         <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-lg">
-          Disease Distribution
+          {t("dashboard.diseaseDistribution")}
         </h3>
         <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm mt-1">
-          Number of outbreak reports by disease type
+          {t("dashboard.numberOfOutbreakReportsByDiseaseType")}
         </p>
       </CardHeader>
       <CardContent>
@@ -97,7 +99,7 @@ export const DiseaseDistributionPie = ({ timeRange, searchQuery = "", countryId 
         ) : filteredData.length === 0 ? (
           <div className="flex items-center justify-center h-[350px]">
             <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm">
-              {searchQuery ? `No data found for "${searchQuery}"` : "No data available"}
+              {searchQuery ? t("dashboard.noDataFound", { query: searchQuery }) : t("dashboard.noDataAvailable")}
             </p>
           </div>
         ) : (
@@ -126,7 +128,7 @@ export const DiseaseDistributionPie = ({ timeRange, searchQuery = "", countryId 
                     fontFamily: 'Roboto',
                   }}
                   labelStyle={{ color: '#ffffff' }}
-                  formatter={(value: number) => [`${value} reports`, 'Count']}
+                  formatter={(value: number) => [`${value} ${t("dashboard.reports")}`, t("dashboard.cases")]}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -144,7 +146,7 @@ export const DiseaseDistributionPie = ({ timeRange, searchQuery = "", countryId 
                       {disease.value}
                     </span>
                     <span className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-xs">
-                      reports
+                      {t("dashboard.reports")}
                     </span>
                   </div>
                 </div>

@@ -3,7 +3,7 @@ import { useNotifications, Notification } from '@/lib/useNotifications';
 import { Button } from './ui/button';
 import { ScrollArea } from './ui/scroll-area';
 import { Badge } from './ui/badge';
-import { CheckCircle2, Circle, AlertCircle, Info, Bell } from 'lucide-react';
+import { CheckCircle2, Circle, AlertCircle, Info, Bell, BarChart3 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // Simple date formatting function
@@ -28,14 +28,20 @@ const getNotificationIcon = (type: Notification['type'], priority: Notification[
   if (priority === 'urgent') {
     return <AlertCircle className="h-4 w-4 text-red-500" />;
   }
-  
+
   switch (type) {
     case 'submission_approved':
     case 'payment_received':
     case 'ad_live':
+    case 'alert_approved':
       return <CheckCircle2 className="h-4 w-4 text-green-500" />;
     case 'submission_rejected':
+    case 'alert_rejected':
       return <AlertCircle className="h-4 w-4 text-red-500" />;
+    case 'admin_broadcast':
+      return <Bell className="h-4 w-4 text-blue-500" />;
+    case 'weekly_top_diseases':
+      return <BarChart3 className="h-4 w-4 text-purple-500" />;
     default:
       return <Info className="h-4 w-4 text-blue-500" />;
   }
@@ -63,10 +69,10 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ onCl
   const dropdownStyle = position
     ? {
         position: 'fixed' as const,
-        top: `${Math.min(position.top, window.innerHeight - 650)}px`, // Ensure it doesn't go below viewport
+        top: `${Math.min(position.top + 8, window.innerHeight - 650)}px`, // Add extra top margin to ensure header is visible
         right: `${Math.max(position.right, 16)}px`, // Ensure it doesn't go off right edge
         zIndex: 99999, // Very high z-index to be above map (which uses z-[2000])
-        maxHeight: `${Math.min(600, window.innerHeight - position.top - 20)}px`, // Adjust max height based on available space
+        maxHeight: `${Math.min(600, window.innerHeight - position.top - 28)}px`, // Adjust max height based on available space
       }
     : {
         position: 'absolute' as const,
@@ -78,29 +84,31 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ onCl
 
   return (
     <div 
-      className="w-96 bg-background border border-border rounded-lg shadow-2xl flex flex-col overflow-hidden"
+      className="w-96 bg-background border border-border rounded-lg shadow-2xl flex flex-col overflow-hidden mt-2"
       style={dropdownStyle}
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-border">
-        <div className="flex items-center gap-2">
-          <h3 className="font-semibold text-lg">Notifications</h3>
+      <div className="flex items-center justify-between px-4 pt-6 pb-4 border-b border-border bg-card/90">
+        <div className="flex items-center gap-3">
+          <h3 className="font-semibold text-lg text-foreground leading-tight">
+            Notifications
+          </h3>
           {unreadCount > 0 && (
             <Badge variant="destructive" className="h-5 px-2 text-xs">
               {unreadCount} new
             </Badge>
           )}
+          {notifications.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={markAllAsRead}
+              className="h-7 px-2 text-xs"
+            >
+              Clear all
+            </Button>
+          )}
         </div>
-        {unreadCount > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={markAllAsRead}
-            className="h-7 text-xs"
-          >
-            Mark all read
-          </Button>
-        )}
       </div>
 
       {/* Notifications List */}

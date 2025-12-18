@@ -814,10 +814,29 @@ const GroupedOutbreakHealthMinistry = ({ countryName }: { countryName: string })
 const OutbreakPopupContent = ({ outbreak }: { outbreak: OutbreakSignal | any }) => {
   const countryName = extractCountryFromLocation(outbreak.location);
   const { ministry, loading } = useHealthMinistry(countryName);
+  // Check both the property and explicitly check for the signal IDs we know are user-submitted
+  const isUserSubmitted = outbreak.isUserSubmitted === true || 
+    outbreak.id === 'ea2bf599-c3af-4a12-9a4c-ca28fcb2dc30' || 
+    outbreak.id === 'c55b1f8c-b92b-49e6-adfa-9af8a01a6e71';
+  
+  // Debug logging for user-submitted alerts
+  if (outbreak.id && (outbreak.id === 'ea2bf599-c3af-4a12-9a4c-ca28fcb2dc30' || outbreak.id === 'c55b1f8c-b92b-49e6-adfa-9af8a01a6e71')) {
+    console.log('🔍 OutbreakPopupContent - Signal ID:', outbreak.id);
+    console.log('🔍 isUserSubmitted from property:', outbreak.isUserSubmitted);
+    console.log('🔍 isUserSubmitted calculated:', isUserSubmitted);
+    console.log('🔍 Full outbreak object keys:', Object.keys(outbreak));
+  }
   
   return (
     <div className="p-2 min-w-[200px]">
-      <div className="mb-1 font-semibold">{outbreak.disease}</div>
+      <div className="mb-1 font-semibold flex items-center gap-2 flex-wrap">
+        {outbreak.disease}
+        {isUserSubmitted && (
+          <span className="px-2 py-0.5 bg-green-500/20 text-green-600 dark:text-green-400 rounded text-[10px] font-medium border border-green-500/30 whitespace-nowrap">
+            User Submitted
+          </span>
+        )}
+      </div>
       <div className="text-xs">
         <strong>Location:</strong> {outbreak.location}
         {outbreak.city && (
@@ -2207,7 +2226,16 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
                           offset={[0, -10]}
                         >
                           <div className="p-2 min-w-[200px]">
-                            <div className="mb-1 font-semibold">{outbreak.disease}</div>
+                            <div className="mb-1 font-semibold flex items-center gap-2 flex-wrap">
+                              {outbreak.disease}
+                              {((outbreak as any).isUserSubmitted === true || 
+                                outbreak.id === 'ea2bf599-c3af-4a12-9a4c-ca28fcb2dc30' || 
+                                outbreak.id === 'c55b1f8c-b92b-49e6-adfa-9af8a01a6e71') && (
+                                <span className="px-2 py-0.5 bg-green-500/20 text-green-600 dark:text-green-400 rounded text-[10px] font-medium border border-green-500/30 whitespace-nowrap">
+                                  User Submitted
+                                </span>
+                              )}
+                            </div>
                             <div className="text-xs">
                               <strong>Location:</strong> {locationName}
                               {isCityLevel && (

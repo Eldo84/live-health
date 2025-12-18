@@ -6,6 +6,7 @@ import { Input } from "../../../components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../../components/ui/tabs";
 import { useGoogleTrends, TRACKED_DISEASES } from "../../../lib/useGoogleTrends";
 import { DiseaseRegionMap } from "./DiseaseRegionMap";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 // Google Trends authentic color palette
 const colorPalette = [
@@ -16,27 +17,41 @@ const colorPalette = [
   "#9334E6", // Purple
 ];
 
-// Time range options
-const TIME_RANGES = [
-  { label: "Past 4 hours", value: "4h", days: 0.17 },
-  { label: "Past day", value: "1d", days: 1 },
-  { label: "Past 7 days", value: "7d", days: 7 },
-  { label: "Past 30 days", value: "30d", days: 30 },
-] as const;
+type TimeRangeValue = "4h" | "1d" | "7d" | "30d";
 
-type TimeRangeValue = typeof TIME_RANGES[number]["value"];
-
-// Generate wavy line path (Google Trends style)
+// Generate wavy line path using Catmull-Rom spline interpolation (Google Trends style)
+// This creates smooth, natural curves that pass through all points, matching Google Trends exactly
 const generateWavyPath = (points: { x: number; y: number }[]): string => {
   if (points.length < 2) return "";
+  if (points.length === 2) {
+    return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+  }
   
   let path = `M ${points[0].x} ${points[0].y}`;
   
-  for (let i = 1; i < points.length; i++) {
-    const prev = points[i - 1];
-    const curr = points[i];
-    // Simple line segments create the jagged/wavy look
-    path += ` L ${curr.x} ${curr.y}`;
+  // Catmull-Rom spline with tension parameter (0.5 = centripetal, creates smooth curves)
+  const tension = 0.5;
+  
+  for (let i = 0; i < points.length - 1; i++) {
+    const p0 = i > 0 ? points[i - 1] : points[i];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = i < points.length - 2 ? points[i + 2] : p2;
+    
+    // Calculate control points using Catmull-Rom to Bezier conversion
+    const dx1 = p2.x - p0.x;
+    const dy1 = p2.y - p0.y;
+    const dx2 = p3.x - p1.x;
+    const dy2 = p3.y - p1.y;
+    
+    // Control points for smooth cubic bezier curve
+    // This creates the natural wavy effect seen in Google Trends
+    const cp1x = p1.x + (dx1 * tension) / 6;
+    const cp1y = p1.y + (dy1 * tension) / 6;
+    const cp2x = p2.x - (dx2 * tension) / 6;
+    const cp2y = p2.y - (dy2 * tension) / 6;
+    
+    path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
   }
   
   return path;
@@ -63,15 +78,17 @@ interface GoogleTrendsChartProps {
   onClearAll: () => void;
   timeRange: TimeRangeValue;
   onTimeRangeChange: (value: TimeRangeValue) => void;
+  timeRanges: Array<{ label: string; value: TimeRangeValue; days: number }>;
 }
 
-const GoogleTrendsChart = ({ datasets, onClearAll, timeRange, onTimeRangeChange }: GoogleTrendsChartProps) => {
+const GoogleTrendsChart = ({ datasets, onClearAll, timeRange, onTimeRangeChange, timeRanges }: GoogleTrendsChartProps) => {
+  const { t } = useLanguage();
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredData, setHoveredData] = useState<HoveredData | null>(null);
 
   // Chart dimensions - separate lane for each disease
   const chartWidth = 900;
-  const laneHeight = 80;
+  const laneHeight = 55; // Reduced from 80 to make comparisons closer together
   const chartHeight = datasets.length * laneHeight + 60; // 60 for x-axis
   const leftPadding = 120; // Space for disease labels
   const rightPadding = 20;
@@ -93,10 +110,10 @@ const GoogleTrendsChart = ({ datasets, onClearAll, timeRange, onTimeRangeChange 
   // Get Y position within a lane
   const getY = (value: number, laneIndex: number) => {
     const laneTop = topPadding + laneIndex * laneHeight;
-    const laneBottom = laneTop + laneHeight - 10; // 10px padding at bottom
-    const usableHeight = laneBottom - laneTop - 20; // 20px padding
+    const laneBottom = laneTop + laneHeight - 6; // Reduced padding at bottom (was 10px)
+    const usableHeight = laneBottom - laneTop - 12; // Reduced padding (was 20px)
     // Invert Y, map 0-100 to lane
-    return laneTop + 10 + usableHeight - (value / 100) * usableHeight;
+    return laneTop + 6 + usableHeight - (value / 100) * usableHeight;
   };
 
   // Generate paths for each disease in its own lane
@@ -175,7 +192,7 @@ const GoogleTrendsChart = ({ datasets, onClearAll, timeRange, onTimeRangeChange 
   if (datasets.length === 0) {
     return (
       <div className="flex items-center justify-center h-[400px] bg-white rounded-lg border border-gray-200">
-        <p className="text-gray-500 text-sm">Select at least one disease to view trends</p>
+        <p className="text-gray-500 text-sm">{t("dashboard.selectAtLeastOneDisease")}</p>
       </div>
     );
   }
@@ -185,13 +202,13 @@ const GoogleTrendsChart = ({ datasets, onClearAll, timeRange, onTimeRangeChange 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4 pb-4 border-b border-gray-200">
         <div className="flex items-center gap-2">
-          <span className="font-medium text-gray-800 text-base">Interest over time</span>
+          <span className="font-medium text-gray-800 text-base">{t("dashboard.interestOverTime")}</span>
           <div className="w-4 h-4 rounded-full border border-gray-300 flex items-center justify-center text-gray-400 text-xs cursor-help">?</div>
         </div>
         
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-            {TIME_RANGES.map((range) => (
+            {timeRanges.map((range) => (
               <button
                 key={range.value}
                 onClick={() => onTimeRangeChange(range.value)}
@@ -204,7 +221,7 @@ const GoogleTrendsChart = ({ datasets, onClearAll, timeRange, onTimeRangeChange 
             ))}
           </div>
           <button onClick={onClearAll} className="px-3 py-1.5 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-md flex items-center gap-1">
-            <X className="w-3 h-3" /> Clear
+            <X className="w-3 h-3" /> {t("dashboard.clear")}
           </button>
         </div>
       </div>
@@ -212,7 +229,7 @@ const GoogleTrendsChart = ({ datasets, onClearAll, timeRange, onTimeRangeChange 
       {allDates.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-[300px] bg-gray-50 rounded-lg">
           <Clock className="w-8 h-8 text-gray-400 mb-2" />
-          <p className="text-gray-600 text-sm">No data available for this time range</p>
+          <p className="text-gray-600 text-sm">{t("dashboard.noDataAvailableForTimeRange")}</p>
         </div>
       ) : (
         <div>
@@ -375,6 +392,7 @@ const GoogleTrendsChart = ({ datasets, onClearAll, timeRange, onTimeRangeChange 
 
 // Main Component
 export const DiseaseTracking = (): JSX.Element => {
+  const { t } = useLanguage();
   const [selectedDiseases, setSelectedDiseases] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [timeRange, setTimeRange] = useState<TimeRangeValue>("30d");
@@ -387,6 +405,13 @@ export const DiseaseTracking = (): JSX.Element => {
     return TRACKED_DISEASES.filter((d) => d.toLowerCase().includes(searchQuery.toLowerCase().trim()));
   }, [searchQuery]);
 
+  const TIME_RANGES = [
+    { label: t("dashboard.past4Hours"), value: "4h", days: 0.17 },
+    { label: t("dashboard.pastDay"), value: "1d", days: 1 },
+    { label: t("dashboard.past7Days"), value: "7d", days: 7 },
+    { label: t("dashboard.past30Days"), value: "30d", days: 30 },
+  ] as const;
+
   const cutoffDate = useMemo(() => {
     const now = new Date();
     const range = TIME_RANGES.find((r) => r.value === timeRange);
@@ -394,7 +419,7 @@ export const DiseaseTracking = (): JSX.Element => {
     const cutoff = new Date(now);
     cutoff.setDate(cutoff.getDate() - range.days);
     return cutoff.toISOString().split("T")[0];
-  }, [timeRange]);
+  }, [timeRange, TIME_RANGES]);
 
   const chartDatasets = useMemo(() => {
     if (selectedDiseases.length === 0 || trends.length === 0) return [];
@@ -430,8 +455,8 @@ export const DiseaseTracking = (): JSX.Element => {
       <Card className="bg-[#ffffff14] border-[#eaebf024]">
         <CardHeader className="pb-4">
           <div>
-            <h3 className="font-semibold text-[#ffffff] text-lg">Disease Tracking</h3>
-            <p className="text-[#ebebeb99] text-sm mt-1">Compare Google Trends search interest for diseases (select up to 5)</p>
+            <h3 className="font-semibold text-[#ffffff] text-lg">{t("dashboard.diseaseTracking")}</h3>
+            <p className="text-[#ebebeb99] text-sm mt-1">{t("dashboard.compareGoogleTrendsSearchInterest")}</p>
           </div>
         </CardHeader>
         <CardContent>
@@ -439,14 +464,14 @@ export const DiseaseTracking = (): JSX.Element => {
             {/* Selection Panel */}
             <div className="bg-[#ffffff0d] rounded-lg p-4 border border-[#ffffff1a]">
               <div className="flex items-center justify-between mb-4">
-                <h4 className="font-semibold text-[#ffffff] text-sm">Select Diseases to Compare</h4>
-                <span className="text-xs text-[#ebebeb99]">{selectedDiseases.length}/5 selected</span>
+                <h4 className="font-semibold text-[#ffffff] text-sm">{t("dashboard.selectDiseasesToCompare")}</h4>
+                <span className="text-xs text-[#ebebeb99]">{selectedDiseases.length}/5 {t("dashboard.selected")}</span>
               </div>
 
               <div className="relative mb-4">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#ebebeb99]" />
                 <Input
-                  placeholder="Search diseases..."
+                  placeholder={t("dashboard.searchDiseases")}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="pl-9 pr-8 bg-[#ffffff14] border-[#dae0e633] text-[#ebebeb] text-sm h-9"
@@ -490,13 +515,13 @@ export const DiseaseTracking = (): JSX.Element => {
                   value="time" 
                   className="data-[state=active]:bg-[#ffffff14] data-[state=active]:text-[#ffffff] text-[#ebebeb99]"
                 >
-                  Interest over Time
+                  {t("dashboard.interestOverTime")}
                 </TabsTrigger>
                 <TabsTrigger 
                   value="region"
                   className="data-[state=active]:bg-[#ffffff14] data-[state=active]:text-[#ffffff] text-[#ebebeb99]"
                 >
-                  Interest by Region
+                  {t("dashboard.interestByRegion")}
                 </TabsTrigger>
               </TabsList>
 
@@ -508,7 +533,7 @@ export const DiseaseTracking = (): JSX.Element => {
                 ) : loading ? (
                   <div className="flex items-center justify-center h-[300px] bg-white rounded-lg border">
                     <Loader2 className="w-6 h-6 text-[#4285F4] animate-spin mr-2" />
-                    <p className="text-sm text-gray-500">Loading...</p>
+                    <p className="text-sm text-gray-500">{t("dashboard.loading")}</p>
                   </div>
                 ) : (
                   <GoogleTrendsChart
@@ -516,6 +541,7 @@ export const DiseaseTracking = (): JSX.Element => {
                     onClearAll={() => setSelectedDiseases([])}
                     timeRange={timeRange}
                     onTimeRangeChange={setTimeRange}
+                    timeRanges={TIME_RANGES}
                   />
                 )}
               </TabsContent>

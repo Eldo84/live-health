@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader } from "../../../components/ui/card";
 import { Badge } from "../../../components/ui/badge";
 import { TrendingUp, MapPin, AlertTriangle, Loader2, RefreshCw } from "lucide-react";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 interface Prediction {
   disease: string;
@@ -14,19 +15,22 @@ interface Prediction {
   color: string;
 }
 
-const riskConfig = {
-  critical: { bg: "bg-[#f8717133]", text: "text-[#f87171]", label: "Critical" },
-  high: { bg: "bg-[#fbbf2433]", text: "text-[#fbbf24]", label: "High Risk" },
-  medium: { bg: "bg-[#66dbe133]", text: "text-[#66dbe1]", label: "Medium" },
-  low: { bg: "bg-[#4ade8033]", text: "text-[#4ade80]", label: "Low Risk" },
-};
+// riskConfig will be created in component with translations
 
 export const AIPredictions = (): JSX.Element => {
+  const { t } = useLanguage();
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [isCached, setIsCached] = useState(false);
+
+  const riskConfig = {
+    critical: { bg: "bg-[#f8717133]", text: "text-[#f87171]", label: t("dashboard.critical") },
+    high: { bg: "bg-[#fbbf2433]", text: "text-[#fbbf24]", label: t("dashboard.high") },
+    medium: { bg: "bg-[#66dbe133]", text: "text-[#66dbe1]", label: t("dashboard.medium") },
+    low: { bg: "bg-[#4ade8033]", text: "text-[#4ade80]", label: t("dashboard.low") },
+  };
 
   const fetchPredictions = async (forceRefresh = false) => {
     try {
@@ -67,7 +71,7 @@ export const AIPredictions = (): JSX.Element => {
       if (data.error) {
         // API key not configured or other error
         if (data.error.includes("DEEPSEEK_API_KEY")) {
-          setError("AI predictions are not configured. Please set DEEPSEEK_API_KEY in Edge Function secrets.");
+          setError(t("dashboard.deepseekApiKeyError"));
         } else {
           setError(data.error);
         }
@@ -84,7 +88,7 @@ export const AIPredictions = (): JSX.Element => {
         // Unexpected response format
         setPredictions([]);
         setIsCached(false);
-        setError("Unexpected response format from prediction service");
+        setError(t("common.error") + ": " + "Unexpected response format from prediction service");
       }
     } catch (err) {
       console.error("Error fetching AI predictions:", err);
@@ -106,16 +110,16 @@ export const AIPredictions = (): JSX.Element => {
           <div>
             <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-lg flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-[#66dbe1]" />
-              AI-Powered Predictions
+              {t("dashboard.aiPoweredPredictions")}
             </h3>
             <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm mt-1">
-              AI-generated predictions updated automatically when new outbreak data is received
+              {t("dashboard.aiGeneratedPredictionsDescription")}
             </p>
           </div>
           <div className="flex items-center gap-2 bg-[#66dbe133] px-3 py-2 rounded-lg">
             <div className="w-2 h-2 rounded-full bg-[#66dbe1] animate-pulse" />
             <span className="[font-family:'Roboto',Helvetica] font-medium text-[#66dbe1] text-xs">
-              Models Active
+              {t("dashboard.modelsActive")}
             </span>
           </div>
         </div>
@@ -125,11 +129,11 @@ export const AIPredictions = (): JSX.Element => {
           <div className="flex flex-col items-center justify-center py-12">
             <Loader2 className="w-8 h-8 text-[#66dbe1] animate-spin mb-4" />
             <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm mb-2">
-              {isCached ? "Loading predictions..." : "Generating new predictions with DeepSeek..."}
+              {isCached ? t("dashboard.loadingPredictions") : t("dashboard.generatingNewPredictions")}
             </p>
             {!isCached && (
               <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb66] text-xs">
-                This may take 15-20 seconds. Predictions are usually pre-generated and load instantly.
+                {t("dashboard.predictionsGenerationTime")}
               </p>
             )}
           </div>
@@ -139,7 +143,7 @@ export const AIPredictions = (): JSX.Element => {
               <AlertTriangle className="w-5 h-5 text-[#f87171] mt-0.5 flex-shrink-0" />
               <div className="flex-1">
                 <h4 className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-sm mb-1">
-                  Unable to Load Predictions
+                  {t("dashboard.unableToLoadPredictions")}
                 </h4>
                 <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb] text-xs leading-relaxed mb-3">
                   {error}
@@ -149,7 +153,7 @@ export const AIPredictions = (): JSX.Element => {
                   className="flex items-center gap-2 px-3 py-1.5 bg-[#66dbe1] hover:bg-[#4eb7bd] text-white rounded-md text-xs font-medium transition-colors"
                 >
                   <RefreshCw className="w-3 h-3" />
-                  Retry
+                  {t("dashboard.retry")}
                 </button>
               </div>
             </div>
@@ -158,14 +162,14 @@ export const AIPredictions = (): JSX.Element => {
           <div className="flex flex-col items-center justify-center py-12">
             <AlertTriangle className="w-8 h-8 text-[#ebebeb99] mb-4" />
             <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm mb-3">
-              No predictions available. This may be due to insufficient outbreak data.
+              {t("dashboard.noPredictionsAvailable")}
             </p>
             <button
               onClick={() => fetchPredictions(false)}
               className="flex items-center gap-2 px-4 py-2 bg-[#66dbe1] hover:bg-[#4eb7bd] text-white rounded-md text-sm font-medium transition-colors"
             >
               <RefreshCw className="w-4 h-4" />
-              Refresh
+              {t("dashboard.refresh")}
             </button>
           </div>
         ) : (
@@ -174,17 +178,17 @@ export const AIPredictions = (): JSX.Element => {
               <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#ffffff1a]">
                 <div className="flex items-center gap-2">
                   <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-xs">
-                    {isCached ? "Cached predictions" : "Freshly generated"} • Last updated: {lastUpdated.toLocaleTimeString()}
+                    {isCached ? t("dashboard.cachedPredictions") : t("dashboard.freshlyGenerated")} • {t("dashboard.lastUpdated")}: {lastUpdated.toLocaleTimeString()}
                   </p>
                 </div>
                 <button
                   onClick={() => fetchPredictions(true)}
                   className="flex items-center gap-2 px-3 py-1.5 bg-[#ffffff14] hover:bg-[#ffffff24] border border-[#ffffff1a] rounded-md text-xs font-medium text-[#ebebeb] transition-colors"
                   disabled={loading}
-                  title="Force refresh (bypass cache)"
+                  title={t("dashboard.refresh")}
                 >
                   <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
-                  {isCached ? 'Refresh' : 'Regenerate'}
+                  {isCached ? t("dashboard.refresh") : t("dashboard.regenerate")}
                 </button>
               </div>
             )}
@@ -219,7 +223,7 @@ export const AIPredictions = (): JSX.Element => {
                     {pred.confidence}%
                   </div>
                   <div className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-xs">
-                    Confidence
+                    {t("dashboard.confidence")}
                   </div>
                 </div>
               </div>
@@ -236,11 +240,11 @@ export const AIPredictions = (): JSX.Element => {
               <div className="flex items-center justify-between pt-3 border-t border-[#ffffff1a]">
                 <div className="flex items-center gap-2">
                   <span className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-xs">
-                    Model: DeepSeek Chat
+                    {t("dashboard.model")}: DeepSeek Chat
                   </span>
                 </div>
                 <div className="[font-family:'Roboto',Helvetica] font-medium text-[#66dbe1] text-xs">
-                  Target: {pred.targetDate}
+                  {t("dashboard.target")}: {pred.targetDate}
                 </div>
               </div>
             </div>
@@ -254,13 +258,10 @@ export const AIPredictions = (): JSX.Element => {
             <AlertTriangle className="w-5 h-5 text-[#66dbe1] mt-0.5" />
             <div>
               <h4 className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-sm mb-1">
-                About AI Predictions
+                {t("dashboard.aboutAiPredictions")}
               </h4>
               <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb] text-xs leading-relaxed">
-                Our AI models powered by DeepSeek automatically analyze recent outbreak signals, disease patterns, and geographic data
-                to generate predictions about case forecasts, geographic spread, and risk assessments. Predictions are automatically
-                regenerated when new outbreak data is collected (every 6 hours) and stored for instant access. This enables proactive
-                response and preparedness planning based on the latest data from the past 30 days.
+                {t("dashboard.aboutAiPredictionsDescription")}
               </p>
             </div>
           </div>

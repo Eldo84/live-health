@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader } from "../../../components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { Loader2 } from "lucide-react";
 import { useDashboardChart } from "../../../lib/useDashboardChart";
+import { useLanguage } from "../../../contexts/LanguageContext";
 
 interface TrendAnalysisProps {
   timeRange: string;
@@ -19,6 +20,7 @@ const colorPalette = [
 
 export const TrendAnalysis = ({ timeRange, countryId }: TrendAnalysisProps): JSX.Element => {
   const { chartData, loading, error } = useDashboardChart(timeRange, countryId);
+  const { t } = useLanguage();
 
   // Normalize data to 0-100 scale (Google Trends style)
   const normalizedData = useMemo(() => {
@@ -134,7 +136,7 @@ export const TrendAnalysis = ({ timeRange, countryId }: TrendAnalysisProps): JSX
       <Card className="bg-[#ffffff14] border-[#eaebf024]">
         <CardContent className="p-6">
           <p className="[font-family:'Roboto',Helvetica] font-medium text-[#f87171] text-sm">
-            Error loading trend data: {error}
+            {t("dashboard.errorLoadingTrendData", { error })}
           </p>
         </CardContent>
       </Card>
@@ -146,10 +148,10 @@ export const TrendAnalysis = ({ timeRange, countryId }: TrendAnalysisProps): JSX
         <div className="flex items-center justify-between">
           <div>
             <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-lg">
-              Trend Analysis
+              {t("dashboard.trendAnalysis")}
             </h3>
             <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm mt-1">
-              Disease reporting frequency over time (similar to Google Trends)
+              {t("dashboard.diseaseReportingFrequencyOverTime")}
             </p>
           </div>
         </div>
@@ -162,7 +164,7 @@ export const TrendAnalysis = ({ timeRange, countryId }: TrendAnalysisProps): JSX
         ) : chartData.length === 0 ? (
           <div className="flex items-center justify-center h-[400px]">
             <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm">
-              No trend data available
+              {t("dashboard.noTrendDataAvailable")}
             </p>
           </div>
         ) : (
@@ -179,7 +181,7 @@ export const TrendAnalysis = ({ timeRange, countryId }: TrendAnalysisProps): JSX
                   stroke="#ebebeb99"
                   style={{ fontFamily: 'Roboto', fontSize: '12px' }}
                   domain={[0, 100]}
-                  label={{ value: 'Interest (Normalized)', angle: -90, position: 'insideLeft', fill: '#ebebeb99' }}
+                  label={{ value: t("dashboard.interestNormalized"), angle: -90, position: 'insideLeft', fill: '#ebebeb99' }}
                 />
                 <Tooltip
                   contentStyle={{
@@ -193,7 +195,7 @@ export const TrendAnalysis = ({ timeRange, countryId }: TrendAnalysisProps): JSX
                     // Get actual value from stored _actual field
                     const actualValue = props.payload[`${name}_actual`] || 0;
                     return [
-                      `${value} (${actualValue} reports)`,
+                      `${value} (${actualValue} ${t("dashboard.reports")})`,
                       name
                     ];
                   }}
@@ -221,8 +223,7 @@ export const TrendAnalysis = ({ timeRange, countryId }: TrendAnalysisProps): JSX
             </ResponsiveContainer>
             <div className="mt-4 px-2">
               <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-xs">
-                <span className="font-semibold text-[#66dbe1]">Note:</span> Values are normalized to 0-100 scale where the peak represents 100. 
-                This allows easy comparison of trends regardless of absolute numbers.
+                <span className="font-semibold text-[#66dbe1]">{t("dashboard.note")}:</span> {t("dashboard.valuesNormalizedNote")}
               </p>
             </div>
 
@@ -233,14 +234,14 @@ export const TrendAnalysis = ({ timeRange, countryId }: TrendAnalysisProps): JSX
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-3 h-3 rounded-full bg-[#f87171]" />
                       <span className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-sm">
-                        Highest Trend
+                        {t("dashboard.highestTrend")}
                       </span>
                     </div>
                     <p className="[font-family:'Roboto',Helvetica] font-medium text-[#66dbe1] text-lg">
                       {trendStats.highestTrend.name}
                     </p>
                     <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-xs mt-1">
-                      {trendStats.highestTrend.change > 0 ? '+' : ''}{trendStats.highestTrend.change.toFixed(1)}% change
+                      {trendStats.highestTrend.change > 0 ? '+' : ''}{trendStats.highestTrend.change.toFixed(1)}% {t("dashboard.change")}
                     </p>
                   </div>
                 )}
@@ -250,14 +251,14 @@ export const TrendAnalysis = ({ timeRange, countryId }: TrendAnalysisProps): JSX
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-3 h-3 rounded-full bg-[#66dbe1]" />
                       <span className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-sm">
-                        Declining
+                        {t("dashboard.declining")}
                       </span>
                     </div>
                     <p className="[font-family:'Roboto',Helvetica] font-medium text-[#4ade80] text-lg">
                       {trendStats.decliningTrend.name}
                     </p>
                     <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-xs mt-1">
-                      {trendStats.decliningTrend.change.toFixed(1)}% decrease
+                      {trendStats.decliningTrend.change.toFixed(1)}% {t("dashboard.decrease")}
                     </p>
                   </div>
                 )}
@@ -267,14 +268,14 @@ export const TrendAnalysis = ({ timeRange, countryId }: TrendAnalysisProps): JSX
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-3 h-3 rounded-full bg-[#fbbf24]" />
                       <span className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-sm">
-                        Most Reports
+                        {t("dashboard.mostReports")}
                       </span>
                     </div>
                     <p className="[font-family:'Roboto',Helvetica] font-medium text-[#66dbe1] text-lg">
                       {trendStats.mostReports.name}
                     </p>
                     <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-xs mt-1">
-                      {trendStats.mostReports.total} total reports
+                      {trendStats.mostReports.total} {t("dashboard.totalReports")}
                     </p>
                   </div>
                 )}

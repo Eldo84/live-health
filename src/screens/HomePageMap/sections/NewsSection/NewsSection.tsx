@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLanguage } from "../../../../contexts/LanguageContext";
 
 interface NewsArticle {
   id: string;
@@ -14,6 +15,7 @@ interface NewsArticle {
 }
 
 export const NewsSection = (): JSX.Element => {
+  const { t } = useLanguage();
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -173,15 +175,15 @@ export const NewsSection = (): JSX.Element => {
   };
 
   return (
-    <div className="w-full lg:w-[240px] rounded-lg border border-[#EAEBF024] bg-[#FFFFFF14] shadow-lg flex flex-col overflow-hidden lg:h-[380px] h-[500px] max-h-[60vh] lg:max-h-[380px]" style={{ boxSizing: 'border-box' }}>
+    <div className="w-full lg:w-[240px] rounded-lg border border-[#EAEBF024] bg-[#FFFFFF14] shadow-lg flex flex-col overflow-hidden lg:h-[380px] h-[300px] max-h-[35vh] lg:max-h-[380px]" style={{ boxSizing: 'border-box' }}>
       <div className="px-4 pt-4 pb-3 border-b border-[#EAEBF024]/50">
         <h2 className="[font-family:'Roboto',Helvetica] font-bold text-white text-base tracking-[-0.2px]">
-          Outbreak News
+          {t("news.outbreakNews")}
         </h2>
       </div>
       <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar px-4 py-3">
         {loading && (
-          <div className="text-xs text-[#a7a7a7] text-center py-3">Loading news…</div>
+          <div className="text-xs text-[#a7a7a7] text-center py-3">{t("news.loadingNews")}</div>
         )}
         {error && (
           <div className="text-xs text-red-400 text-center py-3">{error}</div>
@@ -189,7 +191,7 @@ export const NewsSection = (): JSX.Element => {
         {!loading && !error && (
           <div className="space-y-2.5">
             {articles.length === 0 ? (
-              <div className="text-xs text-[#a7a7a7] text-center py-6">No news available</div>
+              <div className="text-xs text-[#a7a7a7] text-center py-6">{t("news.noNewsAvailable")}</div>
             ) : (
               articles.map((article) => (
                 <div
@@ -224,7 +226,7 @@ export const NewsSection = (): JSX.Element => {
                       rel="noopener noreferrer"
                       className="text-[10px] text-[#67DBE2] hover:text-[#5bc5cb] hover:underline transition-colors flex-shrink-0"
                     >
-                      Read More
+                      {t("news.readMore")}
                     </a>
                   </div>
                 </div>
