@@ -1,4 +1,5 @@
 import { Outlet } from "react-router-dom";
+import { Toaster } from "@/components/ui/toaster";
 import "../screens/mainpage/pages/index.css";
 import "../screens/mainpage/pages/App.css";
 
@@ -10,6 +11,7 @@ export const MainPageLayout = (): JSX.Element => {
   return (
     <div className="min-h-screen bg-background mainpage-layout">
       <Outlet />
+      <Toaster />
     </div>
   );
 };

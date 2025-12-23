@@ -11,11 +11,14 @@ export const DashboardFooter = () => {
           <div className="space-y-2">
             <h4 className="[font-family:'Roboto',Helvetica] text-sm font-semibold text-[#66dbe1]">Data Sources</h4>
             <div className="[font-family:'Roboto',Helvetica] text-xs text-[#ebebeb99] space-y-1">
-              <p>• Global Burden of Disease Study 2024</p>
-              <p>• World Health Organization Global Health Observatory</p>
-              <p>• Institute for Health Metrics and Evaluation (IHME)</p>
-              <p>• National health surveillance systems</p>
+              <p>• AI-Generated Estimates (DeepSeek) - <span className="text-[#fbbf24]">Currently Active</span></p>
+              <p className="text-[#ebebeb66]">• Global Burden of Disease Study (IHME) - <span className="text-[#ebebeb66]">Integration Pending</span></p>
+              <p className="text-[#ebebeb66]">• World Health Organization (WHO) - <span className="text-[#ebebeb66]">Integration Pending</span></p>
+              <p className="text-[#ebebeb66]">• Centers for Disease Control (CDC) - <span className="text-[#ebebeb66]">Integration Pending</span></p>
             </div>
+            <p className="[font-family:'Roboto',Helvetica] text-[10px] text-[#ebebeb66] mt-2 italic">
+              Note: Official data source integrations are in development. Current data uses AI estimates for demonstration purposes.
+            </p>
           </div>
 
           {/* Export Options */}

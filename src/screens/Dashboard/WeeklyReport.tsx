@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../../components/ui/card";
 import { Badge } from "../../components/ui/badge";
-import { Loader2, AlertCircle, Users, Stethoscope, Sparkles, TrendingUp, Calendar, Activity, CheckCircle2, ArrowRight, ChevronDown, ChevronUp } from "lucide-react";
+import { Loader2, AlertCircle, Sparkles, TrendingUp, Calendar, Activity, CheckCircle2, ChevronDown, ChevronUp, FileText } from "lucide-react";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
+import { DiseaseRecommendationsDialog } from "../../components/DiseaseRecommendationsDialog";
 
 interface Disease {
   disease_name: string;
@@ -12,10 +13,17 @@ interface Disease {
   new_cases: number;
 }
 
+interface DiseaseSpecificRecommendations {
+  disease_name: string;
+  userRecommendations: string[];
+  medicalPersonnelRecommendations: string[];
+}
+
 interface Recommendations {
   userRecommendations: string[];
   medicalPersonnelRecommendations: string[];
   summary: string;
+  diseaseSpecific?: DiseaseSpecificRecommendations[];
 }
 
 interface WeeklyReportData {
@@ -30,6 +38,8 @@ export const WeeklyReport = (): JSX.Element => {
   const [error, setError] = useState<string | null>(null);
   const [reportData, setReportData] = useState<WeeklyReportData | null>(null);
   const [showAllDiseases, setShowAllDiseases] = useState(false);
+  const [selectedDisease, setSelectedDisease] = useState<string | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchWeeklyReport = async () => {
@@ -266,6 +276,19 @@ export const WeeklyReport = (): JSX.Element => {
                           </div>
                         </div>
                       </div>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedDisease(disease.disease_name);
+                          setIsDialogOpen(true);
+                        }}
+                        className="ml-3 px-3 py-1.5 rounded-lg bg-[#66dbe1]/10 hover:bg-[#66dbe1]/20 border border-[#66dbe1]/30 hover:border-[#66dbe1]/50 transition-all duration-200 flex items-center gap-2 group/btn"
+                      >
+                        <FileText className="w-4 h-4 text-[#66dbe1] group-hover/btn:scale-110 transition-transform" />
+                        <span className="[font-family:'Roboto',Helvetica] text-sm font-medium text-[#66dbe1]">
+                          Recommendations
+                        </span>
+                      </button>
                     </div>
                   );
                 })}
@@ -290,78 +313,20 @@ export const WeeklyReport = (): JSX.Element => {
         </CardContent>
       </Card>
 
-      {/* Recommendations Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* User Recommendations */}
-        {recommendations.userRecommendations.length > 0 && (
-          <Card className="bg-gradient-to-br from-[#4285F4]/10 to-[#4285F4]/5 border-[#4285F4]/20 hover:border-[#4285F4]/30 transition-all duration-300">
-            <CardHeader className="pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-[#4285F4]/20 flex items-center justify-center">
-                  <Users className="w-5 h-5 text-[#4285F4]" />
-                </div>
-                <div>
-                  <CardTitle className="[font-family:'Roboto',Helvetica] text-lg font-semibold text-[#4285F4]">
-                    For the General Public
-                  </CardTitle>
-                  <p className="[font-family:'Roboto',Helvetica] text-xs text-[#ebebeb99] mt-1">
-                    Health guidance and preventive measures
-                  </p>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-4">
-                {recommendations.userRecommendations.map((rec, index) => (
-                  <li key={index} className="flex items-start gap-4 group">
-                    <div className="w-8 h-8 rounded-lg bg-[#4285F4]/20 flex items-center justify-center flex-shrink-0 group-hover:bg-[#4285F4]/30 transition-colors">
-                      <span className="[font-family:'Roboto',Helvetica] text-[#4285F4] text-sm font-bold">{index + 1}</span>
-                    </div>
-                    <p className="[font-family:'Roboto',Helvetica] text-[#ebebeb] leading-relaxed flex-1 pt-1">
-                      {rec}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        )}
 
-        {/* Medical Personnel Recommendations */}
-        {recommendations.medicalPersonnelRecommendations.length > 0 && (
-          <Card className="bg-gradient-to-br from-[#9333ea]/10 to-[#9333ea]/5 border-[#9333ea]/20 hover:border-[#9333ea]/30 transition-all duration-300">
-            <CardHeader className="pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-[#9333ea]/20 flex items-center justify-center">
-                  <Stethoscope className="w-5 h-5 text-[#9333ea]" />
-                </div>
-                <div>
-                  <CardTitle className="[font-family:'Roboto',Helvetica] text-lg font-semibold text-[#9333ea]">
-                    For Medical Personnel
-                  </CardTitle>
-                  <p className="[font-family:'Roboto',Helvetica] text-xs text-[#ebebeb99] mt-1">
-                    Clinical insights and action items
-                  </p>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <ul className="space-y-4">
-                {recommendations.medicalPersonnelRecommendations.map((rec, index) => (
-                  <li key={index} className="flex items-start gap-4 group">
-                    <div className="w-8 h-8 rounded-lg bg-[#9333ea]/20 flex items-center justify-center flex-shrink-0 group-hover:bg-[#9333ea]/30 transition-colors">
-                      <span className="[font-family:'Roboto',Helvetica] text-[#9333ea] text-sm font-bold">{index + 1}</span>
-                    </div>
-                    <p className="[font-family:'Roboto',Helvetica] text-[#ebebeb] leading-relaxed flex-1 pt-1">
-                      {rec}
-                    </p>
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+      {/* Disease Recommendations Dialog */}
+      {selectedDisease && (
+        <DiseaseRecommendationsDialog
+          open={isDialogOpen}
+          onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) {
+              setSelectedDisease(null);
+            }
+          }}
+          diseaseName={selectedDisease}
+        />
+      )}
     </div>
   );
 };

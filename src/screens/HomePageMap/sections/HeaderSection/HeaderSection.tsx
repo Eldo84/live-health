@@ -1,4 +1,4 @@
-import { ChevronDownIcon, Menu, Home, ChevronRight, LogOut, User, Plus, Shield, Megaphone } from "lucide-react";
+import { ChevronDownIcon, Menu, Home, ChevronRight, LogOut, User, Plus, Shield, Megaphone, MessageSquare } from "lucide-react";
 import { NotificationBell } from "../../../../components/NotificationBell";
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -11,6 +11,7 @@ import {
 } from "../../../../components/ui/collapsible";
 import { AuthDialog } from "../../../../components/AuthDialog";
 import { AddAlertDialog } from "../../../../components/AddAlertDialog";
+import { FeedbackDialog } from "../../../../components/FeedbackDialog";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { useLanguage, SUPPORTED_LANGUAGES } from "../../../../contexts/LanguageContext";
 import { supabase } from "../../../../lib/supabase";
@@ -55,6 +56,7 @@ export const HeaderSection = (): JSX.Element => {
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [addAlertDialogOpen, setAddAlertDialogOpen] = useState(false);
+  const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false);
   const languageDropdownRef = useRef<HTMLDivElement>(null);
@@ -174,20 +176,12 @@ export const HeaderSection = (): JSX.Element => {
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-10">
             <div className="flex items-center gap-8">
-              <div className="flex items-center gap-2 cursor-pointer">
+              <div 
+                className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => setFeedbackDialogOpen(true)}
+              >
                 <span className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-base tracking-[0] leading-6 whitespace-nowrap">
-                  {t("common.about")}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 cursor-pointer">
-                <span className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-base tracking-[0] leading-6 whitespace-nowrap">
-                  {t("common.resources")}
-                </span>
-                <ChevronDownIcon className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex items-center gap-2 cursor-pointer">
-                <span className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-base tracking-[0] leading-6 whitespace-nowrap">
-                  {t("common.contact")}
+                  Feedback
                 </span>
               </div>
               <div className="flex items-center gap-2 cursor-pointer">
@@ -438,6 +432,19 @@ export const HeaderSection = (): JSX.Element => {
                         {t("common.addAlert")}
                       </span>
                     </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setFeedbackDialogOpen(true);
+                        setMobileMenuOpen(false);
+                      }}
+                      className="w-full justify-start h-[46px] px-4 hover:bg-[#ffffff1a] rounded-none text-white border border-[#4eb7bd]/50 hover:border-[#4eb7bd] transition-colors"
+                    >
+                      <MessageSquare className="w-[22px] h-[22px] flex-shrink-0" />
+                      <span className="flex-1 text-left ml-3 [font-family:'Roboto',Helvetica] font-semibold text-[15px]">
+                        Feedback
+                      </span>
+                    </Button>
                     {user ? (
                       <>
                         <Button
@@ -536,6 +543,12 @@ export const HeaderSection = (): JSX.Element => {
           onOpenChange={setAddAlertDialogOpen}
         />
       )}
+      
+      {/* Feedback Dialog */}
+      <FeedbackDialog
+        open={feedbackDialogOpen}
+        onOpenChange={setFeedbackDialogOpen}
+      />
     </div>
   );
 };

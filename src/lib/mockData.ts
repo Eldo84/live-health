@@ -45,18 +45,22 @@ export const countries = [
   "Mexico"
 ];
 
-export const yearRanges = [
-  "2019",
-  "2015-2019",
-  "2010-2019",
-  "2000-2019",
-  "1990-2019"
-];
+/**
+ * Year options limited to seeded/target years
+ */
+export function getYearRanges(): string[] {
+  return ["2020", "2021", "2022", "2023", "2024"];
+}
+
+// Export static version for backward compatibility
+export const yearRanges = getYearRanges();
 
 export const sexOptions = ["All", "Female", "Male"];
 
 export const ageGroups = [
   "All Ages",
+  "15-49",
+  "50-74",
   "0-9 years",
   "10-24 years",
   "25-49 years",
@@ -85,6 +89,42 @@ export interface DiseaseRecord {
   riskFactors: string[];
 }
 
+// Supplemental dataset for country/year-specific disease records with risk factors.
+export interface SeedDiseaseRecord {
+  id: string;
+  condition: string;
+  category: string;
+  ageGroup: string;
+  prevalence: number;
+  incidence: number;
+  mortalityRate: number;
+  female: number;
+  male: number;
+  allSexes: number;
+  ylds: number;
+  dalys: number;
+  year: number;
+  country: string;
+  riskFactors: string[];
+}
+
+export const seededDiseaseData: SeedDiseaseRecord[] = [
+  { id: 'Ischemic Heart Disease-50-74-Global-2020', condition: 'Ischemic Heart Disease', category: 'Cardiovascular Diseases', ageGroup: '50-74', prevalence: 10000, incidence: 500, mortalityRate: 200, female: 8000, male: 12000, allSexes: 10000, ylds: 500, dalys: 3000, year: 2020, country: 'Global', riskFactors: ['hypertension', 'high cholesterol', 'diabetes', 'obesity', 'smoking', 'poor diet', 'physical inactivity', 'excessive alcohol', 'stress', 'family history'] },
+  { id: 'Ischemic Heart Disease-50-74-Global-2021', condition: 'Ischemic Heart Disease', category: 'Cardiovascular Diseases', ageGroup: '50-74', prevalence: 10000, incidence: 500, mortalityRate: 200, female: 8000, male: 12000, allSexes: 10000, ylds: 500, dalys: 3000, year: 2021, country: 'Global', riskFactors: ['hypertension', 'high cholesterol', 'diabetes', 'obesity', 'smoking', 'poor diet', 'physical inactivity', 'excessive alcohol', 'stress', 'family history'] },
+  { id: 'Ischemic Heart Disease-50-74-Global-2022', condition: 'Ischemic Heart Disease', category: 'Cardiovascular Diseases', ageGroup: '50-74', prevalence: 10100, incidence: 505, mortalityRate: 202, female: 8080, male: 12120, allSexes: 10100, ylds: 505, dalys: 3030, year: 2022, country: 'Global', riskFactors: ['hypertension', 'high cholesterol', 'diabetes', 'obesity', 'smoking', 'poor diet', 'physical inactivity', 'excessive alcohol', 'stress', 'family history'] },
+  { id: 'Ischemic Heart Disease-50-74-Global-2023', condition: 'Ischemic Heart Disease', category: 'Cardiovascular Diseases', ageGroup: '50-74', prevalence: 10200, incidence: 510, mortalityRate: 204, female: 8160, male: 12240, allSexes: 10200, ylds: 510, dalys: 3060, year: 2023, country: 'Global', riskFactors: ['hypertension', 'high cholesterol', 'diabetes', 'obesity', 'smoking', 'poor diet', 'physical inactivity', 'excessive alcohol', 'stress', 'family history'] },
+  { id: 'Ischemic Heart Disease-50-74-Global-2024', condition: 'Ischemic Heart Disease', category: 'Cardiovascular Diseases', ageGroup: '50-74', prevalence: 10300, incidence: 515, mortalityRate: 206, female: 8240, male: 12360, allSexes: 10300, ylds: 515, dalys: 3090, year: 2024, country: 'Global', riskFactors: ['hypertension', 'high cholesterol', 'diabetes', 'obesity', 'smoking', 'poor diet', 'physical inactivity', 'excessive alcohol', 'stress', 'family history'] },
+  { id: 'Ischemic Heart Disease-50-74-United States-2020', condition: 'Ischemic Heart Disease', category: 'Cardiovascular Diseases', ageGroup: '50-74', prevalence: 12000, incidence: 600, mortalityRate: 240, female: 9600, male: 14400, allSexes: 12000, ylds: 600, dalys: 3600, year: 2020, country: 'United States', riskFactors: ['hypertension', 'high cholesterol', 'diabetes', 'obesity', 'smoking', 'poor diet', 'physical inactivity', 'excessive alcohol', 'stress', 'family history'] },
+  { id: 'Ischemic Heart Disease-50-74-United States-2021', condition: 'Ischemic Heart Disease', category: 'Cardiovascular Diseases', ageGroup: '50-74', prevalence: 12000, incidence: 600, mortalityRate: 240, female: 9600, male: 14400, allSexes: 12000, ylds: 600, dalys: 3600, year: 2021, country: 'United States', riskFactors: ['hypertension', 'high cholesterol', 'diabetes', 'obesity', 'smoking', 'poor diet', 'physical inactivity', 'excessive alcohol', 'stress', 'family history'] },
+  { id: 'Ischemic Heart Disease-50-74-United States-2022', condition: 'Ischemic Heart Disease', category: 'Cardiovascular Diseases', ageGroup: '50-74', prevalence: 12120, incidence: 606, mortalityRate: 242.4, female: 9696, male: 14544, allSexes: 12120, ylds: 606, dalys: 3636, year: 2022, country: 'United States', riskFactors: ['hypertension', 'high cholesterol', 'diabetes', 'obesity', 'smoking', 'poor diet', 'physical inactivity', 'excessive alcohol', 'stress', 'family history'] },
+  { id: 'Ischemic Heart Disease-50-74-United States-2023', condition: 'Ischemic Heart Disease', category: 'Cardiovascular Diseases', ageGroup: '50-74', prevalence: 12240, incidence: 612, mortalityRate: 244.8, female: 9792, male: 14688, allSexes: 12240, ylds: 612, dalys: 3672, year: 2023, country: 'United States', riskFactors: ['hypertension', 'high cholesterol', 'diabetes', 'obesity', 'smoking', 'poor diet', 'physical inactivity', 'excessive alcohol', 'stress', 'family history'] },
+  { id: 'Ischemic Heart Disease-50-74-United States-2024', condition: 'Ischemic Heart Disease', category: 'Cardiovascular Diseases', ageGroup: '50-74', prevalence: 12360, incidence: 618, mortalityRate: 247.2, female: 9888, male: 14832, allSexes: 12360, ylds: 618, dalys: 3708, year: 2024, country: 'United States', riskFactors: ['hypertension', 'high cholesterol', 'diabetes', 'obesity', 'smoking', 'poor diet', 'physical inactivity', 'excessive alcohol', 'stress', 'family history'] },
+  { id: 'Ischemic Heart Disease-50-74-China-2020', condition: 'Ischemic Heart Disease', category: 'Cardiovascular Diseases', ageGroup: '50-74', prevalence: 8000, incidence: 400, mortalityRate: 160, female: 6400, male: 9600, allSexes: 8000, ylds: 400, dalys: 2400, year: 2020, country: 'China', riskFactors: ['hypertension', 'high cholesterol', 'diabetes', 'obesity', 'smoking', 'poor diet', 'physical inactivity', 'excessive alcohol', 'stress', 'family history'] },
+  { id: 'Ischemic Heart Disease-50-74-China-2021', condition: 'Ischemic Heart Disease', category: 'Cardiovascular Diseases', ageGroup: '50-74', prevalence: 8000, incidence: 400, mortalityRate: 160, female: 6400, male: 9600, allSexes: 8000, ylds: 400, dalys: 2400, year: 2021, country: 'China', riskFactors: ['hypertension', 'high cholesterol', 'diabetes', 'obesity', 'smoking', 'poor diet', 'physical inactivity', 'excessive alcohol', 'stress', 'family history'] },
+  { id: 'Ischemic Heart Disease-50-74-China-2022', condition: 'Ischemic Heart Disease', category: 'Cardiovascular Diseases', ageGroup: '50-74', prevalence: 8080, incidence: 404, mortalityRate: 161.6, female: 6464, male: 9696, allSexes: 8080, ylds: 404, dalys: 2424, year: 2022, country: 'China', riskFactors: ['hypertension', 'high cholesterol', 'diabetes', 'obesity', 'smoking', 'poor diet', 'physical inactivity', 'excessive alcohol', 'stress', 'family history'] },
+  { id: 'Ischemic Heart Disease-50-74-China-2023', condition: 'Ischemic Heart Disease', category: 'Cardiovascular Diseases', ageGroup: '50-74', prevalence: 8160, incidence: 408, mortalityRate: 163.2, female: 6528, male: 9792, allSexes: 8160, ylds: 408, dalys: 2448, year: 2023, country: 'China', riskFactors: ['hypertension', 'high cholesterol', 'diabetes', 'obesity', 'smoking', 'poor diet', 'physical inactivity', 'excessive alcohol', 'stress', 'family history'] },
+  { id: 'Ischemic Heart Disease-50-74-China-2024', condition: 'Ischemic Heart Disease', category: 'Cardiovascular Diseases', ageGroup: '50-74', prevalence: 8240, incidence: 412, mortalityRate: 164.8, female: 6592, male: 9888, allSexes: 8240, ylds: 412, dalys: 2472, year: 2024, country: 'China', riskFactors: ['hypertension', 'high cholesterol', 'diabetes', 'obesity', 'smoking', 'poor diet', 'physical inactivity', 'excessive alcohol', 'stress', 'family history'] },
+];
 export const diseaseData: DiseaseRecord[] = [
   // Cardiovascular Diseases (Global, 2019)
   {
@@ -536,7 +576,7 @@ export const getAggregatedStats = () => {
   const totalPrevalence = diseaseData.reduce((sum, d) => sum + d.prevalence, 0);
   const totalDALYs = diseaseData.reduce((sum, d) => sum + d.dalys, 0);
   const avgMortality = diseaseData.reduce((sum, d) => sum + d.mortalityRate, 0) / diseaseData.length;
-  
+
   return {
     totalPrevalence: Math.round(totalPrevalence),
     totalDALYs: Math.round(totalDALYs),

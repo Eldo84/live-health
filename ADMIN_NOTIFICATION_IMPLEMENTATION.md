@@ -78,7 +78,7 @@ supabase functions deploy get-users
 In Supabase Dashboard → Edge Functions → Settings → Secrets:
 
 - `RESEND_API_KEY` - Your Resend API key (get from https://resend.com)
-- `RESEND_FROM_EMAIL` (optional) - Default: "OutbreakNow <notifications@outbreaknow.com>"
+- `RESEND_FROM_EMAIL` (optional) - Default: "OutbreakNow <notifications@outbreaknow.org>"
 - `SUPABASE_URL` - Auto-set
 - `SUPABASE_SERVICE_ROLE_KEY` - Auto-set
 
@@ -138,7 +138,7 @@ In Supabase Dashboard → Edge Functions → Settings → Secrets:
 4. **Domain Setup (Optional):**
    - Verify a domain in Resend (or use test domain)
    - Update `RESEND_FROM_EMAIL` secret if needed
-   - Default: "OutbreakNow <notifications@outbreaknow.com>"
+   - Default: "OutbreakNow <notifications@outbreaknow.org>"
 
 ---
 

@@ -1,5 +1,7 @@
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { riskFactorData } from "@/lib/mockData";
+import { useHealthStatistics } from "@/lib/useHealthStatistics";
+import { diseaseData as seedDiseaseData } from "@/lib/diseaseSeedData";
 
 interface RiskFactorsSectionProps {
   filters?: {
@@ -13,6 +15,129 @@ interface RiskFactorsSectionProps {
 }
 
 export const RiskFactorsSection = ({ filters }: RiskFactorsSectionProps = {}) => {
+  // Fetch real health statistics data (includes risk_factors from ai_health_enrichment)
+  const { data: healthStats, loading, error } = useHealthStatistics(filters);
+
+  const riskFactorData = useMemo(() => {
+    const buildFactorMap = (records: { condition: string; risk_factors: string | null }[]) => {
+      const factorMap = new Map<string, { factor: string; diseases: Set<string>; strength: number }>();
+      records.forEach(stat => {
+        if (stat.risk_factors) {
+          const factors = stat.risk_factors
+            .split(/[,;]|and|&/)
+            .map(f => f.trim())
+            .filter(f => f.length > 0);
+          factors.forEach(factor => {
+            if (!factorMap.has(factor)) {
+              factorMap.set(factor, { factor, diseases: new Set(), strength: 0 });
+            }
+            const entry = factorMap.get(factor)!;
+            entry.diseases.add(stat.condition);
+            entry.strength = Math.min(entry.diseases.size, 10);
+          });
+        }
+      });
+      return Array.from(factorMap.values())
+        .map(f => ({
+          factor: f.factor,
+          strength: f.strength,
+          diseases: Array.from(f.diseases)
+        }))
+        .sort((a, b) => b.strength - a.strength)
+        .slice(0, 10);
+    };
+
+    // Primary: use fetched data
+    const primary = buildFactorMap(healthStats || []);
+    if (primary.length > 0) return primary;
+
+    // Fallback: derive from seed dataset with same filters
+    const seedFiltered = seedDiseaseData.filter(record => {
+      if (filters?.category && filters.category !== "All Categories" && record.category !== filters.category) {
+        return false;
+      }
+      if (
+        filters?.country &&
+        filters.country !== "Global" &&
+        filters.country !== "All Countries" &&
+        filters.country !== "All" &&
+        record.country !== filters.country
+      ) {
+        return false;
+      }
+      if (filters?.yearRange) {
+        const parts = filters.yearRange.split("-").map(Number);
+        if (parts.length === 2 && !(record.year >= parts[0] && record.year <= parts[1])) return false;
+        if (parts.length === 1 && parts[0] && record.year !== parts[0]) return false;
+      } else if (filters?.year !== undefined) {
+        const yr = Number(filters.year);
+        if (Number.isFinite(yr) && record.year !== yr) return false;
+      }
+      if (filters?.ageGroup && filters.ageGroup !== "All Ages" && record.ageGroup !== filters.ageGroup) {
+        return false;
+      }
+      if (filters?.searchTerm && filters.searchTerm.trim()) {
+        const s = filters.searchTerm.toLowerCase().trim();
+        if (
+          !record.condition.toLowerCase().includes(s) &&
+          !record.category.toLowerCase().includes(s) &&
+          !record.country.toLowerCase().includes(s)
+        ) {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    const seedMapped = seedFiltered.map(record => ({
+      condition: record.condition,
+      risk_factors: record.riskFactors.join(", ")
+    }));
+
+    return buildFactorMap(seedMapped);
+  }, [healthStats, filters]);
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="bg-[#ffffff14] border-[#eaebf024]">
+          <CardContent className="flex items-center justify-center h-[400px]">
+            <p className="text-[#ebebeb]">Loading risk factors data...</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-[#ffffff14] border-[#eaebf024]">
+          <CardContent className="flex items-center justify-center h-[400px]">
+            <p className="text-[#ebebeb]">Loading risk factors data...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="bg-[#ffffff14] border-[#eaebf024]">
+          <CardContent className="flex items-center justify-center h-[400px]">
+            <p className="text-red-400">Error loading data: {error}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (riskFactorData.length === 0) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="bg-[#ffffff14] border-[#eaebf024]">
+          <CardContent className="flex items-center justify-center h-[400px]">
+            <p className="text-[#ebebeb]">No risk factors data available. Please run data collection first.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Simplified Sankey-style Visualization */}

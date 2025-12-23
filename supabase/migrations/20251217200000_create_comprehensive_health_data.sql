@@ -200,3 +200,16 @@ INSERT INTO health_conditions (
    47300, null, null, 43500, 51000, 47300, 119.3, 952.9, 2020, 'Global', 'CDC, AHA, GBD 2019')
 ON CONFLICT (condition_name, category, country, year, age_group_affected) DO NOTHING;
 
+
+
+
+
+
+
+
+
+
+
+
+
+

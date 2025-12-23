@@ -1,22 +1,33 @@
 import { Helmet } from "react-helmet-async";
 import { useState } from "react";
-import PartnerRow from "../ui/PatnerRow";
+import PartnerRow from "../ui/PartnerRow";
 import AdvertiseForm from "../ui/AdvertiseForm";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Heart, Shield, Users, TrendingUp, Zap, AlertTriangle, BarChart3, Menu } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Heart, Shield, Users, TrendingUp, Zap, AlertTriangle, BarChart3, Menu, Loader2 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import outbreakNowLogo from "@/assets/outbreaknow-logo.png";
 import drLufulwabo from "@/assets/dr-lufulwabo.jpeg";
 import { useLanguage, SUPPORTED_LANGUAGES } from "@/contexts/LanguageContext";
+import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("home");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [donationModalOpen, setDonationModalOpen] = useState(false);
+  const [donationAmount, setDonationAmount] = useState<number | null>(null);
+  const [donorName, setDonorName] = useState("");
+  const [donorEmail, setDonorEmail] = useState("");
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const location = useLocation();
   const { language, setLanguage, t } = useLanguage();
+  const { toast } = useToast();
   const canonical = `${window.location.origin}${location.pathname}`;
   const orgLd = {
     '@context': 'https://schema.org',
@@ -25,6 +36,63 @@ const Index = () => {
     url: canonical,
     logo: outbreakNowLogo,
     sameAs: [canonical],
+  };
+
+  const handleDonateClick = (amount: number | null) => {
+    setDonationAmount(amount);
+    setDonorName("");
+    setDonorEmail("");
+    setIsAnonymous(false);
+    setDonationModalOpen(true);
+  };
+
+  const handleDonationSubmit = async () => {
+    if (!donationAmount || donationAmount < 1) {
+      toast({
+        title: "Invalid Amount",
+        description: "Please enter a valid donation amount (minimum $1.00).",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-donation-session`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY || '',
+          },
+          body: JSON.stringify({
+            amount: donationAmount,
+            donor_name: isAnonymous ? null : donorName || null,
+            donor_email: isAnonymous ? null : donorEmail || null,
+            is_anonymous: isAnonymous,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create donation session');
+      }
+
+      // Redirect to Stripe Checkout
+      window.location.href = data.url;
+    } catch (err: any) {
+      console.error('Donation error:', err);
+      toast({
+        title: "Donation Error",
+        description: err.message || "Failed to initiate donation. Please try again.",
+        variant: "destructive",
+      });
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -588,7 +656,11 @@ const Index = () => {
                       <p className="text-sm text-muted-foreground">
                         {t("landing.donate.tier25")}
                       </p>
-                      <Button className="mt-4 w-full" variant="outline">
+                      <Button 
+                        className="mt-4 w-full" 
+                        variant="outline"
+                        onClick={() => handleDonateClick(25)}
+                      >
                         {t("landing.donate.button25")}
                       </Button>
                     </div>
@@ -597,7 +669,10 @@ const Index = () => {
                       <p className="text-sm text-muted-foreground">
                         {t("landing.donate.tier100")}
                       </p>
-                      <Button className="mt-4 w-full">
+                      <Button 
+                        className="mt-4 w-full"
+                        onClick={() => handleDonateClick(100)}
+                      >
                         {t("landing.donate.button100")}
                       </Button>
                     </div>
@@ -606,11 +681,132 @@ const Index = () => {
                       <p className="text-sm text-muted-foreground">
                         {t("landing.donate.tierCustom")}
                       </p>
-                      <Button className="mt-4 w-full" variant="outline">
+                      <Button 
+                        className="mt-4 w-full" 
+                        variant="outline"
+                        onClick={() => handleDonateClick(null)}
+                      >
                         {t("landing.donate.buttonCustom")}
                       </Button>
                     </div>
                   </div>
+
+                  {/* Donation Modal */}
+                  <Dialog open={donationModalOpen} onOpenChange={setDonationModalOpen}>
+                    <DialogContent className="max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Make a Donation</DialogTitle>
+                        <DialogDescription>
+                          Your contribution helps us expand global health surveillance and make life-saving information accessible worldwide.
+                        </DialogDescription>
+                      </DialogHeader>
+                      
+                      <div className="space-y-4 py-4">
+                        {/* Donation Amount */}
+                        <div>
+                          <label className="text-sm font-medium mb-2 block">
+                            Donation Amount
+                          </label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                            <Input
+                              type="number"
+                              min="1"
+                              step="0.01"
+                              placeholder="Enter amount"
+                              value={donationAmount || ""}
+                              onChange={(e) => setDonationAmount(e.target.value ? parseFloat(e.target.value) : null)}
+                              className="pl-7"
+                              disabled={isProcessing}
+                            />
+                          </div>
+                          {donationAmount !== null && donationAmount < 1 && (
+                            <p className="text-xs text-destructive mt-1">
+                              Minimum donation is $1.00
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Anonymous Checkbox */}
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id="anonymous"
+                            checked={isAnonymous}
+                            onCheckedChange={(checked) => setIsAnonymous(checked === true)}
+                            disabled={isProcessing}
+                          />
+                          <label
+                            htmlFor="anonymous"
+                            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                          >
+                            Donate anonymously
+                          </label>
+                        </div>
+
+                        {/* Donor Information (only if not anonymous) */}
+                        {!isAnonymous && (
+                          <>
+                            <div>
+                              <label className="text-sm font-medium mb-2 block">
+                                Name (Optional)
+                              </label>
+                              <Input
+                                type="text"
+                                placeholder="Your name"
+                                value={donorName}
+                                onChange={(e) => setDonorName(e.target.value)}
+                                disabled={isProcessing}
+                              />
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium mb-2 block">
+                                Email (Optional)
+                              </label>
+                              <Input
+                                type="email"
+                                placeholder="your.email@example.com"
+                                value={donorEmail}
+                                onChange={(e) => setDonorEmail(e.target.value)}
+                                disabled={isProcessing}
+                              />
+                              <p className="text-xs text-muted-foreground mt-1">
+                                We'll send you a receipt via email if provided
+                              </p>
+                            </div>
+                          </>
+                        )}
+
+                        {isAnonymous && (
+                          <p className="text-xs text-muted-foreground bg-muted/50 p-3 rounded-md">
+                            Your donation will be recorded anonymously. No personal information will be stored.
+                          </p>
+                        )}
+                      </div>
+
+                      <DialogFooter>
+                        <Button
+                          variant="outline"
+                          onClick={() => setDonationModalOpen(false)}
+                          disabled={isProcessing}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={handleDonationSubmit}
+                          disabled={isProcessing || !donationAmount || donationAmount < 1}
+                        >
+                          {isProcessing ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Processing...
+                            </>
+                          ) : (
+                            `Donate $${donationAmount?.toFixed(2) || '0.00'}`
+                          )}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
 
                   <div className="mt-12 p-6 rounded-xl bg-muted/50">
                     <h3 className="font-semibold mb-2">

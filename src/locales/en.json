@@ -386,6 +386,9 @@
       "exploreMap": "Explore the Map",
       "partnerWithUs": "Partner With Us"
     },
+    "partners": {
+      "title": "Proudly supported by"
+    },
     "about": {
       "title": "About Us – OutbreakNow",
       "description": "OutbreakNow is a real-time outbreak intelligence platform designed to detect, track, and visualize emerging public health threats as they unfold. Built at the intersection of epidemiology, clinical medicine, informatics, and quality improvement, OutbreakNow empowers governments, health systems, researchers, and communities with timely, actionable insights—helping to prevent outbreaks from becoming epidemics.",

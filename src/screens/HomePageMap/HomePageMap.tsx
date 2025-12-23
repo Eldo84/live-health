@@ -1598,7 +1598,7 @@ export const HomePageMap = (): JSX.Element => {
           />
         </div>
 
-        {/* Premium Ads Section - Below Map */}
+        {/* Premium Ads Section - Below Map (Normal Mode) */}
         {!isMapFullscreen && !isMobile && (
           <div 
             className="hidden lg:block absolute z-[1400] transition-opacity duration-300 overflow-visible"
@@ -1612,6 +1612,26 @@ export const HomePageMap = (): JSX.Element => {
             }}
           >
             <PremiumAdsSection />
+          </div>
+        )}
+
+        {/* Premium Ads Section - Center of Map (Fullscreen Mode) */}
+        {isMapFullscreen && !isMobile && (
+          <div 
+            className="hidden lg:block fixed z-[1400] transition-opacity duration-300 overflow-visible pointer-events-none"
+            style={{ 
+              top: '90%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: 'calc(100vw - 150px)',
+              maxWidth: '1200px',
+              paddingLeft: '120px',
+              paddingRight: '120px',
+            }}
+          >
+            <div className="pointer-events-auto">
+              <PremiumAdsSection floating={true} />
+            </div>
           </div>
         )}
 

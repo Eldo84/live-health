@@ -188,3 +188,16 @@ COMMENT ON COLUMN health_conditions.data_generation_method IS 'Method used to ge
 COMMENT ON COLUMN health_conditions.prevalence_lower_ci IS '95% confidence interval lower bound for prevalence';
 COMMENT ON COLUMN health_conditions.prevalence_upper_ci IS '95% confidence interval upper bound for prevalence';
 
+
+
+
+
+
+
+
+
+
+
+
+
+

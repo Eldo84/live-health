@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { 
   Loader2, Shield, AlertCircle, Megaphone, 
-  Users, Settings, BarChart3, FileText, ArrowRight, Bell
+  Users, Settings, BarChart3, FileText, ArrowRight, Bell, MessageSquare
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
@@ -18,6 +18,8 @@ interface AdminStats {
   pendingAds: number;
   activeAds: number;
   totalUsers: number;
+  newFeedback: number;
+  totalFeedback: number;
 }
 
 export const AdminDashboard: React.FC = () => {
@@ -34,6 +36,8 @@ export const AdminDashboard: React.FC = () => {
     pendingAds: 0,
     activeAds: 0,
     totalUsers: 0,
+    newFeedback: 0,
+    totalFeedback: 0,
   });
 
   useEffect(() => {
@@ -130,6 +134,19 @@ export const AdminDashboard: React.FC = () => {
         }));
       }
 
+      // Fetch feedback stats
+      const { data: feedbackData, error: feedbackError } = await supabase
+        .from('user_feedback')
+        .select('status');
+
+      if (!feedbackError && feedbackData) {
+        setStats(prev => ({
+          ...prev,
+          newFeedback: feedbackData.filter(f => f.status === 'new').length,
+          totalFeedback: feedbackData.length,
+        }));
+      }
+
     } catch (error: any) {
       console.error('Error fetching stats:', error);
     } finally {
@@ -164,6 +181,20 @@ export const AdminDashboard: React.FC = () => {
       stats: {
         label: 'Pending Submissions',
         value: stats.pendingAds,
+      },
+    },
+    {
+      id: 'feedback',
+      title: 'Feedback Management',
+      description: 'View and manage user feedback, bug reports, and suggestions',
+      icon: MessageSquare,
+      path: '/admin/feedback',
+      color: 'text-orange-600',
+      bgColor: 'bg-orange-50 dark:bg-orange-900/20',
+      borderColor: 'border-orange-200 dark:border-orange-800',
+      stats: {
+        label: 'New Feedback',
+        value: stats.newFeedback,
       },
     },
     {

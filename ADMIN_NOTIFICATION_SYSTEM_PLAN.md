@@ -218,7 +218,7 @@ async function sendEmailViaResend({ to, subject, html }: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
-      from: "OutbreakNow <notifications@outbreaknow.com>", // Update with your domain
+      from: "OutbreakNow <notifications@outbreaknow.org>", // Update with your domain
       to: [to],
       subject: subject,
       html: html,

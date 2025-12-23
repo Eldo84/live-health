@@ -25,3 +25,16 @@ COMMENT ON FUNCTION trigger_weekly_top_diseases() IS
   'Triggers the weekly-top-diseases Edge Function. Called automatically every Friday at 8:00 AM UTC by pg_cron. Sends weekly top 10 diseases notifications to all users.';
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+

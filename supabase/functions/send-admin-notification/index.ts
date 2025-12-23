@@ -32,9 +32,9 @@ async function sendEmailViaResend({
     return;
   }
 
-  // Use Resend's default test domain if custom domain not verified
-  // For production, set RESEND_FROM_EMAIL in Supabase secrets with your verified domain
-  // Example: "OutbreakNow <onboarding@resend.dev>" (test domain) or "OutbreakNow <notifications@yourdomain.com>" (verified domain)
+  // Use verified domain email if set in Supabase secrets as RESEND_FROM_EMAIL
+  // Example: "OutbreakNow <notifications@outbreaknow.org>"
+  // Falls back to Resend test domain for development/testing (only works for account owner's email)
   const fromEmail = Deno.env.get("RESEND_FROM_EMAIL") || "OutbreakNow <onboarding@resend.dev>";
 
   const response = await fetch("https://api.resend.com/emails", {

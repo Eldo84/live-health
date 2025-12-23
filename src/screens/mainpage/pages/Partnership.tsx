@@ -3,12 +3,13 @@ import { useLocation, Link } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/hooks/use-toast";
-import { Building2, GraduationCap, Hospital, Cpu, Heart, HandCoins, Globe2, TrendingUp, Shield, Lightbulb, Users, Zap } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Building2, GraduationCap, Hospital, Cpu, Heart, HandCoins, Globe2, TrendingUp, Shield, Lightbulb, Users, Zap, Loader2 } from "lucide-react";
 import outbreakNowLogo from "@/assets/outbreaknow-logo.png";
 import { Footer } from "@/components/Footer";
 import { useLanguage, SUPPORTED_LANGUAGES } from "@/contexts/LanguageContext";
@@ -25,6 +26,8 @@ type FormValues = z.infer<typeof schema>;
 const Partnership = () => {
   const location = useLocation();
   const canonical = `${window.location.origin}${location.pathname}`;
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { name: "", organization: "", email: "", message: "" },
@@ -32,13 +35,50 @@ const Partnership = () => {
 
   const { language, setLanguage, t } = useLanguage();
 
-  const onSubmit = (values: FormValues) => {
-    console.log("Partnership inquiry submitted:", values);
-    toast({
-      title: "Thanks for reaching out!",
-      description: "We'll get back to you shortly.",
-    });
-    form.reset();
+  const onSubmit = async (values: FormValues) => {
+    setIsSubmitting(true);
+    
+    try {
+      const response = await fetch("https://formspree.io/f/mlgrzwvr", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
+        body: JSON.stringify({
+          name: values.name,
+          organization: values.organization,
+          email: values.email,
+          message: values.message,
+          _subject: `Partnership Inquiry from ${values.name} - ${values.organization}`,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error || data.message || "Failed to submit form. Please try again.");
+      }
+
+      // Success - Formspree returns { ok: true } or similar on success
+      toast({
+        title: "✅ Success!",
+        description: "Thank you for your partnership inquiry. We'll get back to you shortly via email.",
+        duration: 5000,
+      });
+      
+      form.reset();
+    } catch (error: any) {
+      console.error("Form submission error:", error);
+      toast({
+        title: "❌ Submission Failed",
+        description: error.message || "Failed to submit your inquiry. Please check your connection and try again later.",
+        variant: "destructive",
+        duration: 5000,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -331,8 +371,15 @@ const Partnership = () => {
                         </FormItem>
                       )}
                     />
-                    <Button type="submit" size="lg" className="w-full">
-                      {t("landing.partnership.formSubmit")}
+                    <Button type="submit" size="lg" className="w-full" disabled={isSubmitting}>
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        t("landing.partnership.formSubmit")
+                      )}
                     </Button>
                   </form>
                 </Form>

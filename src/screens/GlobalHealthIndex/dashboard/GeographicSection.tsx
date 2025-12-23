@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { geographicData } from "@/lib/mockData";
+import { useHealthStatistics } from "@/lib/useHealthStatistics";
 
 interface GeographicSectionProps {
   filters?: {
@@ -14,6 +14,74 @@ interface GeographicSectionProps {
 }
 
 export const GeographicSection = ({ filters = {} }: GeographicSectionProps) => {
+  // Fetch real health statistics data
+  const { data: healthStats, loading, error } = useHealthStatistics(filters);
+
+  // Map country codes to country names
+  const countryCodeMap: Record<string, string> = {
+    "US": "United States",
+    "GB": "United Kingdom",
+    "CA": "Canada",
+    "AU": "Australia",
+    "DE": "Germany",
+    "CN": "China",
+    "IN": "India",
+    "FR": "France",
+    "JP": "Japan",
+    "BR": "Brazil",
+    "NG": "Nigeria",
+    "KE": "Kenya",
+    "ZA": "South Africa",
+    "RU": "Russia",
+    "ID": "Indonesia",
+    "MX": "Mexico",
+  };
+
+  // Transform data for geographic visualization (aggregate by country)
+  const geographicData = useMemo(() => {
+    if (!healthStats || healthStats.length === 0) return [];
+    
+    const countryMap = new Map<string, {
+      country: string;
+      prevalence: number;
+      incidence: number;
+      mortality: number;
+      dalys: number;
+      count: number;
+    }>();
+    
+    healthStats.forEach(stat => {
+      const countryName = countryCodeMap[stat.country_code] || stat.country_code;
+      const existing = countryMap.get(stat.country_code);
+      
+      if (existing) {
+        existing.prevalence += stat.prevalence_per_100k || 0;
+        existing.incidence += stat.incidence_per_100k || 0;
+        existing.mortality += stat.mortality_rate || 0;
+        existing.dalys += stat.dalys_per_100k || 0;
+        existing.count += 1;
+      } else {
+        countryMap.set(stat.country_code, {
+          country: countryName,
+          prevalence: stat.prevalence_per_100k || 0,
+          incidence: stat.incidence_per_100k || 0,
+          mortality: stat.mortality_rate || 0,
+          dalys: stat.dalys_per_100k || 0,
+          count: 1
+        });
+      }
+    });
+    
+    // Average if multiple records per country
+    return Array.from(countryMap.values()).map(d => ({
+      country: d.country,
+      prevalence: d.count > 1 ? Math.round(d.prevalence / d.count) : Math.round(d.prevalence),
+      incidence: d.count > 1 ? Math.round(d.incidence / d.count) : Math.round(d.incidence),
+      mortality: d.count > 1 ? Math.round(d.mortality / d.count) : Math.round(d.mortality),
+      dalys: d.count > 1 ? Math.round(d.dalys / d.count) : Math.round(d.dalys)
+    })).sort((a, b) => b.prevalence - a.prevalence);
+  }, [healthStats]);
+
   // Filter geographic data based on country
   const filteredGeographicData = useMemo(() => {
     let filtered = [...geographicData];
@@ -24,7 +92,7 @@ export const GeographicSection = ({ filters = {} }: GeographicSectionProps) => {
     }
     
     return filtered;
-  }, [filters.country]);
+  }, [geographicData, filters.country]);
 
   const maxPrevalence = useMemo(() => {
     return Math.max(...filteredGeographicData.map(d => d.prevalence), 1);
@@ -33,6 +101,47 @@ export const GeographicSection = ({ filters = {} }: GeographicSectionProps) => {
   const getIntensity = (value: number) => {
     return (value / maxPrevalence) * 100;
   };
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="bg-[#ffffff14] border-[#eaebf024]">
+          <CardContent className="flex items-center justify-center h-[400px]">
+            <p className="text-[#ebebeb]">Loading geographic data...</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-[#ffffff14] border-[#eaebf024]">
+          <CardContent className="flex items-center justify-center h-[400px]">
+            <p className="text-[#ebebeb]">Loading geographic data...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="bg-[#ffffff14] border-[#eaebf024]">
+          <CardContent className="flex items-center justify-center h-[400px]">
+            <p className="text-red-400">Error loading data: {error}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (filteredGeographicData.length === 0) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="bg-[#ffffff14] border-[#eaebf024]">
+          <CardContent className="flex items-center justify-center h-[400px]">
+            <p className="text-[#ebebeb]">No geographic data available. Please run data collection first.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

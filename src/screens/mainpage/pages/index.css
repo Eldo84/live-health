@@ -137,4 +137,40 @@
   .stars { position: absolute; inset: -20%; background-image: radial-gradient(2px 2px at 20% 30%, hsl(var(--foreground) / 0.2), transparent), radial-gradient(1px 1px at 80% 60%, hsl(var(--foreground) / 0.12), transparent), radial-gradient(1px 1px at 40% 90%, hsl(var(--foreground) / 0.16), transparent); animation: floatStars 60s linear infinite; }
 
   @keyframes floatStars { from { transform: translateY(0); } to { transform: translateY(10%); } }
+  @keyframes fadeInUp { 
+    from { 
+      opacity: 0; 
+      transform: translateY(20px); 
+    } 
+    to { 
+      opacity: 1; 
+      transform: translateY(0); 
+    } 
+  }
+  @keyframes shimmer {
+    0% { background-position: -1000px 0; }
+    100% { background-position: 1000px 0; }
+  }
+  @keyframes pulse-subtle {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.8; }
+  }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+}
+
+/* Dashboard-specific animations and utilities */
+@layer utilities {
+  .animate-fade-in-up { animation: fadeInUp 0.6s ease-out; }
+  .animate-shimmer {
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite;
+  }
+  .animate-pulse-subtle { animation: pulse-subtle 2s ease-in-out infinite; }
+  
+  /* Scrollbar styling */
+  .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: hsl(var(--muted) / 0.3); border-radius: 4px; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: hsl(var(--primary) / 0.5); border-radius: 4px; }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: hsl(var(--primary) / 0.7); }
 }

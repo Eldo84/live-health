@@ -1,7 +1,18 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ScatterChart, Scatter } from "recharts";
-import { dalyAnalysisData, treemapData, equityData, chartColors, topDiseases } from "@/lib/mockData";
+import { chartColors } from "@/lib/diseaseSeedData";
+import { useHealthStatistics } from "@/lib/useHealthStatistics";
+
+// Type assertions to fix Recharts TypeScript compatibility with React 18
+const ResponsiveContainerTyped = ResponsiveContainer as any;
+const BarChartTyped = BarChart as any;
+const XAxisTyped = XAxis as any;
+const YAxisTyped = YAxis as any;
+const BarTyped = Bar as any;
+const ScatterChartTyped = ScatterChart as any;
+const ScatterTyped = Scatter as any;
+const CellTyped = Cell as any;
 
 interface DALYSectionProps {
   filters?: {
@@ -15,6 +26,127 @@ interface DALYSectionProps {
 }
 
 export const DALYSection = ({ filters = {} }: DALYSectionProps) => {
+  // Fetch real health statistics data
+  const { data: healthStats, loading, error } = useHealthStatistics(filters);
+
+  // Transform data for DALY analysis (YLDs vs Deaths)
+  const dalyAnalysisData = useMemo(() => {
+    if (!healthStats || healthStats.length === 0) return [];
+    
+    const conditionMap = new Map<string, {
+      disease: string;
+      ylds: number;
+      deaths: number;
+      total: number;
+      count: number;
+    }>();
+    
+    healthStats.forEach(stat => {
+      const existing = conditionMap.get(stat.condition);
+      const ylds = stat.ylds_per_100k || 0;
+      const dalys = stat.dalys_per_100k || 0;
+      const deaths = dalys - ylds; // Approximate deaths from DALYs - YLDs
+      
+      if (existing) {
+        existing.ylds += ylds;
+        existing.deaths += deaths;
+        existing.total += dalys;
+        existing.count += 1;
+      } else {
+        conditionMap.set(stat.condition, {
+          disease: stat.condition,
+          ylds: ylds,
+          deaths: deaths,
+          total: dalys,
+          count: 1
+        });
+      }
+    });
+    
+    // Average if multiple records
+    return Array.from(conditionMap.values())
+      .map(d => ({
+        disease: d.disease,
+        ylds: d.count > 1 ? Math.round(d.ylds / d.count) : Math.round(d.ylds),
+        deaths: d.count > 1 ? Math.round(d.deaths / d.count) : Math.round(d.deaths),
+        total: d.count > 1 ? Math.round(d.total / d.count) : Math.round(d.total)
+      }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 10); // Top 10
+  }, [healthStats]);
+
+  // Transform data for treemap (by category)
+  const treemapData = useMemo(() => {
+    if (!healthStats || healthStats.length === 0) return [];
+    
+    const categoryMap = new Map<string, {
+      name: string;
+      category: string;
+      value: number;
+      count: number;
+    }>();
+    
+    healthStats.forEach(stat => {
+      const existing = categoryMap.get(stat.category);
+      const dalys = stat.dalys_per_100k || 0;
+      
+      if (existing) {
+        existing.value += dalys;
+        existing.count += 1;
+      } else {
+        // Map category names to shorter versions
+        const categoryMapNames: Record<string, string> = {
+          "Cardiovascular and Metabolic Disorders": "Cardiovascular",
+          "Cancers": "Cancers",
+          "Respiratory Diseases": "Respiratory",
+          "Neurological Disorders": "Neurological",
+          "Mental and Behavioral Disorders": "Mental Health",
+          "High-Burden Infectious Diseases": "Infectious",
+          "Injuries & Trauma": "Injuries",
+          "Maternal, Neonatal, and Child Health": "Maternal"
+        };
+        
+        categoryMap.set(stat.category, {
+          name: categoryMapNames[stat.category] || stat.category,
+          category: categoryMapNames[stat.category] || stat.category,
+          value: dalys,
+          count: 1
+        });
+      }
+    });
+    
+    // Average if multiple records
+    return Array.from(categoryMap.values())
+      .map(d => ({
+        name: d.name,
+        category: d.category,
+        value: d.count > 1 ? Math.round(d.value / d.count) : Math.round(d.value)
+      }))
+      .sort((a, b) => b.value - a.value);
+  }, [healthStats]);
+
+  // Transform data for equity vs intervention scatter chart
+  const equityData = useMemo(() => {
+    if (!healthStats || healthStats.length === 0) return [];
+    
+    return healthStats
+      .filter(stat => stat.equity_notes && stat.interventions && stat.prevalence_per_100k)
+      .map(stat => {
+        // Extract numeric scores from text fields (simplified - assumes format like "Score: 72" or "72%")
+        const equityMatch = stat.equity_notes?.match(/(\d+)/);
+        const interventionMatch = stat.interventions?.match(/(\d+)/);
+        
+        return {
+          disease: stat.condition,
+          equity: equityMatch ? parseInt(equityMatch[1]) : 50,
+          intervention: interventionMatch ? parseInt(interventionMatch[1]) : 50,
+          prevalence: Math.round(stat.prevalence_per_100k || 0)
+        };
+      })
+      .filter(d => d.equity > 0 && d.intervention > 0)
+      .slice(0, 20); // Limit to 20 points for readability
+  }, [healthStats]);
+
   // Filter DALY analysis data
   const filteredDalyData = useMemo(() => {
     let filtered = [...dalyAnalysisData];
@@ -28,7 +160,7 @@ export const DALYSection = ({ filters = {} }: DALYSectionProps) => {
     }
     
     return filtered;
-  }, [filters.searchTerm]);
+  }, [dalyAnalysisData, filters.searchTerm]);
 
   // Filter treemap data by category
   const filteredTreemapData = useMemo(() => {
@@ -36,39 +168,17 @@ export const DALYSection = ({ filters = {} }: DALYSectionProps) => {
     
     // Filter by category
     if (filters.category && filters.category !== "All Categories") {
-      // Map category names
-      const categoryMap: Record<string, string> = {
-        "Cardiovascular Diseases": "Cardiovascular",
-        "Neoplasms": "Cancers",
-        "Chronic Respiratory Diseases": "Respiratory",
-        "Diabetes & Kidney Diseases": "Metabolic",
-        "Mental Disorders": "Mental Health",
-        "Neurological Disorders": "Neurological",
-        "Transport Injuries": "Injuries",
-        "HIV/AIDS & Tuberculosis": "Infectious",
-        "Maternal & Neonatal Disorders": "Maternal"
-      };
-      
-      const mappedCategory = categoryMap[filters.category] || filters.category;
-      filtered = filtered.filter(d => d.category === mappedCategory || d.name.includes(filters.category!));
+      filtered = filtered.filter(d => 
+        d.category === filters.category || d.name.includes(filters.category!)
+      );
     }
     
     return filtered;
-  }, [filters.category]);
+  }, [treemapData, filters.category]);
 
   // Filter equity data
   const filteredEquityData = useMemo(() => {
     let filtered = [...equityData];
-    
-    // Filter by category
-    if (filters.category && filters.category !== "All Categories") {
-      const categoryDiseases = topDiseases
-        .filter(d => d.category === filters.category)
-        .map(d => d.name);
-      filtered = filtered.filter(d => 
-        categoryDiseases.some(cd => d.disease.includes(cd.split(" ")[0]))
-      );
-    }
     
     // Filter by search term
     if (filters.searchTerm && filters.searchTerm.trim()) {
@@ -79,7 +189,45 @@ export const DALYSection = ({ filters = {} }: DALYSectionProps) => {
     }
     
     return filtered;
-  }, [filters.category, filters.searchTerm]);
+  }, [equityData, filters.searchTerm]);
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {[1, 2, 3].map(i => (
+          <Card key={i} className="bg-[#ffffff14] border-[#eaebf024]">
+            <CardContent className="flex items-center justify-center h-[350px]">
+              <p className="text-[#ebebeb]">Loading DALY data...</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="bg-[#ffffff14] border-[#eaebf024]">
+          <CardContent className="flex items-center justify-center h-[350px]">
+            <p className="text-red-400">Error loading data: {error}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (filteredDalyData.length === 0 && filteredTreemapData.length === 0 && filteredEquityData.length === 0) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <Card className="bg-[#ffffff14] border-[#eaebf024]">
+          <CardContent className="flex items-center justify-center h-[350px]">
+            <p className="text-[#ebebeb]">No DALY data available. Please run data collection first.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* YLDs vs Deaths */}
@@ -91,13 +239,13 @@ export const DALYSection = ({ filters = {} }: DALYSectionProps) => {
           </p>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart
+          <ResponsiveContainerTyped width="100%" height={300}>
+            <BarChartTyped
               data={filteredDalyData}
               margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#eaebf024" opacity={0.3} />
-              <XAxis
+              <XAxisTyped
                 dataKey="disease"
                 axisLine={false}
                 tickLine={false}
@@ -106,7 +254,7 @@ export const DALYSection = ({ filters = {} }: DALYSectionProps) => {
                 textAnchor="end"
                 height={80}
               />
-              <YAxis
+              <YAxisTyped
                 axisLine={false}
                 tickLine={false}
                 tick={{ fontSize: 12, fill: "#ebebeb" }}
@@ -130,10 +278,10 @@ export const DALYSection = ({ filters = {} }: DALYSectionProps) => {
                   color: "#ebebeb"
                 }}
               />
-              <Bar dataKey="ylds" stackId="a" fill="#66dbe1" name="Years Lived with Disability" />
-              <Bar dataKey="deaths" stackId="a" fill="#f87171" name="Deaths" />
-            </BarChart>
-          </ResponsiveContainer>
+              <BarTyped dataKey="ylds" stackId="a" fill="#66dbe1" name="Years Lived with Disability" />
+              <BarTyped dataKey="deaths" stackId="a" fill="#f87171" name="Deaths" />
+            </BarChartTyped>
+          </ResponsiveContainerTyped>
         </CardContent>
       </Card>
 
@@ -180,13 +328,13 @@ export const DALYSection = ({ filters = {} }: DALYSectionProps) => {
           </p>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <ScatterChart
+          <ResponsiveContainerTyped width="100%" height={300}>
+            <ScatterChartTyped
               data={filteredEquityData}
               margin={{ top: 20, right: 20, bottom: 20, left: 20 }}
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#eaebf024" opacity={0.3} />
-              <XAxis
+              <XAxisTyped
                 type="number"
                 dataKey="equity"
                 name="Equity Score"
@@ -195,7 +343,7 @@ export const DALYSection = ({ filters = {} }: DALYSectionProps) => {
                 tick={{ fontSize: 12, fill: "#ebebeb" }}
                 domain={[0, 100]}
               />
-              <YAxis
+              <YAxisTyped
                 type="number"
                 dataKey="intervention"
                 name="Intervention Readiness"
@@ -221,16 +369,16 @@ export const DALYSection = ({ filters = {} }: DALYSectionProps) => {
                   return null;
                 }}
               />
-              <Scatter dataKey="prevalence" fill="#66dbe1" fillOpacity={0.7}>
+              <ScatterTyped dataKey="prevalence" fill="#66dbe1" fillOpacity={0.7}>
                 {filteredEquityData.map((_entry, index) => {
                   const colors = ["#66dbe1", "#f87171", "#fbbf24", "#4ade80", "#60a5fa", "#a78bfa"];
                   return (
-                    <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                    <CellTyped key={`cell-${index}`} fill={colors[index % colors.length]} />
                   );
                 })}
-              </Scatter>
-            </ScatterChart>
-          </ResponsiveContainer>
+              </ScatterTyped>
+            </ScatterChartTyped>
+          </ResponsiveContainerTyped>
         </CardContent>
       </Card>
     </div>

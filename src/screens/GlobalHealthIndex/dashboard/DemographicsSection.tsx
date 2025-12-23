@@ -1,8 +1,16 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
-import { sexPatternData, heatmapData } from "@/lib/mockData";
+import { useHealthStatistics } from "@/lib/useHealthStatistics";
+
+// Type assertions to fix Recharts TypeScript compatibility with React 18
+const ResponsiveContainerTyped = ResponsiveContainer as any;
+const BarChartTyped = BarChart as any;
+const XAxisTyped = XAxis as any;
+const YAxisTyped = YAxis as any;
+const BarTyped = Bar as any;
+const CellTyped = Cell as any;
 
 interface DemographicsSectionProps {
   filters?: {
@@ -16,7 +24,89 @@ interface DemographicsSectionProps {
 }
 
 export const DemographicsSection = ({ filters = {} }: DemographicsSectionProps) => {
-  const [selectedDisease, setSelectedDisease] = useState("Ischemic Heart Disease");
+  // Fetch real health statistics data
+  const { data: healthStats, loading, error } = useHealthStatistics(filters);
+
+  // Transform data for sex patterns (aggregate by condition)
+  const sexPatternData = useMemo(() => {
+    if (!healthStats || healthStats.length === 0) return [];
+    
+    const conditionMap = new Map<string, { disease: string; female: number; male: number; count: number }>();
+    
+    healthStats.forEach(stat => {
+      const existing = conditionMap.get(stat.condition);
+      if (existing) {
+        existing.female += stat.female_value || 0;
+        existing.male += stat.male_value || 0;
+        existing.count += 1;
+      } else {
+        conditionMap.set(stat.condition, {
+          disease: stat.condition,
+          female: stat.female_value || 0,
+          male: stat.male_value || 0,
+          count: 1
+        });
+      }
+    });
+    
+    // Average if multiple records
+    const result = Array.from(conditionMap.values()).map(d => ({
+      disease: d.disease,
+      female: d.count > 1 ? d.female / d.count : d.female,
+      male: d.count > 1 ? d.male / d.count : d.male
+    })).sort((a, b) => (b.female + b.male) - (a.female + a.male));
+    
+    console.log('Sex Pattern Data:', result.length, 'diseases');
+    console.log('Sample:', result[0]);
+    console.log('Filters:', filters);
+    
+    return result;
+  }, [healthStats]);
+
+  // Transform data for heatmap (by condition and age group)
+  const heatmapData = useMemo(() => {
+    if (!healthStats || healthStats.length === 0) return [];
+    
+    const conditionMap = new Map<string, Record<string, number>>();
+    
+    healthStats.forEach(stat => {
+      if (!conditionMap.has(stat.condition)) {
+        conditionMap.set(stat.condition, { disease: stat.condition });
+      }
+      const conditionData = conditionMap.get(stat.condition)!;
+      
+      // Map age_group to heatmap keys
+      const ageGroupKey = stat.age_group || "All ages";
+      const mappedKey = ageGroupKey
+        .replace("0-9 years", "0-9")
+        .replace("10-24 years", "10-24")
+        .replace("25-49 years", "25-49")
+        .replace("50-74 years", "50-74")
+        .replace("75+ years", "75+")
+        .replace("All ages", "All");
+      
+      const dalys = stat.dalys_per_100k || 0;
+      if (conditionData[mappedKey] !== undefined) {
+        conditionData[mappedKey] += dalys;
+      } else {
+        conditionData[mappedKey] = dalys;
+      }
+    });
+    
+    return Array.from(conditionMap.values()).filter(d => {
+      const keys = Object.keys(d).filter(k => k !== 'disease');
+      return keys.length > 0;
+    });
+  }, [healthStats]);
+
+  const [selectedDisease, setSelectedDisease] = useState<string>("");
+
+  // Set default selected disease when data loads
+  useEffect(() => {
+    if (sexPatternData.length > 0 && !selectedDisease) {
+      setSelectedDisease(sexPatternData[0].disease);
+    }
+  }, [sexPatternData, selectedDisease]);
 
   // Filter sexPatternData based on filters
   const filteredSexPatternData = useMemo(() => {
@@ -31,7 +121,7 @@ export const DemographicsSection = ({ filters = {} }: DemographicsSectionProps) 
     }
     
     return filtered;
-  }, [filters.searchTerm]);
+  }, [sexPatternData, filters.searchTerm]);
 
   // Filter heatmapData based on filters
   const filteredHeatmapData = useMemo(() => {
@@ -46,7 +136,7 @@ export const DemographicsSection = ({ filters = {} }: DemographicsSectionProps) 
     }
     
     return filtered;
-  }, [filters.searchTerm]);
+  }, [heatmapData, filters.searchTerm]);
 
   // Map age group filter to heatmap keys
   const selectedAgeGroupKey = useMemo(() => {
@@ -100,9 +190,53 @@ export const DemographicsSection = ({ filters = {} }: DemographicsSectionProps) 
   }, [selectedDiseaseData, filters.sex]);
 
   const getHeatmapColor = (value: number) => {
-    const intensity = Math.min(value / 400, 1);
+    const maxValue = Math.max(...filteredHeatmapData.flatMap(d => 
+      Object.entries(d).filter(([key]) => key !== 'disease').map(([, val]) => val as number)
+    ), 1);
+    const intensity = Math.min(value / maxValue, 1);
     return `hsl(195, 85%, ${90 - intensity * 40}%)`;
   };
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="bg-[#ffffff14] border-[#eaebf024]">
+          <CardContent className="flex items-center justify-center h-[350px]">
+            <p className="text-[#ebebeb]">Loading demographics data...</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-[#ffffff14] border-[#eaebf024]">
+          <CardContent className="flex items-center justify-center h-[350px]">
+            <p className="text-[#ebebeb]">Loading demographics data...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="bg-[#ffffff14] border-[#eaebf024]">
+          <CardContent className="flex items-center justify-center h-[350px]">
+            <p className="text-red-400">Error loading data: {error}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (filteredSexPatternData.length === 0 && filteredHeatmapData.length === 0) {
+    return (
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="bg-[#ffffff14] border-[#eaebf024]">
+          <CardContent className="flex items-center justify-center h-[350px]">
+            <p className="text-[#ebebeb]">No demographics data available. Please run data collection first.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -129,53 +263,64 @@ export const DemographicsSection = ({ filters = {} }: DemographicsSectionProps) 
           </Select>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart
-              data={sexChartData}
-              margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#eaebf024" opacity={0.3} />
-              <XAxis
-                dataKey="sex"
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 12, fill: "#ebebeb" }}
-              />
-              <YAxis
-                axisLine={false}
-                tickLine={false}
-                tick={{ fontSize: 12, fill: "#ebebeb" }}
-              />
-              <Tooltip
-                cursor={{ fill: 'transparent', stroke: '#66dbe1', strokeWidth: 2, strokeOpacity: 0.6 }}
-                contentStyle={{
-                  backgroundColor: "#2a4149",
-                  border: "1px solid #66dbe1",
-                  borderRadius: "6px",
-                  color: "#ebebeb",
-                  padding: "8px 12px",
-                  boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)"
-                }}
-                labelStyle={{
-                  color: "#66dbe1",
-                  fontWeight: "600",
-                  marginBottom: "4px"
-                }}
-                itemStyle={{
-                  color: "#ebebeb"
-                }}
-              />
-              <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                {sexChartData.map((entry, index) => (
-                  <Cell 
-                    key={`cell-${index}`} 
-                    fill={entry.sex === "Female" ? "#66dbe1" : "#f87171"}
-                    opacity={entry.isFiltered ? 1 : 0.8}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          {sexChartData.length > 0 ? (
+            <ResponsiveContainerTyped width="100%" height={300}>
+              <BarChartTyped
+                data={sexChartData}
+                margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
+                barSize={40}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#eaebf024" opacity={0.3} vertical={false} />
+                <XAxisTyped
+                  dataKey="sex"
+                  axisLine={{ stroke: '#eaebf024' }}
+                  tickLine={false}
+                  tick={{ fontSize: 12, fill: "#ebebeb" }}
+                />
+                <YAxisTyped
+                  axisLine={{ stroke: '#eaebf024' }}
+                  tickLine={false}
+                  tick={{ fontSize: 12, fill: "#ebebeb" }}
+                />
+                <Tooltip
+                  cursor={{ fill: '#66dbe1', fillOpacity: 0.1 }}
+                  contentStyle={{
+                    backgroundColor: "#2a4149",
+                    border: "1px solid #66dbe1",
+                    borderRadius: "6px",
+                    color: "#ebebeb",
+                    padding: "8px 12px",
+                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)"
+                  }}
+                  labelStyle={{
+                    color: "#66dbe1",
+                    fontWeight: "600",
+                    marginBottom: "4px"
+                  }}
+                  itemStyle={{
+                    color: "#ebebeb"
+                  }}
+                />
+                <BarTyped 
+                  dataKey="value" 
+                  radius={[4, 4, 0, 0]}
+                  minPointSize={5}
+                >
+                  {sexChartData.map((entry, index) => (
+                    <CellTyped 
+                      key={`cell-${index}`} 
+                      fill={entry.sex === "Female" ? "#66dbe1" : "#f87171"}
+                      opacity={entry.isFiltered ? 1 : 0.8}
+                    />
+                  ))}
+                </BarTyped>
+              </BarChartTyped>
+            </ResponsiveContainerTyped>
+          ) : (
+            <div className="flex items-center justify-center h-[300px]">
+              <p className="text-[#ebebeb99] text-sm">No data available for the selected criteria.</p>
+            </div>
+          )}
           <p className="[font-family:'Roboto',Helvetica] text-xs text-[#ebebeb99] mt-2">
             Cases per 100,000 population by sex for {selectedDiseaseData?.disease.toLowerCase() || selectedDisease.toLowerCase()}
           </p>
@@ -210,12 +355,16 @@ export const DemographicsSection = ({ filters = {} }: DemographicsSectionProps) 
                         }`}
                         style={{
                           backgroundColor: getHeatmapColor(value as number),
-                          color: (value as number) > 200 ? 'white' : '#ebebeb',
+                          // If value is high (darker bg), use white text. If low (lighter bg), use dark text.
+                          // Assuming getHeatmapColor uses opacity of cyan/blue.
+                          // Actually, let's just use a text shadow or a smarter color.
+                          color: (value as number) > 1000 ? '#ffffff' : '#1e293b', // Dark slate for light backgrounds
+                          fontWeight: (value as number) > 1000 ? 600 : 500,
                           opacity: selectedAgeGroupKey && !isSelected ? 0.3 : 1
                         }}
                         title={`${disease.disease} - ${ageGroup}: ${value} DALYs`}
                       >
-                        {value}
+                        {Math.round(value as number).toLocaleString()}
                       </div>
                     );
                   })}
@@ -225,24 +374,26 @@ export const DemographicsSection = ({ filters = {} }: DemographicsSectionProps) 
           </div>
           
           {/* Age group labels */}
-          <div className="flex items-center gap-2 mt-4">
-            <div className="w-24"></div>
-            <div className="flex gap-1 flex-1">
-              {Object.keys(filteredHeatmapData[0] || {}).filter(key => key !== 'disease').map(ageGroup => {
-                const isSelected = selectedAgeGroupKey === ageGroup;
-                return (
-                  <div 
-                    key={ageGroup} 
-                    className={`[font-family:'Roboto',Helvetica] flex-1 text-center text-xs font-medium transition-all ${
-                      isSelected ? 'text-[#66dbe1] font-bold' : 'text-[#ebebeb99]'
-                    }`}
-                  >
-                    {ageGroup}
-                  </div>
-                );
-              })}
+          {filteredHeatmapData.length > 0 && (
+            <div className="flex items-center gap-2 mt-4">
+              <div className="w-24"></div>
+              <div className="flex gap-1 flex-1">
+                {Object.keys(filteredHeatmapData[0] || {}).filter(key => key !== 'disease').map(ageGroup => {
+                  const isSelected = selectedAgeGroupKey === ageGroup;
+                  return (
+                    <div 
+                      key={ageGroup} 
+                      className={`[font-family:'Roboto',Helvetica] flex-1 text-center text-xs font-medium transition-all ${
+                        isSelected ? 'text-[#66dbe1] font-bold' : 'text-[#ebebeb99]'
+                      }`}
+                    >
+                      {ageGroup}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Legend */}
           <div className="flex items-center gap-2 mt-4">

@@ -1,6 +1,6 @@
 import { isLikelySameString } from "./utils.ts";
 
-type Country = {
+export type Country = {
   country: string;
   "alpha-2": string;
   "alpha-3": string;
@@ -9,7 +9,7 @@ type Country = {
   longitude: number;
 };
 
-const COUNTRIES: Country[] = [
+export const COUNTRIES: Country[] = [
   { country: "Afghanistan", "alpha-2": "AF", "alpha-3": "AFG", "numeric-code": 4, latitude: 33, longitude: 65 },
   { country: "Albania", "alpha-2": "AL", "alpha-3": "ALB", "numeric-code": 8, latitude: 41, longitude: 20 },
   { country: "Algeria", "alpha-2": "DZ", "alpha-3": "DZA", "numeric-code": 12, latitude: 28, longitude: 3 },

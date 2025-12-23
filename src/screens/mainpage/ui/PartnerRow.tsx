@@ -10,25 +10,25 @@ export type Partner = {
 const partners: Partner[] = [
   {
     name: "GHQA (Global Health and Quality Alliance)",
-    url: "https://example.com/ghqa",
+    url: "https://www.theghqa.org",
     logoSrc: "/ghqa.png",
     alt: "GHQA logo – Global Health and Quality Alliance",
   },
   {
     name: "GHDAF (Global Health and Development Aid Foundation)",
-    url: "https://example.com/ghdaf",
+    url: "https://www.ghdafoundation.org",
     logoSrc: "/ghdaf.png",
     alt: "GHDAF logo – Global Health and Development Aid Foundation",
   },
   {
     name: "EldoNova+ (Innovations in Health Technology)",
-    url: "https://example.com/eldonova",
+    url: "https://www.eldonovaplus.com",
     logoSrc: "/eldonova.png",
     alt: "EldoNova+ logo – Innovations in Health Technology",
   },
   {
     name: "EldoHealth+ (Bringing a Plus)",
-    url: "https://example.com/eldohealth",
+    url: "https://www.theabdm.org",
     logoSrc: "/eldohealth.png",
     alt: "EldoHealth+ logo – Bringing a Plus",
   },
@@ -74,3 +74,4 @@ const PartnerRow = () => {
 };
 
 export default PartnerRow;
+

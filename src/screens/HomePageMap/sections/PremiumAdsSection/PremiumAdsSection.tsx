@@ -127,7 +127,11 @@ const PremiumAdCard: React.FC<PremiumAdCardProps> = ({ content, onView, onClick 
   );
 };
 
-export const PremiumAdsSection = (): JSX.Element => {
+interface PremiumAdsSectionProps {
+  floating?: boolean;
+}
+
+export const PremiumAdsSection = ({ floating = false }: PremiumAdsSectionProps): JSX.Element => {
   const { t } = useLanguage();
   const { data, isLoading, error, trackView, trackClick } = useSponsoredContent({
     location: 'map',
@@ -202,7 +206,7 @@ export const PremiumAdsSection = (): JSX.Element => {
 
   if (isLoading) {
     return (
-      <div className="w-full bg-[#2a4149] border-t border-[#EAEBF024] py-4">
+      <div className={`w-full ${floating ? 'bg-transparent' : 'bg-[#2a4149] border-t border-[#EAEBF024]'} py-4`}>
         <div className="container mx-auto px-4">
           <div className="flex items-center justify-center gap-2">
             <Loader2 className="w-5 h-5 animate-spin text-[#67DBE2]" />
@@ -215,7 +219,7 @@ export const PremiumAdsSection = (): JSX.Element => {
 
   if (premiumAds.length === 0) {
     return (
-      <div className="w-full bg-[#2a4149] border-t border-[#EAEBF024] py-4">
+      <div className={`w-full ${floating ? 'bg-transparent' : 'bg-[#2a4149] border-t border-[#EAEBF024]'} py-4`}>
         <div className="container mx-auto px-4">
           <div className="text-center">
             <p className="text-[#a7a7a7] text-sm mb-2">{t("news.noPremiumAdsAvailable")}</p>
@@ -233,23 +237,25 @@ export const PremiumAdsSection = (): JSX.Element => {
 
   return (
     <div 
-      className="w-full bg-[#2a4149] border-t border-[#EAEBF024] py-4 overflow-visible"
+      className={`w-full ${floating ? 'bg-transparent' : 'bg-[#2a4149] border-t border-[#EAEBF024]'} py-4 overflow-visible`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
       <div className="w-full px-4 overflow-visible">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="flex items-center gap-2">
-            <Star className="w-4 h-4 text-amber-400" />
-            <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-white text-sm">
-              {t("news.premiumAdvertisements")}
-            </h3>
+        {!floating && (
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex items-center gap-2">
+              <Star className="w-4 h-4 text-amber-400" />
+              <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-sm text-white">
+                {t("news.premiumAdvertisements")}
+              </h3>
+            </div>
+            <div className="flex-1 h-px bg-[#EAEBF024]" />
+            <span className="text-[#a7a7a7] text-xs">
+              {premiumAds.length} {premiumAds.length === 1 ? t("news.ad") : t("news.ads")}
+            </span>
           </div>
-          <div className="flex-1 h-px bg-[#EAEBF024]" />
-          <span className="text-[#a7a7a7] text-xs">
-            {premiumAds.length} {premiumAds.length === 1 ? t("news.ad") : t("news.ads")}
-          </span>
-        </div>
+        )}
         
         <div
           ref={scrollContainerRef}
