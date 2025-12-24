@@ -1282,7 +1282,7 @@ export const HomePageMap = (): JSX.Element => {
         
         {/* Desktop Category Icons - Above Map */}
         <div 
-          className={`hidden lg:block lg:absolute z-[1000] transition-all duration-300 ${isMapFullscreen || isDialogOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+          className={`hidden lg:block lg:absolute z-40 transition-all duration-300 ${isMapFullscreen || isDialogOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
           style={{
             top: isMapFullscreen ? 'auto' : '120px',
             left: '90px',
@@ -1369,7 +1369,7 @@ export const HomePageMap = (): JSX.Element => {
         {/* Mobile Category Icons - Above Map */}
         {!isMapFullscreen && isMobile && (
           <div 
-            className={`absolute z-[1000] transition-all duration-300 ${isDialogOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'} bg-[#2a4149]/95 backdrop-blur-sm`}
+            className={`absolute z-40 transition-all duration-300 ${isDialogOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'} bg-[#2a4149]/95 backdrop-blur-sm`}
             style={{
               top: '60px',
               left: '0',
@@ -1719,7 +1719,8 @@ export const HomePageMap = (): JSX.Element => {
           <div 
             className={`absolute bottom-0 left-0 right-0 z-[1000] transition-all duration-300 ${isDialogOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'} bg-[#2a4149]/95 backdrop-blur-sm`}
             style={{
-              maxHeight: '40vh',
+              maxHeight: '80vh',
+              minHeight: '50vh',
               display: 'flex',
               flexDirection: 'column',
             }}
@@ -1728,7 +1729,8 @@ export const HomePageMap = (): JSX.Element => {
             <div 
               className="overflow-y-auto flex-shrink-0 border-t border-[#67DBE2]/20"
               style={{
-                maxHeight: '40vh',
+                maxHeight: '80vh',
+                minHeight: '50vh',
               }}
             >
               {/* Two-column layout: Sponsored (left) and News (right) */}

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 200" role="img" aria-labelledby="title desc">
+  <title id="title">American Board of Comprehensive Clinical Medicine</title>
+  <desc id="desc">Logo placeholder for ABCCM partner listing</desc>
+  <rect width="360" height="200" fill="#0b2640" rx="18" ry="18"/>
+  <path d="M70 160c0-38 28-82 110-82s110 44 110 82" fill="none" stroke="#8ec5ff" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="180" cy="90" r="36" fill="#f6f9fc" stroke="#8ec5ff" stroke-width="8"/>
+  <path d="M180 60v60M150 90h60" stroke="#0b2640" stroke-width="10" stroke-linecap="round"/>
+  <text x="180" y="185" text-anchor="middle" fill="#f6f9fc" font-family="Inter, Arial, sans-serif" font-size="20" font-weight="700" letter-spacing="1">
+    ABCC MEDICINE
+  </text>
+</svg>
+

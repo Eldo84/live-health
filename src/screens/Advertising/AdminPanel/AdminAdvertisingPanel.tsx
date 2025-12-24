@@ -13,7 +13,7 @@ import {
 import { 
   Loader2, Eye, MousePointerClick, Clock, CreditCard, 
   BarChart3, CheckCircle, XCircle, AlertCircle, ArrowLeft,
-  Search, Filter, DollarSign, Users, FileText, Shield
+  Search, Filter, DollarSign, Users, FileText, Shield, Trash2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
@@ -78,6 +78,11 @@ export const AdminAdvertisingPanel: React.FC = () => {
   const [adminNotes, setAdminNotes] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Delete dialog state
+  const [deletingSubmission, setDeletingSubmission] = useState<Submission | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [viewingSubmission, setViewingSubmission] = useState<Submission | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -234,6 +239,37 @@ export const AdminAdvertisingPanel: React.FC = () => {
         description: error.message,
         variant: "destructive",
       });
+    }
+  };
+
+  const handleDeleteSubmission = async () => {
+    if (!deletingSubmission) return;
+
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('advertising_submissions')
+        .delete()
+        .eq('id', deletingSubmission.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Submission deleted successfully",
+      });
+
+      fetchData();
+      setDeletingSubmission(null);
+    } catch (error: any) {
+      console.error('Error deleting submission:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete submission",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -404,7 +440,7 @@ export const AdminAdvertisingPanel: React.FC = () => {
                   {activeTab === 'all' && 'All submissions'}
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-6">
                 {filteredSubmissions.length === 0 ? (
                   <div className="text-center py-8">
                     <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
@@ -459,42 +495,60 @@ export const AdminAdvertisingPanel: React.FC = () => {
                             </div>
                           )}
 
-                          {submission.status === 'pending_review' && (
-                            <div className="flex gap-2 mt-4">
-                              <Button 
-                                size="sm" 
-                                onClick={() => {
-                                  setReviewingSubmission(submission);
-                                  setReviewAction('approve');
-                                }}
-                              >
-                                <CheckCircle className="w-4 h-4 mr-2" />
-                                Approve
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="outline"
-                                onClick={() => {
-                                  setReviewingSubmission(submission);
-                                  setReviewAction('changes');
-                                }}
-                              >
-                                <AlertCircle className="w-4 h-4 mr-2" />
-                                Request Changes
-                              </Button>
-                              <Button 
-                                size="sm" 
-                                variant="destructive"
-                                onClick={() => {
-                                  setReviewingSubmission(submission);
-                                  setReviewAction('reject');
-                                }}
-                              >
-                                <XCircle className="w-4 h-4 mr-2" />
-                                Reject
-                              </Button>
-                            </div>
-                          )}
+                          <div className="flex gap-2 mt-4">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              onClick={() => setViewingSubmission(submission)}
+                            >
+                              <Eye className="w-4 h-4 mr-2" />
+                              View
+                            </Button>
+                            {submission.status === 'pending_review' && (
+                              <>
+                                <Button 
+                                  size="sm" 
+                                  onClick={() => {
+                                    setReviewingSubmission(submission);
+                                    setReviewAction('approve');
+                                  }}
+                                >
+                                  <CheckCircle className="w-4 h-4 mr-2" />
+                                  Approve
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => {
+                                    setReviewingSubmission(submission);
+                                    setReviewAction('changes');
+                                  }}
+                                >
+                                  <AlertCircle className="w-4 h-4 mr-2" />
+                                  Request Changes
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="destructive"
+                                  onClick={() => {
+                                    setReviewingSubmission(submission);
+                                    setReviewAction('reject');
+                                  }}
+                                >
+                                  <XCircle className="w-4 h-4 mr-2" />
+                                  Reject
+                                </Button>
+                              </>
+                            )}
+                            <Button 
+                              size="sm" 
+                              variant="destructive"
+                              onClick={() => setDeletingSubmission(submission)}
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete
+                            </Button>
+                          </div>
                         </div>
                       );
                     })}
@@ -506,9 +560,134 @@ export const AdminAdvertisingPanel: React.FC = () => {
         </Tabs>
       </div>
 
+      {/* View Details Dialog */}
+      <Dialog open={!!viewingSubmission} onOpenChange={() => setViewingSubmission(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto px-6">
+          <DialogHeader>
+            <DialogTitle>Submission Details</DialogTitle>
+            <DialogDescription>Full submission information for review</DialogDescription>
+          </DialogHeader>
+          {viewingSubmission && (
+            <div className="space-y-4">
+              {viewingSubmission.ad_image_url && (
+                <div className="rounded-lg overflow-hidden border bg-muted">
+                  <img
+                    src={viewingSubmission.ad_image_url}
+                    alt={viewingSubmission.ad_title || 'Ad image'}
+                    className="w-full h-52 object-cover"
+                    loading="lazy"
+                  />
+                </div>
+              )}
+
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Company</p>
+                  <p className="text-lg font-semibold">{viewingSubmission.company_name}</p>
+                </div>
+                <Badge className={`${(statusConfig[viewingSubmission.status] || statusConfig.pending_review).color} text-white`}>
+                  {(statusConfig[viewingSubmission.status] || statusConfig.pending_review).label}
+                </Badge>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Contact</p>
+                  <p className="font-medium">{viewingSubmission.contact_name}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Email</p>
+                  <p className="font-medium">{viewingSubmission.email}</p>
+                </div>
+                {viewingSubmission.phone && (
+                  <div>
+                    <p className="text-muted-foreground">Phone</p>
+                    <p className="font-medium">{viewingSubmission.phone}</p>
+                  </div>
+                )}
+                {viewingSubmission.website && (
+                  <div>
+                    <p className="text-muted-foreground">Website</p>
+                    <a 
+                      href={viewingSubmission.website} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="font-medium text-primary hover:underline"
+                    >
+                      {viewingSubmission.website}
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Plan</p>
+                  <p className="font-medium capitalize">{viewingSubmission.selected_plan}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Payment Status</p>
+                  <p className="font-medium capitalize">{viewingSubmission.payment_status.replace('_', ' ')}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Submitted</p>
+                  <p className="font-medium">{new Date(viewingSubmission.created_at).toLocaleString()}</p>
+                </div>
+              </div>
+
+              {(viewingSubmission.ad_title || viewingSubmission.ad_click_url) && (
+                <div className="space-y-1 text-sm">
+                  <p className="text-muted-foreground">Ad</p>
+                  {viewingSubmission.ad_title && <p className="font-medium">Title: {viewingSubmission.ad_title}</p>}
+                  {viewingSubmission.ad_click_url && (
+                    <p className="font-medium">
+                      Click URL:{' '}
+                      <a 
+                        href={viewingSubmission.ad_click_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline break-all"
+                      >
+                        {viewingSubmission.ad_click_url}
+                      </a>
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {viewingSubmission.description && (
+                <div className="text-sm space-y-1">
+                  <p className="text-muted-foreground">Description</p>
+                  <p>{viewingSubmission.description}</p>
+                </div>
+              )}
+
+              {viewingSubmission.admin_notes && (
+                <div className="text-sm space-y-1">
+                  <p className="text-muted-foreground">Admin Notes</p>
+                  <p>{viewingSubmission.admin_notes}</p>
+                </div>
+              )}
+
+              {viewingSubmission.rejection_reason && (
+                <div className="text-sm space-y-1">
+                  <p className="text-muted-foreground">Rejection Reason</p>
+                  <p>{viewingSubmission.rejection_reason}</p>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewingSubmission(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Review Dialog */}
       <Dialog open={!!reviewingSubmission} onOpenChange={() => closeReviewDialog()}>
-        <DialogContent>
+        <DialogContent className="px-6">
           <DialogHeader>
             <DialogTitle>
               {reviewAction === 'approve' && 'Approve Submission'}
@@ -561,6 +740,52 @@ export const AdminAdvertisingPanel: React.FC = () => {
               {reviewAction === 'approve' && 'Approve & Send Payment Link'}
               {reviewAction === 'reject' && 'Reject Submission'}
               {reviewAction === 'changes' && 'Request Changes'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deletingSubmission} onOpenChange={() => setDeletingSubmission(null)}>
+        <DialogContent className="px-6">
+          <DialogHeader>
+            <DialogTitle>Delete Submission</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this submission? This action cannot be undone and will also delete any associated sponsored content.
+            </DialogDescription>
+          </DialogHeader>
+          {deletingSubmission && (
+            <div className="py-4">
+              <p className="text-sm text-muted-foreground">
+                <strong>Company:</strong> {deletingSubmission.company_name}
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                <strong>Email:</strong> {deletingSubmission.email}
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                <strong>Plan:</strong> {deletingSubmission.selected_plan}
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                <strong>Status:</strong> {deletingSubmission.status}
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeletingSubmission(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteSubmission} disabled={isDeleting}>
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

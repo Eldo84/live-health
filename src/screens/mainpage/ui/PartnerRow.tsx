@@ -11,8 +11,14 @@ const partners: Partner[] = [
   {
     name: "GHQA (Global Health and Quality Alliance)",
     url: "https://www.theghqa.org",
-    logoSrc: "/ghqa.png",
-    alt: "GHQA logo – Global Health and Quality Alliance",
+    logoSrc: "/ghqboards.png",
+    alt: "GHQA Boards logo – Global Health and Quality Alliance",
+  },
+  {
+    name: "American Board of Comprehensive Clinical Medicine",
+    url: "https://abccmedicine.org",
+    logoSrc: "/abccmedicine.svg",
+    alt: "American Board of Comprehensive Clinical Medicine logo",
   },
   {
     name: "GHDAF (Global Health and Development Aid Foundation)",
@@ -29,8 +35,8 @@ const partners: Partner[] = [
   {
     name: "EldoHealth+ (Bringing a Plus)",
     url: "https://www.theabdm.org",
-    logoSrc: "/eldohealth.png",
-    alt: "EldoHealth+ logo – Bringing a Plus",
+    logoSrc: "/eldoHealth.png",
+    alt: "EldoHealth+ / American Board of Digital Medicine seal",
   },
 ];
 
@@ -43,7 +49,7 @@ const PartnerRow = () => {
         <h2 className="text-center text-xl font-bold mb-6">
           {t("landing.partners.title")}
         </h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+        <div className="flex flex-wrap justify-center items-center gap-4 sm:gap-6 md:gap-8 px-1 sm:px-2 md:px-0">
           {partners.map((p) => (
             <a
               key={p.name}
@@ -53,16 +59,16 @@ const PartnerRow = () => {
               className="group flex flex-col items-center gap-2 transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg p-2"
               aria-label={`Visit ${p.name} (opens in new tab)`}
             >
-              <div className="w-full aspect-square flex items-center justify-center bg-background/50 rounded-lg border border-border p-3 group-hover:border-primary/50 group-hover:shadow-lg transition-all">
+              <div className="w-[140px] h-14 sm:w-[150px] sm:h-16 md:w-[160px] md:h-16 flex items-center justify-center bg-background/50 rounded-lg border border-border px-4 py-3 group-hover:border-primary/50 group-hover:shadow-lg transition-all">
                 <img
                   src={p.logoSrc}
                   alt={p.alt}
                   loading="lazy"
                   decoding="async"
-                  className="w-full h-full object-contain"
+                  className="max-h-full max-w-full object-contain"
                 />
               </div>
-              <span className="text-xs font-medium text-center text-foreground/80 group-hover:text-primary transition-colors leading-tight">
+              <span className="text-[11px] font-medium text-center text-foreground/80 group-hover:text-primary transition-colors leading-tight">
                 {p.name}
               </span>
             </a>
@@ -74,4 +80,5 @@ const PartnerRow = () => {
 };
 
 export default PartnerRow;
+
 

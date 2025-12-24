@@ -240,69 +240,165 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoo
       // Invalidate map size to ensure it's properly rendered
       map.invalidateSize();
       
-      // Use zoom level from props (defaults to 10 if not provided)
-      const targetZoom = zoomLevel || 10;
+      // Find closest outbreaks within reasonable distance (1000km) so we can keep them in view with the user
+      const MAX_DISTANCE_KM = 1000; // Limit to outbreaks within 1000km
+      const nearestOutbreaks = (points || [])
+        .map((point) => ({
+          position: point.position,
+          distance: calculateDistance(lat, lng, point.position[0], point.position[1])
+        }))
+        .filter(({ distance }) => !isNaN(distance) && distance <= MAX_DISTANCE_KM)
+        .sort((a, b) => a.distance - b.distance)
+        .slice(0, 5); // Get up to 5 nearest outbreaks within range
+      
+      const shouldFitNearbyOutbreaks = nearestOutbreaks.length > 0;
+      
+      console.log(`🔍 Found ${nearestOutbreaks.length} nearby outbreaks within ${MAX_DISTANCE_KM}km`);
+      if (nearestOutbreaks.length > 0) {
+        console.log('📍 Nearest outbreak distances:', nearestOutbreaks.map(o => `${o.distance.toFixed(1)}km`));
+      }
       
       // Check if mobile device
       const isMobileDevice = window.innerWidth < 1024;
       
-      if (isMobileDevice) {
-        // On mobile, center the pin in the visible viewport by offsetting for header/UI
-        // First set the view to the location
-        map.setView([lat, lng], targetZoom, { 
+      // ALWAYS use fitBounds approach to show user + outbreaks (or wider area if no outbreaks)
+      // This prevents the "zoom in then zoom out" issue
+      try {
+        let boundsPoints: [number, number][];
+        let maxZoom: number;
+        let padding: [number, number];
+        
+        if (shouldFitNearbyOutbreaks) {
+          // Calculate adaptive zoom based on outbreak distances
+          const avgDistance = nearestOutbreaks.reduce((sum, o) => sum + o.distance, 0) / nearestOutbreaks.length;
+          // Closer outbreaks = higher zoom, farther = lower zoom
+          // Scale: 0-100km -> zoom 6-8, 100-500km -> zoom 4-6, 500-1000km -> zoom 3-4
+          let adaptiveZoom = 4;
+          if (avgDistance < 100) {
+            adaptiveZoom = Math.min(8, Math.max(6, 8 - (avgDistance / 50)));
+          } else if (avgDistance < 500) {
+            adaptiveZoom = Math.min(6, Math.max(4, 6 - ((avgDistance - 100) / 200)));
+          } else {
+            adaptiveZoom = Math.max(3, 4 - ((avgDistance - 500) / 500));
+          }
+          
+          padding = isMobileDevice ? [80, 80] : [100, 100];
+          maxZoom = Math.min(adaptiveZoom, 7); // Cap at zoom 7 to zoom out more and show wider area
+          
+          boundsPoints = [
+            [lat, lng],
+            ...nearestOutbreaks.map(({ position }) => position)
+          ];
+          
+          console.log(`🗺️ Fitting bounds to user + ${nearestOutbreaks.length} outbreaks, adaptive zoom: ${adaptiveZoom}, maxZoom: ${maxZoom}`);
+        } else {
+          // No nearby outbreaks - create a wider bounds area around user to zoom out more
+          // Use a larger radius to show more area
+          const radiusDegrees = 0.15; // Approximately 1500km at equator - much wider view
+          boundsPoints = [
+            [lat - radiusDegrees, lng - radiusDegrees],
+            [lat + radiusDegrees, lng + radiusDegrees],
+            [lat, lng] // Include user location
+          ];
+          
+          padding = isMobileDevice ? [80, 80] : [100, 100];
+          maxZoom = 4; // Lower zoom level when no outbreaks found to show wider area
+          
+          console.log(`🗺️ No nearby outbreaks - fitting bounds to wider area around user (zoom: ${maxZoom})`);
+        }
+        
+        // Always use fitBounds - this ensures one smooth zoom to the correct level
+        map.fitBounds(boundsPoints, { 
+          padding: padding,
+          animate: attemptNumber > 0,
+          maxZoom 
+        });
+        
+        // On mobile, adjust pan after fitBounds to account for header/UI
+        if (isMobileDevice) {
+          setTimeout(() => {
+            if (map && map.getContainer()) {
+              map.panBy([0, 80] as [number, number], { 
+                animate: attemptNumber > 0,
+                duration: 0.3 
+              });
+            }
+          }, 150);
+        }
+      } catch (e) {
+        console.warn('fitBounds failed, falling back to setView:', e);
+        // Fallback: use a zoom that shows user location with some context
+        const fallbackZoom = 4; // Lower zoom to show wider area
+        map.setView([lat, lng], fallbackZoom, { 
           animate: attemptNumber > 0,
           duration: 0.5 
         });
         
-        // Then adjust the pan to account for header/UI elements
-        // Header is ~56px, so we want to shift the map down so the pin appears higher (centered)
-        // Use panBy to shift the map by pixels after the view is set
-        setTimeout(() => {
-          if (map && map.getContainer()) {
-            // Calculate offset: move map down by ~80px so pin appears centered in viewport
-            // panBy uses pixels: positive Y moves map down (pin appears higher)
-            map.panBy([0, 80] as [number, number], { 
-              animate: attemptNumber > 0,
-              duration: 0.3 
-            });
-          }
-        }, 100);
-      } else {
-        // Desktop: center normally
-        map.setView([lat, lng], targetZoom, { 
-          animate: attemptNumber > 0, // Animate on retries
-          duration: 0.5 
-        });
+        // On mobile, adjust pan
+        if (isMobileDevice) {
+          setTimeout(() => {
+            if (map && map.getContainer()) {
+              map.panBy([0, 80] as [number, number], { 
+                animate: attemptNumber > 0,
+                duration: 0.3 
+              });
+            }
+          }, 100);
+        }
       }
       
       // Verify the zoom worked
       setTimeout(() => {
         const currentCenter = map.getCenter();
         const currentZoom = map.getZoom();
-        const latDiff = Math.abs(currentCenter.lat - lat);
-        const lngDiff = Math.abs(currentCenter.lng - lng);
-        const distance = latDiff + lngDiff;
+        const bounds = map.getBounds();
+        const userVisible = bounds.contains([lat, lng]);
         
-        console.log(`📍 Zoom verification - Center: [${currentCenter.lat}, ${currentCenter.lng}], Zoom: ${currentZoom}, Distance: ${distance}`);
+        console.log(`📍 Zoom verification - Center: [${currentCenter.lat}, ${currentCenter.lng}], Zoom: ${currentZoom}, User visible: ${userVisible}`);
         
-        // If we're still far from target, try again (but limit attempts)
-        // Use a threshold based on the target zoom level (allow some tolerance)
-        const minZoomThreshold = Math.max(4, targetZoom - 2);
-        if ((distance > 0.1 || currentZoom < minZoomThreshold) && attemptNumber < 3) {
-          console.log(`⚠️ Zoom verification failed, retrying (attempt ${attemptNumber + 1})`);
-          setTimeout(() => zoomToUserLocation(target, attemptNumber + 1), 300);
-        } else if (distance <= 0.1 && currentZoom >= minZoomThreshold) {
-          console.log('✅ Successfully zoomed to user location!');
-          userLocationZoomedRef.current = true;
+        if (shouldFitNearbyOutbreaks) {
+          // Check if at least some outbreaks are visible
+          const visibleOutbreaks = nearestOutbreaks.filter(({ position }) => bounds.contains(position));
+          const outbreaksVisible = visibleOutbreaks.length > 0;
+          
+          console.log(`📍 Outbreaks visible: ${visibleOutbreaks.length}/${nearestOutbreaks.length}`);
+          
+          // More lenient threshold when fitting bounds - zoom can be lower
+          const minZoomThreshold = 4;
+          const shouldRetry = (!userVisible || !outbreaksVisible || currentZoom < minZoomThreshold) && attemptNumber < 3;
+          
+          if (shouldRetry) {
+            console.log(`⚠️ Zoom verification failed (user visible: ${userVisible}, outbreaks visible: ${outbreaksVisible}, zoom: ${currentZoom}), retrying (attempt ${attemptNumber + 1})`);
+            setTimeout(() => zoomToUserLocation(target, attemptNumber + 1), 300);
+          } else if (userVisible && outbreaksVisible && currentZoom >= minZoomThreshold) {
+            console.log('✅ Successfully zoomed to user location with nearby outbreaks in view!');
+            userLocationZoomedRef.current = true;
+          }
+        } else {
+          // No outbreaks case - just verify user is visible and zoom is reasonable
+          const minZoomThreshold = 4;
+          const latDiff = Math.abs(currentCenter.lat - lat);
+          const lngDiff = Math.abs(currentCenter.lng - lng);
+          const distance = latDiff + lngDiff;
+          
+          const shouldRetry = (!userVisible || currentZoom < minZoomThreshold || distance > 0.5) && attemptNumber < 3;
+          
+          if (shouldRetry) {
+            console.log(`⚠️ Zoom verification failed (user visible: ${userVisible}, zoom: ${currentZoom}, distance: ${distance}), retrying (attempt ${attemptNumber + 1})`);
+            setTimeout(() => zoomToUserLocation(target, attemptNumber + 1), 300);
+          } else if (userVisible && currentZoom >= minZoomThreshold) {
+            console.log('✅ Successfully zoomed to user location!');
+            userLocationZoomedRef.current = true;
+          }
         }
-      }, 100);
+      }, 200); // Increased timeout to allow fitBounds to complete
       
       return true;
     } catch (e) {
       console.error('Error in zoomToUserLocation:', e);
       return false;
     }
-  }, [map, zoomLevel]);
+  }, [map, points, zoomLevel]);
   
   React.useEffect(() => {
     // PRIORITY 1: If user location is set, ALWAYS zoom to it (highest priority)
@@ -316,8 +412,17 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoo
         )) ||
         lastIsUserLocationRef.current !== isUserLocation;
       
-      if (targetChanged || !userLocationZoomedRef.current) {
-        console.log('📍 USER LOCATION ZOOM: Setting up zoom to:', zoomTarget, 'points:', points.length);
+      // Only trigger re-zoom if:
+      // 1. Target changed (new location)
+      // 2. Haven't zoomed yet
+      // 3. Points went from 0 to many (initial load) - but only if we haven't zoomed yet
+      // We DON'T re-zoom if points just increased - that would cause "zoom in then zoom out"
+      const isInitialPointsLoad = points.length > 0 && lastPointsCountRef.current === 0;
+      const shouldRezoomForPoints = isInitialPointsLoad && !userLocationZoomedRef.current;
+      
+      if (targetChanged || !userLocationZoomedRef.current || shouldRezoomForPoints) {
+        console.log('📍 USER LOCATION ZOOM: Setting up zoom to:', zoomTarget, 'points:', points.length, 
+          shouldRezoomForPoints ? '(initial points load)' : '');
         lastZoomTargetRef.current = zoomTarget;
         lastPointsCountRef.current = points.length;
         lastIsUserLocationRef.current = true;
@@ -339,72 +444,22 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoo
         // Backup zoom attempts
         timers.push(setTimeout(() => {
           if (map && map.getContainer()) {
-            try {
-              const currentCenter = map.getCenter();
-              const currentZoom = map.getZoom();
-              const latDiff = Math.abs(currentCenter.lat - lat);
-              const lngDiff = Math.abs(currentCenter.lng - lng);
-              const distance = latDiff + lngDiff;
-              
-              console.log(`🔍 Backup zoom 1 check - Distance: ${distance}, Zoom: ${currentZoom}`);
-              
-              if (distance > 0.5 || currentZoom < 8) {
-                console.log('🔄 Backup zoom 1: Map not at user location, zooming again');
-                map.invalidateSize();
-                map.setView([lat, lng], 10, { animate: true, duration: 0.8 });
-              }
-            } catch (e) {
-              console.error('Backup zoom 1 error:', e);
-            }
+            console.log('🔄 Backup zoom 1: re-trying user location fit');
+            zoomToUserLocation(zoomTarget, 1);
           }
         }, 300));
         
         timers.push(setTimeout(() => {
           if (map && map.getContainer()) {
-            try {
-              const currentCenter = map.getCenter();
-              const currentZoom = map.getZoom();
-              const latDiff = Math.abs(currentCenter.lat - lat);
-              const lngDiff = Math.abs(currentCenter.lng - lng);
-              const distance = latDiff + lngDiff;
-              
-              console.log(`🔍 Backup zoom 2 check - Distance: ${distance}, Zoom: ${currentZoom}`);
-              
-              if (distance > 0.5 || currentZoom < 8) {
-                console.log('🔄 Backup zoom 2: Map not at user location, forcing zoom');
-                map.invalidateSize();
-                map.setView([lat, lng], 10, { animate: true, duration: 1 });
-              } else {
-                console.log('✅ Map successfully at user location');
-                userLocationZoomedRef.current = true;
-              }
-            } catch (e) {
-              console.error('Backup zoom 2 error:', e);
-            }
+            console.log('🔄 Backup zoom 2: re-trying user location fit');
+            zoomToUserLocation(zoomTarget, 2);
           }
         }, 600));
         
         timers.push(setTimeout(() => {
           if (map && map.getContainer()) {
-            try {
-              const currentCenter = map.getCenter();
-              const currentZoom = map.getZoom();
-              const latDiff = Math.abs(currentCenter.lat - lat);
-              const lngDiff = Math.abs(currentCenter.lng - lng);
-              const distance = latDiff + lngDiff;
-              
-              if (distance > 0.5 || currentZoom < 8) {
-                console.log('🔄 Backup zoom 3: Final forced zoom to user location');
-                map.invalidateSize();
-                map.setView([lat, lng], 10, { animate: true, duration: 1 });
-                userLocationZoomedRef.current = true;
-              } else {
-                console.log('✅ Map successfully at user location (final check)');
-                userLocationZoomedRef.current = true;
-              }
-            } catch (e) {
-              console.error('Backup zoom 3 error:', e);
-            }
+            console.log('🔄 Backup zoom 3: final user location fit attempt');
+            zoomToUserLocation(zoomTarget, 3);
           }
         }, 1000));
         
@@ -414,23 +469,49 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoo
         };
       }
       
-      // If points change but we're at user location, maintain the zoom
+      // If points change but we're at user location, only re-zoom if current zoom is clearly wrong
+      // Don't re-zoom just because points changed - that causes "zoom in then zoom out"
       if (points.length !== lastPointsCountRef.current && userLocationZoomedRef.current) {
         lastPointsCountRef.current = points.length;
-        console.log('User location: points changed to', points.length, '- maintaining zoom at user location');
-        // Check if we need to re-zoom (in case something moved the map)
+        console.log('User location: points changed to', points.length, '- checking if zoom needs adjustment');
+        
+        // Only re-zoom if the current zoom is clearly wrong (too zoomed in, user not visible, etc.)
         const maintainTimer = setTimeout(() => {
-    if (zoomTarget) {
+          if (zoomTarget && map) {
             const currentCenter = map.getCenter();
             const currentZoom = map.getZoom();
+            const bounds = map.getBounds();
+            const userVisible = bounds.contains([zoomTarget[0], zoomTarget[1]]);
             const latDiff = Math.abs(currentCenter.lat - zoomTarget[0]);
             const lngDiff = Math.abs(currentCenter.lng - zoomTarget[1]);
             const distance = latDiff + lngDiff;
             
-            // If we're far from the user location, re-zoom (but don't animate to avoid jarring)
-            if (distance > 1 || currentZoom < 8) {
-              console.log('🔄 Maintaining zoom: Re-zooming to user location (distance:', distance, 'zoom:', currentZoom, ')');
-              map.setView(zoomTarget, 10, { animate: false });
+            // Check if there are nearby outbreaks that aren't visible
+            const MAX_DISTANCE_KM = 1000;
+            const nearestOutbreaks = (points || [])
+              .map((point) => ({
+                position: point.position,
+                distance: calculateDistance(zoomTarget[0], zoomTarget[1], point.position[0], point.position[1])
+              }))
+              .filter(({ distance }) => !isNaN(distance) && distance <= MAX_DISTANCE_KM)
+              .slice(0, 3);
+            
+            const outbreaksVisible = nearestOutbreaks.length === 0 || 
+              nearestOutbreaks.some(({ position }) => bounds.contains(position));
+            
+            // Only re-zoom if:
+            // 1. User is not visible, OR
+            // 2. Zoom is too high (>7) and outbreaks aren't visible, OR
+            // 3. We're very far from user location
+            const needsRezoom = !userVisible || 
+              (currentZoom > 7 && !outbreaksVisible && nearestOutbreaks.length > 0) ||
+              distance > 2;
+            
+            if (needsRezoom) {
+              console.log('🔄 Maintaining zoom: Re-fitting user location with nearby outbreaks (user visible:', userVisible, 'outbreaks visible:', outbreaksVisible, 'zoom:', currentZoom, ')');
+              zoomToUserLocation(zoomTarget, 2);
+            } else {
+              console.log('✅ Zoom is still good - no re-zoom needed');
             }
           }
         }, 100);
@@ -1824,7 +1905,7 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
       >
         {/* Point count badge */}
         <div className={`absolute z-[1200] bg-[#0f172acc] text-white text-xs px-2 py-1 rounded ${
-          isMobile ? 'top-14 left-2' : isFullscreen ? 'top-4 left-20' : 'top-4 left-4'
+          isMobile ? 'top-2 left-16' : isFullscreen ? 'top-4 left-20' : 'top-4 left-12'
         }`}>
           {filteredPoints.length} points
         </div>
@@ -1834,7 +1915,7 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
           open={isLegendOpen} 
           onOpenChange={setIsLegendOpen} 
           className={`absolute z-[1200] overflow-hidden transition-all duration-300 ${
-            isMobile ? 'top-14 right-2' : isFullscreen ? 'top-16' : 'top-0 right-0'
+            isMobile ? 'top-2 right-2' : isFullscreen ? 'top-16' : 'top-0 right-0'
           }`}
           style={isMobile ? {
             borderTopRightRadius: '8px',

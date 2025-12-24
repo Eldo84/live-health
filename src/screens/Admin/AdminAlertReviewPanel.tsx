@@ -12,7 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { 
   Loader2, Eye, CheckCircle, XCircle, AlertCircle, ArrowLeft,
-  Search, Shield, MapPin, Calendar, Link as LinkIcon, User
+  Search, Shield, MapPin, Calendar, Link as LinkIcon, User, Trash2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
@@ -33,6 +33,7 @@ interface AlertSubmission {
   longitude: number | null;
   country_name: string | null;
   country_id: string | null;
+  outbreak_signal_id?: string | null;
   status: 'pending_review' | 'approved' | 'rejected';
   reviewed_by: string | null;
   reviewed_at: string | null;
@@ -64,6 +65,9 @@ export const AdminAlertReviewPanel: React.FC = () => {
   const [adminNotes, setAdminNotes] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [deletingSubmission, setDeletingSubmission] = useState<AlertSubmission | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [viewingSubmission, setViewingSubmission] = useState<AlertSubmission | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -394,6 +398,48 @@ export const AdminAlertReviewPanel: React.FC = () => {
     setRejectionReason('');
   };
 
+  const handleDeleteSubmission = async () => {
+    if (!deletingSubmission) return;
+
+    setIsDeleting(true);
+    try {
+      // Remove the map entry if it was already promoted to an outbreak signal
+      const signalId = deletingSubmission.outbreak_signal_id;
+      if (signalId) {
+        const { error: signalError } = await supabase
+          .from('outbreak_signals')
+          .delete()
+          .eq('id', signalId);
+
+        if (signalError) throw signalError;
+      }
+
+      const { error } = await supabase
+        .from('user_alert_submissions')
+        .delete()
+        .eq('id', deletingSubmission.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Alert deleted",
+        description: "The alert submission and its map entry have been removed.",
+      });
+
+      fetchData();
+      setDeletingSubmission(null);
+    } catch (error: any) {
+      console.error('Error deleting submission:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete submission",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   // Filter submissions based on tab and search
   const filteredSubmissions = submissions.filter(s => {
     const matchesSearch = searchTerm === '' || 
@@ -584,32 +630,51 @@ export const AdminAlertReviewPanel: React.FC = () => {
                               </div>
                             </div>
 
-                            {submission.status === 'pending_review' && (
-                              <div className="flex gap-2 ml-4">
-                                <Button
-                                  size="sm"
-                                  variant="default"
-                                  onClick={() => {
-                                    setReviewingSubmission(submission);
-                                    setReviewAction('approve');
-                                  }}
-                                >
-                                  <CheckCircle className="w-4 h-4 mr-1" />
-                                  Approve
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="destructive"
-                                  onClick={() => {
-                                    setReviewingSubmission(submission);
-                                    setReviewAction('reject');
-                                  }}
-                                >
-                                  <XCircle className="w-4 h-4 mr-1" />
-                                  Reject
-                                </Button>
-                              </div>
-                            )}
+                            <div className="flex flex-col items-end gap-2 ml-4">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setViewingSubmission(submission)}
+                              >
+                                <Eye className="w-4 h-4 mr-1" />
+                                View
+                              </Button>
+                              {submission.status === 'pending_review' && (
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="default"
+                                    onClick={() => {
+                                      setReviewingSubmission(submission);
+                                      setReviewAction('approve');
+                                    }}
+                                  >
+                                    <CheckCircle className="w-4 h-4 mr-1" />
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => {
+                                      setReviewingSubmission(submission);
+                                      setReviewAction('reject');
+                                    }}
+                                  >
+                                    <XCircle className="w-4 h-4 mr-1" />
+                                    Reject
+                                  </Button>
+                                </div>
+                              )}
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-destructive"
+                                onClick={() => setDeletingSubmission(submission)}
+                              >
+                                <Trash2 className="w-4 h-4 mr-1" />
+                                Delete
+                              </Button>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
@@ -622,9 +687,97 @@ export const AdminAlertReviewPanel: React.FC = () => {
         </Card>
       </div>
 
+      {/* View Details Dialog */}
+      <Dialog open={!!viewingSubmission} onOpenChange={(open) => !open && setViewingSubmission(null)}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto px-6">
+          <DialogHeader>
+            <DialogTitle>Alert Details</DialogTitle>
+            <DialogDescription>Full submission information</DialogDescription>
+          </DialogHeader>
+
+          {viewingSubmission && (
+            <div className="space-y-4">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Headline</p>
+                  <p className="text-lg font-semibold">{viewingSubmission.headline}</p>
+                </div>
+                <Badge className={statusConfig[viewingSubmission.status].color}>
+                  {statusConfig[viewingSubmission.status].label}
+                </Badge>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Submitter</p>
+                  <p className="font-medium">{viewingSubmission.user_email}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Disease</p>
+                  <p className="font-medium">{viewingSubmission.disease_name}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Location</p>
+                  <p className="font-medium">{viewingSubmission.location}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Date</p>
+                  <p className="font-medium">{new Date(viewingSubmission.date).toLocaleDateString()}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Submitted</p>
+                  <p className="font-medium">{new Date(viewingSubmission.created_at).toLocaleString()}</p>
+                </div>
+              </div>
+
+              {viewingSubmission.url && (
+                <div className="text-sm">
+                  <p className="text-muted-foreground">Source</p>
+                  <a
+                    href={viewingSubmission.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline break-all font-medium"
+                  >
+                    {viewingSubmission.url}
+                  </a>
+                </div>
+              )}
+
+              {viewingSubmission.description && (
+                <div className="text-sm space-y-1">
+                  <p className="text-muted-foreground">Description</p>
+                  <p>{viewingSubmission.description}</p>
+                </div>
+              )}
+
+              {viewingSubmission.admin_notes && (
+                <div className="text-sm space-y-1">
+                  <p className="text-muted-foreground">Admin Notes</p>
+                  <p>{viewingSubmission.admin_notes}</p>
+                </div>
+              )}
+
+              {viewingSubmission.rejection_reason && (
+                <div className="text-sm space-y-1">
+                  <p className="text-muted-foreground">Rejection Reason</p>
+                  <p>{viewingSubmission.rejection_reason}</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewingSubmission(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Review Dialog */}
       <Dialog open={!!reviewingSubmission} onOpenChange={(open) => !open && closeReviewDialog()}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg px-6">
           <DialogHeader>
             <DialogTitle>
               {reviewAction === 'approve' ? 'Approve Alert' : 'Reject Alert'}
@@ -696,6 +849,43 @@ export const AdminAlertReviewPanel: React.FC = () => {
                       Reject
                     </>
                   )}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deletingSubmission} onOpenChange={(open) => !open && setDeletingSubmission(null)}>
+        <DialogContent className="px-6">
+          <DialogHeader>
+            <DialogTitle>Delete Alert Submission</DialogTitle>
+            <DialogDescription>
+              Deleting will remove this alert submission. Approved alerts will no longer be linked to the submitter.
+            </DialogDescription>
+          </DialogHeader>
+          {deletingSubmission && (
+            <div className="py-4 space-y-2 text-sm text-muted-foreground">
+              <div><strong>Headline:</strong> {deletingSubmission.headline}</div>
+              <div><strong>User:</strong> {deletingSubmission.user_email}</div>
+              <div><strong>Status:</strong> {statusConfig[deletingSubmission.status].label}</div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeletingSubmission(null)} disabled={isDeleting}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteSubmission} disabled={isDeleting}>
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete
                 </>
               )}
             </Button>

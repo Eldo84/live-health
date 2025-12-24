@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Heart, Shield, Users, TrendingUp, Zap, AlertTriangle, BarChart3, Menu, Loader2 } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import outbreakNowLogo from "@/assets/outbreaknow-logo.png";
 import drLufulwabo from "@/assets/dr-lufulwabo.jpeg";
 import { useLanguage, SUPPORTED_LANGUAGES } from "@/contexts/LanguageContext";
@@ -26,6 +26,7 @@ const Index = () => {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const { language, setLanguage, t } = useLanguage();
   const { toast } = useToast();
   const canonical = `${window.location.origin}${location.pathname}`;
@@ -116,46 +117,52 @@ const Index = () => {
       </Helmet>
 
       {/* Navigation Tabs */}
-      <nav className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <nav className="fixed top-0 left-0 right-0 z-[100] w-full border-b bg-background backdrop-blur-sm supports-[backdrop-filter]:bg-background/95">
         <div className="container-prose py-3">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4 flex-wrap">
             <button 
               onClick={() => setActiveTab("home")}
-              className="transition-opacity hover:opacity-80"
+              className="transition-opacity hover:opacity-80 flex-shrink-0"
               aria-label="Return to home"
             >
-              <img src={outbreakNowLogo} alt="OutbreakNow Logo" className="h-24 w-auto" />
+              <img src={outbreakNowLogo} alt="OutbreakNow Logo" className="h-16 md:h-20 lg:h-24 w-auto" />
             </button>
 
             {/* Desktop Navigation */}
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="hidden md:flex flex-1">
-              <TabsList className="grid w-full grid-cols-5 h-auto p-1">
-                <TabsTrigger value="home" className="text-sm md:text-base py-2.5">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="hidden md:flex flex-1 min-w-0">
+              <TabsList className="flex w-full h-auto p-1 gap-1 flex-wrap">
+                <TabsTrigger value="home" className="text-xs md:text-sm lg:text-base py-2.5 px-2 md:px-3 flex-shrink-0 whitespace-nowrap">
                   {t("landing.tabs.outbreakNow")}
                 </TabsTrigger>
-                <TabsTrigger value="about" className="text-sm md:text-base py-2.5">
+                <button
+                  onClick={() => navigate("/map")}
+                  className="inline-flex items-center justify-center whitespace-nowrap rounded-md px-2 md:px-3 text-xs md:text-sm lg:text-base font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground py-2.5 flex-shrink-0"
+                >
+                  {t("landing.tabs.viewMap")}
+                </button>
+                <TabsTrigger value="about" className="text-xs md:text-sm lg:text-base py-2.5 px-2 md:px-3 flex-shrink-0 whitespace-nowrap">
                   {t("landing.tabs.about")}
                 </TabsTrigger>
-                <TabsTrigger value="partner" className="text-sm md:text-base py-2.5">
+                <TabsTrigger value="partner" className="text-xs md:text-sm lg:text-base py-2.5 px-2 md:px-3 flex-shrink-0 whitespace-nowrap">
                   {t("landing.tabs.partner")}
                 </TabsTrigger>
-                <TabsTrigger value="advertise" className="text-sm md:text-base py-2.5">
+                <TabsTrigger value="advertise" className="text-xs md:text-sm lg:text-base py-2.5 px-2 md:px-3 flex-shrink-0 whitespace-nowrap">
                   {t("landing.tabs.advertise")}
                 </TabsTrigger>
-                <TabsTrigger value="donate" className="text-sm md:text-base py-2.5">
+                <TabsTrigger value="donate" className="text-xs md:text-sm lg:text-base py-2.5 px-2 md:px-3 flex-shrink-0 whitespace-nowrap">
                   {t("landing.tabs.donate")}
                 </TabsTrigger>
               </TabsList>
             </Tabs>
 
             {/* Desktop Language Selector */}
-            <div className="hidden md:flex items-center ml-4">
+            <div className="hidden md:flex items-center ml-2 md:ml-4 flex-shrink-0">
               <label className="sr-only" htmlFor="language-select">
                 Select language
               </label>
               <select
                 id="language-select"
-                className="border border-border rounded-md px-2 py-1 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
+                className="border border-border rounded-md px-2 py-1 text-xs md:text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/50"
                 value={language}
                 onChange={(e) => setLanguage(e.target.value as any)}
               >
@@ -190,6 +197,16 @@ const Index = () => {
                     }}
                   >
                     {t("landing.tabs.outbreakNow")}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="justify-start text-base"
+                    onClick={() => {
+                      navigate("/map");
+                      setMobileMenuOpen(false);
+                    }}
+                  >
+                    {t("landing.tabs.viewMap")}
                   </Button>
                   <Button
                     variant={activeTab === "about" ? "default" : "ghost"}
@@ -260,7 +277,7 @@ const Index = () => {
         </div>
       </nav>
 
-      <main>
+      <main className="pt-[120px]">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           {/* LiveHealth+ Tab */}
           <TabsContent value="home" className="mt-0">

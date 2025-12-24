@@ -7,8 +7,12 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Loader2, Plus, Eye, MousePointerClick, Clock, CreditCard, 
   BarChart3, FileText, CheckCircle, XCircle, AlertCircle, 
-  ExternalLink, ArrowLeft, RefreshCcw, Bell
+  ExternalLink, ArrowLeft, RefreshCcw, Bell, Edit, Trash2
 } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,12 +20,21 @@ import { useNotifications, Notification } from '@/lib/useNotifications';
 
 interface Submission {
   id: string;
+  user_id: string | null;
   company_name: string;
+  contact_name: string;
+  email: string;
+  phone: string | null;
+  website: string | null;
+  description: string | null;
   selected_plan: string;
   status: string;
   payment_status: string;
   created_at: string;
   ad_title: string | null;
+  ad_image_url: string | null;
+  ad_click_url: string | null;
+  ad_location: string | null;
 }
 
 interface SponsoredContent {
@@ -66,6 +79,26 @@ export const UserAdvertisingDashboard: React.FC = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
+  
+  // Edit dialog state
+  const [editingSubmission, setEditingSubmission] = useState<Submission | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    company_name: '',
+    contact_name: '',
+    email: '',
+    phone: '',
+    website: '',
+    description: '',
+    ad_title: '',
+    ad_click_url: '',
+    ad_location: 'Global',
+  });
+  const [isSaving, setIsSaving] = useState(false);
+  
+  // Delete dialog state
+  const [deletingSubmission, setDeletingSubmission] = useState<Submission | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [viewingSubmission, setViewingSubmission] = useState<Submission | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -122,6 +155,112 @@ export const UserAdvertisingDashboard: React.FC = () => {
       });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Check if submission can be edited/deleted
+  const canEditOrDelete = (submission: Submission) => {
+    return ['pending_review', 'changes_requested', 'cancelled', 'rejected'].includes(submission.status);
+  };
+
+  // Handle edit
+  const handleEdit = (submission: Submission) => {
+    if (!canEditOrDelete(submission)) {
+      toast({
+        title: "Cannot Edit",
+        description: "You can only edit submissions that are pending review, have changes requested, or are cancelled/rejected.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setEditingSubmission(submission);
+    setEditFormData({
+      company_name: submission.company_name,
+      contact_name: submission.contact_name,
+      email: submission.email,
+      phone: submission.phone || '',
+      website: submission.website || '',
+      description: submission.description || '',
+      ad_title: submission.ad_title || '',
+      ad_click_url: submission.ad_click_url || '',
+      ad_location: submission.ad_location || 'Global',
+    });
+  };
+
+  // Handle save edit
+  const handleSaveEdit = async () => {
+    if (!editingSubmission) return;
+
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('advertising_submissions')
+        .update({
+          company_name: editFormData.company_name,
+          contact_name: editFormData.contact_name,
+          email: editFormData.email,
+          phone: editFormData.phone || null,
+          website: editFormData.website || null,
+          description: editFormData.description || null,
+          ad_title: editFormData.ad_title || null,
+          ad_click_url: editFormData.ad_click_url || null,
+          ad_location: editFormData.ad_location || 'Global',
+          updated_at: new Date().toISOString(),
+          // Reset status to pending_review if it was changes_requested
+          ...(editingSubmission.status === 'changes_requested' ? { status: 'pending_review' } : {}),
+        })
+        .eq('id', editingSubmission.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Submission updated successfully",
+      });
+
+      fetchData();
+      setEditingSubmission(null);
+    } catch (error: any) {
+      console.error('Error updating submission:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update submission",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Handle delete
+  const handleDelete = async () => {
+    if (!deletingSubmission) return;
+
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('advertising_submissions')
+        .delete()
+        .eq('id', deletingSubmission.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Submission deleted successfully",
+      });
+
+      fetchData();
+      setDeletingSubmission(null);
+    } catch (error: any) {
+      console.error('Error deleting submission:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete submission. You may only delete submissions that are pending, cancelled, or rejected.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -408,7 +547,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
                 <CardTitle>All Submissions</CardTitle>
                 <CardDescription>Track the status of your advertising applications</CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-6">
                 {submissions.length === 0 ? (
                   <div className="text-center py-8">
                     <p className="text-muted-foreground">No submissions found</p>
@@ -436,14 +575,44 @@ export const UserAdvertisingDashboard: React.FC = () => {
                             <span>•</span>
                             <span>{new Date(submission.created_at).toLocaleDateString()}</span>
                           </div>
-                          {submission.status === 'approved_pending_payment' && user && submission.user_id === user.id && (
-                            <Button size="sm" className="mt-3" asChild>
-                              <Link to={`/advertising/payment/${submission.id}`}>
-                                <CreditCard className="w-4 h-4 mr-2" />
-                                Complete Payment
-                              </Link>
-                            </Button>
-                          )}
+                          <div className="flex items-center gap-2 mt-3">
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            onClick={() => setViewingSubmission(submission)}
+                          >
+                            <Eye className="w-4 h-4 mr-2" />
+                            View
+                          </Button>
+                            {submission.status === 'approved_pending_payment' && user && submission.user_id === user.id && (
+                              <Button size="sm" asChild>
+                                <Link to={`/advertising/payment/${submission.id}`}>
+                                  <CreditCard className="w-4 h-4 mr-2" />
+                                  Complete Payment
+                                </Link>
+                              </Button>
+                            )}
+                            {canEditOrDelete(submission) && (
+                              <>
+                                <Button 
+                                  size="sm" 
+                                  variant="outline"
+                                  onClick={() => handleEdit(submission)}
+                                >
+                                  <Edit className="w-4 h-4 mr-2" />
+                                  Edit
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="destructive"
+                                  onClick={() => setDeletingSubmission(submission)}
+                                >
+                                  <Trash2 className="w-4 h-4 mr-2" />
+                                  Delete
+                                </Button>
+                              </>
+                            )}
+                          </div>
                         </div>
                       );
                     })}
@@ -551,6 +720,270 @@ export const UserAdvertisingDashboard: React.FC = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {/* View Details Dialog */}
+      <Dialog open={!!viewingSubmission} onOpenChange={() => setViewingSubmission(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto px-6">
+          <DialogHeader>
+            <DialogTitle>Submission Details</DialogTitle>
+            <DialogDescription>Full information for your ad submission</DialogDescription>
+          </DialogHeader>
+          {viewingSubmission && (
+            <div className="space-y-4">
+              {viewingSubmission.ad_image_url && (
+                <div className="rounded-lg overflow-hidden border bg-muted">
+                  <img
+                    src={viewingSubmission.ad_image_url}
+                    alt={viewingSubmission.ad_title || 'Ad image'}
+                    className="w-full h-52 object-cover"
+                    loading="lazy"
+                  />
+                </div>
+              )}
+
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Company</p>
+                  <p className="text-lg font-semibold">{viewingSubmission.company_name}</p>
+                </div>
+                <Badge className={`${(statusConfig[viewingSubmission.status] || statusConfig.pending_review).color} text-white`}>
+                  {(statusConfig[viewingSubmission.status] || statusConfig.pending_review).label}
+                </Badge>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Contact Name</p>
+                  <p className="font-medium">{viewingSubmission.contact_name}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Email</p>
+                  <p className="font-medium">{viewingSubmission.email}</p>
+                </div>
+                {viewingSubmission.phone && (
+                  <div>
+                    <p className="text-muted-foreground">Phone</p>
+                    <p className="font-medium">{viewingSubmission.phone}</p>
+                  </div>
+                )}
+                {viewingSubmission.website && (
+                  <div>
+                    <p className="text-muted-foreground">Website</p>
+                    <a 
+                      href={viewingSubmission.website} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="font-medium text-primary hover:underline"
+                    >
+                      {viewingSubmission.website}
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-muted-foreground">Plan</p>
+                  <p className="font-medium capitalize">{viewingSubmission.selected_plan}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Payment Status</p>
+                  <p className="font-medium capitalize">{viewingSubmission.payment_status.replace('_', ' ')}</p>
+                </div>
+                <div>
+                  <p className="text-muted-foreground">Submitted</p>
+                  <p className="font-medium">{new Date(viewingSubmission.created_at).toLocaleString()}</p>
+                </div>
+              </div>
+
+              {(viewingSubmission.ad_title || viewingSubmission.ad_click_url || viewingSubmission.ad_location) && (
+                <div className="space-y-2 text-sm">
+                  <p className="text-muted-foreground">Ad Details</p>
+                  {viewingSubmission.ad_title && <p className="font-medium">Title: {viewingSubmission.ad_title}</p>}
+                  {viewingSubmission.ad_location && <p className="font-medium">Location: {viewingSubmission.ad_location}</p>}
+                  {viewingSubmission.ad_click_url && (
+                    <p className="font-medium">
+                      Click URL:{' '}
+                      <a 
+                        href={viewingSubmission.ad_click_url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline break-all"
+                      >
+                        {viewingSubmission.ad_click_url}
+                      </a>
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {viewingSubmission.description && (
+                <div className="text-sm space-y-1">
+                  <p className="text-muted-foreground">Description</p>
+                  <p>{viewingSubmission.description}</p>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewingSubmission(null)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!editingSubmission} onOpenChange={() => setEditingSubmission(null)}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto px-6">
+          <DialogHeader>
+            <DialogTitle>Edit Submission</DialogTitle>
+            <DialogDescription>
+              Update your advertising submission details
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="company_name">Company Name *</Label>
+                <Input
+                  id="company_name"
+                  value={editFormData.company_name}
+                  onChange={(e) => setEditFormData({ ...editFormData, company_name: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="contact_name">Contact Name *</Label>
+                <Input
+                  id="contact_name"
+                  value={editFormData.contact_name}
+                  onChange={(e) => setEditFormData({ ...editFormData, contact_name: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email *</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={editFormData.email}
+                  onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Phone</Label>
+                <Input
+                  id="phone"
+                  value={editFormData.phone}
+                  onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="website">Website</Label>
+              <Input
+                id="website"
+                value={editFormData.website}
+                onChange={(e) => setEditFormData({ ...editFormData, website: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Textarea
+                id="description"
+                value={editFormData.description}
+                onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                rows={3}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ad_title">Ad Title</Label>
+              <Input
+                id="ad_title"
+                value={editFormData.ad_title}
+                onChange={(e) => setEditFormData({ ...editFormData, ad_title: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ad_click_url">Ad Click URL</Label>
+              <Input
+                id="ad_click_url"
+                value={editFormData.ad_click_url}
+                onChange={(e) => setEditFormData({ ...editFormData, ad_click_url: e.target.value })}
+                placeholder="https://example.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="ad_location">Ad Location</Label>
+              <Input
+                id="ad_location"
+                value={editFormData.ad_location}
+                onChange={(e) => setEditFormData({ ...editFormData, ad_location: e.target.value })}
+                placeholder="Global"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingSubmission(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={isSaving}>
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                'Save Changes'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deletingSubmission} onOpenChange={() => setDeletingSubmission(null)}>
+        <DialogContent className="px-6">
+          <DialogHeader>
+            <DialogTitle>Delete Submission</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this submission? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          {deletingSubmission && (
+            <div className="py-4">
+              <p className="text-sm text-muted-foreground">
+                <strong>Company:</strong> {deletingSubmission.company_name}
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                <strong>Plan:</strong> {deletingSubmission.selected_plan}
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeletingSubmission(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+              {isDeleting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

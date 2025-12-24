@@ -28,7 +28,6 @@ import { DonationCancelled } from "./screens/Donate/DonationCancelled";
 // Admin pages
 import { AdminDashboard } from "./screens/Admin/AdminDashboard";
 import { AdminAlertReviewPanel } from "./screens/Admin/AdminAlertReviewPanel";
-import { AdminFeedbackPanel } from "./screens/Admin/AdminFeedbackPanel";
 import { AdminNotificationPanel } from "./screens/Admin/AdminNotificationPanel";
 import { WeeklyReport } from "./screens/Dashboard/WeeklyReport";
 
@@ -87,7 +86,6 @@ createRoot(document.getElementById("app") as HTMLElement).render(
                 <Route index element={<AdminDashboard />} />
                 <Route path="advertising" element={<AdminAdvertisingPanel />} />
                 <Route path="alerts" element={<AdminAlertReviewPanel />} />
-                <Route path="feedback" element={<AdminFeedbackPanel />} />
                 <Route path="notifications" element={<AdminNotificationPanel />} />
               </Route>
               </Routes>
