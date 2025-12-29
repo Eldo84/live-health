@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, CheckCircle2, Info } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ScatterChart, Scatter, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ScatterChart, Scatter, Cell, LabelList, Legend } from "recharts";
 import { chartColors } from "@/lib/diseaseSeedData";
 import { useHealthStatistics } from "@/lib/useHealthStatistics";
 
@@ -16,6 +16,8 @@ const YAxisTyped = YAxis as any;
 const BarTyped = Bar as any;
 const ScatterTyped = Scatter as any;
 const CellTyped = Cell as any;
+const LabelListTyped = LabelList as any;
+const LegendTyped = Legend as any;
 
 interface OverviewSectionProps {
   filters?: {
@@ -100,35 +102,14 @@ export const OverviewSection = ({ filters = {} }: OverviewSectionProps) => {
     });
     
     // Convert to array and average if multiple records
-    const diseases = Array.from(diseaseMap.values())
+    return Array.from(diseaseMap.values())
       .map(d => ({
         name: d.name,
         prevalence: d.count > 1 ? d.prevalence / d.count : d.prevalence,
         incidence: d.count > 1 ? d.incidence / d.count : d.incidence,
         mortality: d.count > 1 ? d.mortality / d.count : d.mortality,
         category: d.category
-      }))
-      // Filter out diseases with very low values (noise)
-      .filter(d => d.prevalence > 1 || d.incidence > 0.1 || d.mortality > 0.1)
-      // Sort by prevalence
-      .sort((a, b) => b.prevalence - a.prevalence)
-      .slice(0, 10); // Top 10
-    
-    // If no diseases passed the filter, return top 10 by prevalence regardless
-    if (diseases.length === 0) {
-      return Array.from(diseaseMap.values())
-        .map(d => ({
-          name: d.name,
-          prevalence: d.count > 1 ? d.prevalence / d.count : d.prevalence,
-          incidence: d.count > 1 ? d.incidence / d.count : d.incidence,
-          mortality: d.count > 1 ? d.mortality / d.count : d.mortality,
-          category: d.category
-        }))
-        .sort((a, b) => b.prevalence - a.prevalence)
-        .slice(0, 10);
-    }
-    
-    return diseases;
+      }));
   }, [filteredDiseaseData]);
 
   // Aggregate filtered diseaseData into bubbleChartData format
@@ -176,17 +157,46 @@ export const OverviewSection = ({ filters = {} }: OverviewSectionProps) => {
   }, [filteredDiseaseData]);
 
   const chartData = useMemo(() => {
-    const data = filteredTopDiseases.map(disease => ({
-      name: disease.name.length > 25 ? disease.name.substring(0, 25) + '...' : disease.name,
-      value: Math.max(0.01, disease[metricType]), // Ensure minimum value for visibility
-      category: disease.category,
-      fullName: disease.name
-    })).sort((a, b) => b.value - a.value);
+    if (filteredTopDiseases.length === 0) return [];
     
-    // Debug logging
-    console.log('Chart Data:', data);
-    console.log('Metric Type:', metricType);
-    console.log('Filtered Top Diseases:', filteredTopDiseases.length);
+    // Sort by the selected metric type
+    const sorted = [...filteredTopDiseases].sort((a, b) => {
+      let aValue = 0;
+      let bValue = 0;
+      if (metricType === "prevalence") {
+        aValue = a.prevalence || 0;
+        bValue = b.prevalence || 0;
+      } else if (metricType === "incidence") {
+        aValue = a.incidence || 0;
+        bValue = b.incidence || 0;
+      } else if (metricType === "mortality") {
+        aValue = a.mortality || 0;
+        bValue = b.mortality || 0;
+      }
+      return bValue - aValue;
+    }).slice(0, 10); // Top 10 by selected metric
+    
+    const data = sorted.map(disease => {
+      // Get the correct metric value
+      let value = 0;
+      if (metricType === "prevalence") {
+        value = disease.prevalence || 0;
+      } else if (metricType === "incidence") {
+        value = disease.incidence || 0;
+      } else if (metricType === "mortality") {
+        value = disease.mortality || 0;
+      }
+      
+      return {
+        name: disease.name.length > 20 ? disease.name.substring(0, 20) + '...' : disease.name,
+        value: Math.max(0.01, value), // Ensure minimum value for visibility
+        category: disease.category || "Other",
+        fullName: disease.name,
+        prevalence: disease.prevalence || 0,
+        incidence: disease.incidence || 0,
+        mortality: disease.mortality || 0
+      };
+    });
     
     return data;
   }, [filteredTopDiseases, metricType]);
@@ -310,7 +320,7 @@ export const OverviewSection = ({ filters = {} }: OverviewSectionProps) => {
                 <BarChartTyped
                   data={chartData}
                   layout="horizontal"
-                  margin={{ top: 5, right: 30, left: 120, bottom: 5 }}
+                  margin={{ top: 5, right: 60, left: 120, bottom: 25 }}
                   barSize={20}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="#eaebf024" opacity={0.3} vertical={false} />
@@ -319,30 +329,68 @@ export const OverviewSection = ({ filters = {} }: OverviewSectionProps) => {
                     domain={[0, 'dataMax']}
                     axisLine={{ stroke: '#eaebf024' }}
                     tickLine={{ stroke: '#eaebf024' }}
-                    tick={{ fontSize: 12, fill: "#ebebeb" }}
+                    tick={{ fontSize: 12, fill: "#ebebeb", fontFamily: "Roboto" }}
+                    tickFormatter={(value) => {
+                      if (value >= 1000) {
+                        return `${(value / 1000).toFixed(1)}k`;
+                      }
+                      return value.toLocaleString('en-US', { maximumFractionDigits: 0 });
+                    }}
+                    label={{ 
+                      value: metricType === "prevalence" ? "Prevalence per 100k" : 
+                             metricType === "incidence" ? "Incidence per 100k" : 
+                             "Mortality per 100k",
+                      position: "insideBottom",
+                      offset: -5,
+                      style: { textAnchor: "middle", fill: "#ebebeb99", fontSize: 12, fontFamily: "Roboto" }
+                    }}
                   />
                   <YAxisTyped
                     type="category"
                     dataKey="name"
                     axisLine={{ stroke: '#eaebf024' }}
                     tickLine={{ stroke: '#eaebf024' }}
-                    tick={{ fontSize: 11, fill: "#ebebeb" }}
-                    width={110}
+                    tick={{ fontSize: 11, fill: "#ebebeb", fontFamily: "Roboto" }}
+                    width={120}
                   />
                   <Tooltip
                     cursor={{ fill: '#66dbe1', fillOpacity: 0.1 }}
-                    contentStyle={{
-                      backgroundColor: "#2a4149",
-                      border: "1px solid #66dbe1",
-                      borderRadius: "6px",
-                      color: "#ebebeb",
-                      padding: "8px 12px",
-                      boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)"
-                    }}
-                    labelStyle={{
-                      color: "#66dbe1",
-                      fontWeight: "600",
-                      marginBottom: "4px"
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        const data = payload[0].payload;
+                        return (
+                          <div className="bg-[#2a4149] border border-[#66dbe1] p-3 rounded-lg shadow-lg" style={{ boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)' }}>
+                            <p className="[font-family:'Roboto',Helvetica] font-semibold text-[#66dbe1] mb-2 text-sm">
+                              {data.fullName}
+                            </p>
+                            <div className="space-y-1">
+                              <p className="[font-family:'Roboto',Helvetica] text-xs">
+                                <span className="text-[#ebebeb99]">Prevalence:</span>{' '}
+                                <span className={`font-medium ${metricType === "prevalence" ? "text-[#66dbe1]" : "text-[#ebebeb]"}`}>
+                                  {data.prevalence.toLocaleString('en-US', { maximumFractionDigits: 1 })} per 100k
+                                </span>
+                              </p>
+                              <p className="[font-family:'Roboto',Helvetica] text-xs">
+                                <span className="text-[#ebebeb99]">Incidence:</span>{' '}
+                                <span className={`font-medium ${metricType === "incidence" ? "text-[#66dbe1]" : "text-[#ebebeb]"}`}>
+                                  {data.incidence.toLocaleString('en-US', { maximumFractionDigits: 1 })} per 100k
+                                </span>
+                              </p>
+                              <p className="[font-family:'Roboto',Helvetica] text-xs">
+                                <span className="text-[#ebebeb99]">Mortality:</span>{' '}
+                                <span className={`font-medium ${metricType === "mortality" ? "text-[#66dbe1]" : "text-[#ebebeb]"}`}>
+                                  {data.mortality.toLocaleString('en-US', { maximumFractionDigits: 1 })} per 100k
+                                </span>
+                              </p>
+                              <p className="[font-family:'Roboto',Helvetica] text-xs mt-2 pt-2 border-t border-[#eaebf024]">
+                                <span className="text-[#ebebeb99]">Category:</span>{' '}
+                                <span className="text-[#ebebeb]">{data.category}</span>
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
                     }}
                   />
                   <BarTyped 
@@ -363,12 +411,91 @@ export const OverviewSection = ({ filters = {} }: OverviewSectionProps) => {
                         />
                       );
                     })}
+                    <LabelListTyped
+                      dataKey="value"
+                      position="right"
+                      style={{ fill: "#ebebeb", fontSize: 11, fontFamily: "Roboto" }}
+                      formatter={(value: number) => {
+                        if (value >= 1000) {
+                          return `${(value / 1000).toFixed(1)}k`;
+                        }
+                        return value.toFixed(1);
+                      }}
+                    />
                   </BarTyped>
                 </BarChartTyped>
               </ResponsiveContainerTyped>
-              <p className="[font-family:'Roboto',Helvetica] text-xs text-[#ebebeb99] mt-2">
-                Per 100,000 population. Click buttons to switch between metrics.
-              </p>
+              <div className="mt-3 space-y-2">
+                <p className="[font-family:'Roboto',Helvetica] text-xs text-[#ebebeb99]">
+                  Values shown per 100,000 population. Click buttons above to switch between metrics.
+                </p>
+                {chartData.length > 0 && (
+                  <p className="[font-family:'Roboto',Helvetica] text-xs text-[#66dbe1]">
+                    Showing {chartData.length} {chartData.length === 1 ? 'disease' : 'diseases'} ranked by {metricType === "prevalence" ? "prevalence" : metricType === "incidence" ? "incidence" : "mortality"}.
+                  </p>
+                )}
+              </div>
+              
+              {/* Detailed Table View */}
+              {chartData.length > 0 && (
+                <div className="mt-4 overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="border-b border-[#eaebf024]">
+                        <th className="[font-family:'Roboto',Helvetica] text-left text-xs font-semibold text-[#66dbe1] py-2 px-2">Rank</th>
+                        <th className="[font-family:'Roboto',Helvetica] text-left text-xs font-semibold text-[#66dbe1] py-2 px-2">Disease</th>
+                        <th className="[font-family:'Roboto',Helvetica] text-right text-xs font-semibold text-[#66dbe1] py-2 px-2">Prevalence</th>
+                        <th className="[font-family:'Roboto',Helvetica] text-right text-xs font-semibold text-[#66dbe1] py-2 px-2">Incidence</th>
+                        <th className="[font-family:'Roboto',Helvetica] text-right text-xs font-semibold text-[#66dbe1] py-2 px-2">Mortality</th>
+                        <th className="[font-family:'Roboto',Helvetica] text-left text-xs font-semibold text-[#66dbe1] py-2 px-2">Category</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {chartData.map((entry, index) => {
+                        const color = chartColors[entry.category] || "#66dbe1";
+                        const isSelectedMetric = metricType === "prevalence" ? entry.prevalence :
+                                               metricType === "incidence" ? entry.incidence :
+                                               entry.mortality;
+                        return (
+                          <tr 
+                            key={index} 
+                            className="border-b border-[#eaebf024] hover:bg-[#ffffff08] transition-colors"
+                          >
+                            <td className="[font-family:'Roboto',Helvetica] text-xs text-[#ebebeb99] py-2 px-2">#{index + 1}</td>
+                            <td className="[font-family:'Roboto',Helvetica] text-xs text-[#ebebeb] py-2 px-2 font-medium">{entry.fullName}</td>
+                            <td className={`[font-family:'Roboto',Helvetica] text-xs py-2 px-2 text-right ${
+                              metricType === "prevalence" ? "text-[#66dbe1] font-semibold" : "text-[#ebebeb99]"
+                            }`}>
+                              {entry.prevalence.toLocaleString('en-US', { maximumFractionDigits: 1 })}
+                            </td>
+                            <td className={`[font-family:'Roboto',Helvetica] text-xs py-2 px-2 text-right ${
+                              metricType === "incidence" ? "text-[#66dbe1] font-semibold" : "text-[#ebebeb99]"
+                            }`}>
+                              {entry.incidence.toLocaleString('en-US', { maximumFractionDigits: 1 })}
+                            </td>
+                            <td className={`[font-family:'Roboto',Helvetica] text-xs py-2 px-2 text-right ${
+                              metricType === "mortality" ? "text-[#66dbe1] font-semibold" : "text-[#ebebeb99]"
+                            }`}>
+                              {entry.mortality.toLocaleString('en-US', { maximumFractionDigits: 1 })}
+                            </td>
+                            <td className="py-2 px-2">
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className="w-2 h-2 rounded-full"
+                                  style={{ backgroundColor: color }}
+                                />
+                                <span className="[font-family:'Roboto',Helvetica] text-xs text-[#ebebeb99]">
+                                  {entry.category}
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </>
           )}
         </CardContent>
@@ -447,6 +574,116 @@ export const OverviewSection = ({ filters = {} }: OverviewSectionProps) => {
         </CardContent>
       </Card>
       </div>
+
+      {/* Multi-Metric Comparison Chart */}
+      {chartData.length > 0 && (
+        <Card className="bg-[#ffffff14] border-[#eaebf024] hover:bg-[#ffffff1a] transition-colors">
+          <CardHeader>
+            <CardTitle className="[font-family:'Roboto',Helvetica] text-lg font-semibold text-[#ebebeb]">Multi-Metric Comparison</CardTitle>
+            <p className="[font-family:'Roboto',Helvetica] text-sm text-[#ebebeb99]">
+              Compare Prevalence, Incidence, and Mortality rates side by side
+            </p>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainerTyped width="100%" height={400}>
+              <BarChartTyped
+                data={chartData}
+                margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#eaebf024" opacity={0.3} />
+                <XAxisTyped
+                  dataKey="name"
+                  angle={-45}
+                  textAnchor="end"
+                  height={100}
+                  tick={{ fontSize: 11, fill: "#ebebeb", fontFamily: "Roboto" }}
+                  interval={0}
+                />
+                <YAxisTyped
+                  tick={{ fontSize: 12, fill: "#ebebeb", fontFamily: "Roboto" }}
+                  axisLine={{ stroke: '#eaebf024' }}
+                  tickLine={{ stroke: '#eaebf024' }}
+                  label={{ 
+                    value: "Rate per 100,000 population",
+                    angle: -90,
+                    position: "insideLeft",
+                    style: { textAnchor: "middle", fill: "#ebebeb99", fontSize: 12, fontFamily: "Roboto" }
+                  }}
+                  tickFormatter={(value) => {
+                    if (value >= 1000) {
+                      return `${(value / 1000).toFixed(1)}k`;
+                    }
+                    return value.toLocaleString('en-US', { maximumFractionDigits: 0 });
+                  }}
+                />
+                <Tooltip
+                  cursor={{ fill: '#66dbe1', fillOpacity: 0.1 }}
+                  contentStyle={{
+                    backgroundColor: "#2a4149",
+                    border: "1px solid #66dbe1",
+                    borderRadius: "6px",
+                    color: "#ebebeb",
+                    padding: "8px 12px",
+                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)"
+                  }}
+                  labelStyle={{
+                    color: "#66dbe1",
+                    fontWeight: "600",
+                    marginBottom: "4px",
+                    fontFamily: "Roboto"
+                  }}
+                  formatter={(value: any) => {
+                    const formattedValue = typeof value === 'number' 
+                      ? value.toLocaleString('en-US', { maximumFractionDigits: 1 })
+                      : value;
+                    return [`${formattedValue} per 100k`, ''];
+                  }}
+                  labelFormatter={(label) => {
+                    const entry = chartData.find(d => d.name === label);
+                    return entry?.fullName || label;
+                  }}
+                />
+                <LegendTyped
+                  wrapperStyle={{ fontFamily: "Roboto", fontSize: 12, paddingTop: "20px" }}
+                  iconType="square"
+                />
+                <BarTyped 
+                  dataKey="prevalence" 
+                  name="Prevalence"
+                  fill="#66dbe1"
+                  radius={[4, 4, 0, 0]}
+                />
+                <BarTyped 
+                  dataKey="incidence" 
+                  name="Incidence"
+                  fill="#fbbf24"
+                  radius={[4, 4, 0, 0]}
+                />
+                <BarTyped 
+                  dataKey="mortality" 
+                  name="Mortality"
+                  fill="#f87171"
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChartTyped>
+            </ResponsiveContainerTyped>
+            <div className="mt-4 flex flex-wrap gap-4 text-xs">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded bg-[#66dbe1]"></div>
+                <span className="[font-family:'Roboto',Helvetica] text-[#ebebeb]">Prevalence - Total cases per 100k</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded bg-[#fbbf24]"></div>
+                <span className="[font-family:'Roboto',Helvetica] text-[#ebebeb]">Incidence - New cases per 100k</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded bg-[#f87171]"></div>
+                <span className="[font-family:'Roboto',Helvetica] text-[#ebebeb]">Mortality - Deaths per 100k</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

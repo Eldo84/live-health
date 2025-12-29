@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Loader2, Plus, Eye, MousePointerClick, Clock, CreditCard, 
   BarChart3, FileText, CheckCircle, XCircle, AlertCircle, 
-  ExternalLink, ArrowLeft, RefreshCcw, Bell, Edit, Trash2
+  ExternalLink, ArrowLeft, RefreshCcw, Bell, Edit, Trash2, Upload, MapPin, X
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -49,6 +49,12 @@ interface SponsoredContent {
   image_url: string;
 }
 
+interface AdAnalytics {
+  ad_id: string;
+  views: number;
+  clicks: number;
+}
+
 interface Payment {
   id: string;
   amount: number;
@@ -77,6 +83,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [activeAds, setActiveAds] = useState<SponsoredContent[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [adAnalytics, setAdAnalytics] = useState<Record<string, AdAnalytics>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   
@@ -92,8 +99,13 @@ export const UserAdvertisingDashboard: React.FC = () => {
     ad_title: '',
     ad_click_url: '',
     ad_location: 'Global',
+    ad_image_url: '',
   });
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [editMediaFile, setEditMediaFile] = useState<File | null>(null);
+  const [editMediaType, setEditMediaType] = useState<'image' | 'video' | 'gif' | 'animation' | null>(null);
+  const [editPreviewUrl, setEditPreviewUrl] = useState<string | null>(null);
   
   // Delete dialog state
   const [deletingSubmission, setDeletingSubmission] = useState<Submission | null>(null);
@@ -136,6 +148,65 @@ export const UserAdvertisingDashboard: React.FC = () => {
       if (adsError) throw adsError;
       setActiveAds(adsData || []);
 
+      // Fetch analytics for each ad individually from advertising_analytics table
+      if (adsData && adsData.length > 0) {
+        const analyticsMap: Record<string, AdAnalytics> = {};
+        const adIds = adsData.map(ad => ad.id);
+        
+        try {
+          // Fetch all analytics for user's ads in one query
+          const { data: allAnalytics, error: analyticsError } = await supabase
+            .from('advertising_analytics')
+            .select('sponsored_content_id, event_type')
+            .in('sponsored_content_id', adIds)
+            .in('event_type', ['view', 'click']);
+
+          if (!analyticsError && allAnalytics) {
+            // Initialize all ads with 0 analytics
+            adIds.forEach(adId => {
+              analyticsMap[adId] = {
+                ad_id: adId,
+                views: 0,
+                clicks: 0,
+              };
+            });
+
+            // Count views and clicks per ad
+            allAnalytics.forEach(analytics => {
+              const adId = analytics.sponsored_content_id;
+              if (analyticsMap[adId]) {
+                if (analytics.event_type === 'view') {
+                  analyticsMap[adId].views += 1;
+                } else if (analytics.event_type === 'click') {
+                  analyticsMap[adId].clicks += 1;
+                }
+              }
+            });
+          } else {
+            // If error, initialize all with 0
+            adIds.forEach(adId => {
+              analyticsMap[adId] = {
+                ad_id: adId,
+                views: 0,
+                clicks: 0,
+              };
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching analytics:', error);
+          // Initialize all with 0 on error
+          adIds.forEach(adId => {
+            analyticsMap[adId] = {
+              ad_id: adId,
+              views: 0,
+              clicks: 0,
+            };
+          });
+        }
+        
+        setAdAnalytics(analyticsMap);
+      }
+
       // Fetch payments - ONLY for the current user
       const { data: paymentsData, error: paymentsError } = await supabase
         .from('payments')
@@ -163,6 +234,129 @@ export const UserAdvertisingDashboard: React.FC = () => {
     return ['pending_review', 'changes_requested', 'cancelled', 'rejected'].includes(submission.status);
   };
 
+  // Get media type from file
+  const getMediaType = (file: File): 'image' | 'video' | 'gif' | 'animation' | null => {
+    const type = file.type.toLowerCase();
+    if (type.startsWith('image/')) {
+      if (type === 'image/gif') return 'gif';
+      if (type === 'image/webp' || type === 'image/apng') return 'animation';
+      return 'image';
+    }
+    if (type.startsWith('video/')) return 'video';
+    return null;
+  };
+
+  // Handle media upload in edit form
+  const handleEditMediaUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] || null;
+    
+    if (!file) return;
+    
+    const detectedType = getMediaType(file);
+    if (!detectedType) {
+      toast({
+        title: "Invalid file type",
+        description: "Please select an image (JPG, PNG, WebP), GIF, or short video (MP4, WebM, MOV).",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    const maxSize = detectedType === 'video' ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
+    const maxSizeMB = detectedType === 'video' ? 50 : 10;
+    
+    if (file.size > maxSize) {
+      toast({
+        title: "File too large",
+        description: `Please select a file smaller than ${maxSizeMB}MB.`,
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setEditMediaType(detectedType);
+    setEditMediaFile(file);
+    setEditPreviewUrl(URL.createObjectURL(file));
+  };
+
+  // Upload media for edit
+  const uploadEditMedia = async (file: File): Promise<string | null> => {
+    setIsUploading(true);
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `ad-${user?.id || 'anonymous'}-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+      
+      let bucket: string;
+      if (editMediaType === 'video') {
+        bucket = 'sponsored-videos';
+      } else {
+        bucket = 'sponsored-images';
+      }
+      
+      let filePath = fileName;
+      let uploadError: any = null;
+
+      const { error: primaryError } = await supabase.storage
+        .from(bucket)
+        .upload(filePath, file, {
+          cacheControl: editMediaType === 'video' ? '86400' : '3600',
+          upsert: false,
+          contentType: file.type
+        });
+
+      uploadError = primaryError;
+
+      if (uploadError) {
+        if (uploadError.message.includes('Bucket not found') || uploadError.message.includes('not found')) {
+          if (editMediaType === 'video') {
+            bucket = 'advertising-documents';
+            const { error: fallbackError } = await supabase.storage
+              .from(bucket)
+              .upload(filePath, file, {
+                cacheControl: '86400',
+                upsert: false,
+                contentType: file.type
+              });
+            if (fallbackError) uploadError = fallbackError;
+            else uploadError = null;
+          } else {
+            bucket = 'advertising-documents';
+            const { error: fallbackError } = await supabase.storage
+              .from(bucket)
+              .upload(filePath, file, {
+                cacheControl: '3600',
+                upsert: false,
+                contentType: file.type
+              });
+            if (fallbackError) uploadError = fallbackError;
+            else uploadError = null;
+          }
+        }
+      }
+
+      if (uploadError) {
+        console.error('Media upload error:', uploadError);
+        toast({
+          title: "Upload Failed",
+          description: "Media upload failed. Your other changes will still be saved.",
+          variant: "destructive"
+        });
+        return null;
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(filePath);
+
+      return publicUrlData.publicUrl;
+    } catch (error: any) {
+      console.error('Error uploading media:', error);
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   // Handle edit
   const handleEdit = (submission: Submission) => {
     if (!canEditOrDelete(submission)) {
@@ -184,7 +378,12 @@ export const UserAdvertisingDashboard: React.FC = () => {
       ad_title: submission.ad_title || '',
       ad_click_url: submission.ad_click_url || '',
       ad_location: submission.ad_location || 'Global',
+      ad_image_url: submission.ad_image_url || '',
     });
+    // Reset media upload state
+    setEditMediaFile(null);
+    setEditMediaType(null);
+    setEditPreviewUrl(null);
   };
 
   // Handle save edit
@@ -193,6 +392,19 @@ export const UserAdvertisingDashboard: React.FC = () => {
 
     setIsSaving(true);
     try {
+      // Upload new media if a file was selected
+      let imageUrl = editFormData.ad_image_url; // Keep existing URL by default
+      if (editMediaFile) {
+        const uploadedUrl = await uploadEditMedia(editMediaFile);
+        if (uploadedUrl) {
+          imageUrl = uploadedUrl;
+        }
+        // Clean up preview URL
+        if (editPreviewUrl && editPreviewUrl.startsWith('blob:')) {
+          URL.revokeObjectURL(editPreviewUrl);
+        }
+      }
+
       const { error } = await supabase
         .from('advertising_submissions')
         .update({
@@ -205,6 +417,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
           ad_title: editFormData.ad_title || null,
           ad_click_url: editFormData.ad_click_url || null,
           ad_location: editFormData.ad_location || 'Global',
+          ad_image_url: imageUrl || null,
           updated_at: new Date().toISOString(),
           // Reset status to pending_review if it was changes_requested
           ...(editingSubmission.status === 'changes_requested' ? { status: 'pending_review' } : {}),
@@ -220,6 +433,10 @@ export const UserAdvertisingDashboard: React.FC = () => {
 
       fetchData();
       setEditingSubmission(null);
+      // Reset media state
+      setEditMediaFile(null);
+      setEditMediaType(null);
+      setEditPreviewUrl(null);
     } catch (error: any) {
       console.error('Error updating submission:', error);
       toast({
@@ -659,15 +876,19 @@ export const UserAdvertisingDashboard: React.FC = () => {
                             <div className="flex items-center gap-6">
                               <div className="flex items-center gap-2">
                                 <Eye className="w-4 h-4 text-muted-foreground" />
-                                <span className="text-sm font-medium">{ad.view_count} views</span>
+                                <span className="text-sm font-medium">
+                                  {adAnalytics[ad.id]?.views ?? ad.view_count} views
+                                </span>
                               </div>
                               <div className="flex items-center gap-2">
                                 <MousePointerClick className="w-4 h-4 text-muted-foreground" />
-                                <span className="text-sm font-medium">{ad.click_count} clicks</span>
+                                <span className="text-sm font-medium">
+                                  {adAnalytics[ad.id]?.clicks ?? ad.click_count} clicks
+                                </span>
                               </div>
-                              {ad.view_count > 0 && (
+                              {((adAnalytics[ad.id]?.views ?? ad.view_count) > 0) && (
                                 <span className="text-sm text-muted-foreground">
-                                  CTR: {((ad.click_count / ad.view_count) * 100).toFixed(2)}%
+                                  CTR: {(((adAnalytics[ad.id]?.clicks ?? ad.click_count) / (adAnalytics[ad.id]?.views ?? ad.view_count)) * 100).toFixed(2)}%
                                 </span>
                               )}
                             </div>
@@ -834,7 +1055,18 @@ export const UserAdvertisingDashboard: React.FC = () => {
       </Dialog>
 
       {/* Edit Dialog */}
-      <Dialog open={!!editingSubmission} onOpenChange={() => setEditingSubmission(null)}>
+      <Dialog open={!!editingSubmission} onOpenChange={(open) => {
+        if (!open) {
+          // Cleanup preview URL when closing
+          if (editPreviewUrl && editPreviewUrl.startsWith('blob:')) {
+            URL.revokeObjectURL(editPreviewUrl);
+          }
+          setEditingSubmission(null);
+          setEditMediaFile(null);
+          setEditMediaType(null);
+          setEditPreviewUrl(null);
+        }
+      }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto px-6">
           <DialogHeader>
             <DialogTitle>Edit Submission</DialogTitle>
@@ -918,7 +1150,10 @@ export const UserAdvertisingDashboard: React.FC = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="ad_location">Ad Location</Label>
+              <Label htmlFor="ad_location" className="flex items-center gap-2">
+                <MapPin className="w-4 h-4" />
+                Ad Location
+              </Label>
               <Input
                 id="ad_location"
                 value={editFormData.ad_location}
@@ -926,16 +1161,130 @@ export const UserAdvertisingDashboard: React.FC = () => {
                 placeholder="Global"
               />
             </div>
+
+            {/* Media Upload Section */}
+            <div className="space-y-2 border-t pt-4">
+              <Label htmlFor="edit_media" className="flex items-center gap-2">
+                <Eye className="w-4 h-4" />
+                Ad Media (Optional)
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Upload a new image, GIF, or video to replace the current media. Leave empty to keep existing media.
+              </p>
+              
+              {/* Current Media Preview */}
+              {editFormData.ad_image_url && !editPreviewUrl && (
+                <div className="mt-2">
+                  <p className="text-xs text-muted-foreground mb-2">Current Media:</p>
+                  <div className="relative w-full border rounded-lg overflow-hidden bg-muted" style={{ maxHeight: '200px' }}>
+                    {editFormData.ad_image_url.toLowerCase().includes('.mp4') || 
+                     editFormData.ad_image_url.toLowerCase().includes('.webm') || 
+                     editFormData.ad_image_url.toLowerCase().includes('.mov') ? (
+                      <video
+                        src={editFormData.ad_image_url}
+                        controls
+                        className="w-full h-full object-contain"
+                        style={{ maxHeight: '200px' }}
+                      />
+                    ) : (
+                      <img
+                        src={editFormData.ad_image_url}
+                        alt="Current ad media"
+                        className="w-full h-full object-contain"
+                        style={{ maxHeight: '200px' }}
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* New Media Upload */}
+              <div className="flex items-center gap-3 mt-2">
+                <Input
+                  id="edit_media"
+                  type="file"
+                  accept="image/jpeg,image/jpg,image/png,image/webp,image/gif,image/apng,video/mp4,video/webm,video/quicktime,video/x-msvideo"
+                  onChange={handleEditMediaUpload}
+                  className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                  disabled={isSaving || isUploading}
+                />
+                {isUploading ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                ) : (
+                  <Upload className="h-4 w-4 text-muted-foreground" />
+                )}
+              </div>
+
+              {/* New Media Preview */}
+              {editPreviewUrl && editMediaFile && (
+                <div className="mt-2">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm text-primary">
+                      New Media: {editMediaFile.name}
+                      {editMediaType && (
+                        <span className="ml-2 text-xs text-muted-foreground">
+                          ({(editMediaType === 'video' ? 'Video' : editMediaType === 'gif' ? 'GIF' : editMediaType === 'animation' ? 'Animation' : 'Image')})
+                        </span>
+                      )}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        if (editPreviewUrl.startsWith('blob:')) {
+                          URL.revokeObjectURL(editPreviewUrl);
+                        }
+                        setEditMediaFile(null);
+                        setEditMediaType(null);
+                        setEditPreviewUrl(null);
+                      }}
+                      className="h-6 w-6 p-0"
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                  <div className="relative w-full border rounded-lg overflow-hidden bg-muted" style={{ maxHeight: '200px' }}>
+                    {editMediaType === 'video' ? (
+                      <video
+                        src={editPreviewUrl}
+                        controls
+                        className="w-full h-full object-contain"
+                        style={{ maxHeight: '200px' }}
+                      />
+                    ) : (
+                      <img
+                        src={editPreviewUrl}
+                        alt="Preview"
+                        className="w-full h-full object-contain"
+                        style={{ maxHeight: '200px' }}
+                      />
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Media URL Input (Alternative) */}
+              <div className="mt-2">
+                <p className="text-xs text-muted-foreground mb-2">Or enter media URL:</p>
+                <Input
+                  placeholder="https://example.com/media.jpg or .mp4"
+                  value={editFormData.ad_image_url}
+                  onChange={(e) => setEditFormData({ ...editFormData, ad_image_url: e.target.value })}
+                  disabled={isSaving || !!editMediaFile}
+                />
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingSubmission(null)}>
               Cancel
             </Button>
-            <Button onClick={handleSaveEdit} disabled={isSaving}>
-              {isSaving ? (
+            <Button onClick={handleSaveEdit} disabled={isSaving || isUploading}>
+              {isSaving || isUploading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Saving...
+                  {isUploading ? 'Uploading...' : 'Saving...'}
                 </>
               ) : (
                 'Save Changes'

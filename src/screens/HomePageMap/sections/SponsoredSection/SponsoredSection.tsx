@@ -1,7 +1,6 @@
-import React, { useEffect, useRef, useState } from "react";
-import { Badge } from "../../../../components/ui/badge";
-import { useSponsoredContent, getPlanBadgeInfo, SponsoredContent } from "../../../../lib/useSponsoredContent";
-import { Loader2, Star, Pin, ExternalLink } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useSponsoredContent, SponsoredContent } from "../../../../lib/useSponsoredContent";
+import { Star, Pin, ExternalLink, MapPin } from "lucide-react";
 import { useLanguage } from "../../../../contexts/LanguageContext";
 
 interface SponsoredCardProps {
@@ -14,7 +13,6 @@ const SponsoredCard: React.FC<SponsoredCardProps> = ({ content, onView, onClick 
   const cardRef = useRef<HTMLDivElement>(null);
   const hasTrackedView = useRef(false);
 
-  // Track view when card becomes visible
   useEffect(() => {
     if (hasTrackedView.current) return;
 
@@ -44,139 +42,183 @@ const SponsoredCard: React.FC<SponsoredCardProps> = ({ content, onView, onClick 
     }
   };
 
-  const planBadge = getPlanBadgeInfo(content.plan_type);
-
   const hasImage = content.image_url && content.image_url.trim() !== '';
+
+  const isVideo = React.useMemo(() => {
+    if (!content.image_url) return false;
+    const url = content.image_url.toLowerCase();
+    return url.endsWith('.mp4') || 
+           url.endsWith('.webm') || 
+           url.endsWith('.mov') || 
+           url.endsWith('.avi') ||
+           url.includes('/video/') ||
+           url.includes('video/mp4') ||
+           url.includes('video/webm');
+  }, [content.image_url]);
+
+  const isAnimatedGif = React.useMemo(() => {
+    if (!content.image_url) return false;
+    const url = content.image_url.toLowerCase();
+    return url.endsWith('.gif') || url.includes('image/gif');
+  }, [content.image_url]);
+
+  const planMeta = React.useMemo(() => {
+    if (content.plan_type === 'enterprise') {
+      return { label: 'Premium', dot: 'bg-amber-400' };
+    }
+    if (content.plan_type === 'professional') {
+      return { label: 'Pro', dot: 'bg-blue-400' };
+    }
+    return { label: 'Basic', dot: 'bg-slate-300' };
+  }, [content.plan_type]);
 
   return (
     <div
       ref={cardRef}
-      className={`relative w-full h-20 rounded-md overflow-hidden cursor-pointer group transition-all duration-200 shadow-sm ${
+      className={`relative w-full h-[84px] rounded-lg overflow-hidden cursor-pointer group transition-all duration-300 ${
         content.is_pinned 
-          ? 'ring-2 ring-amber-400/50 hover:ring-amber-400' 
+          ? 'ring-2 ring-amber-400/60 shadow-lg shadow-amber-400/20' 
           : content.is_featured 
-            ? 'ring-1 ring-blue-400/30 hover:ring-blue-400/50' 
-            : 'hover:opacity-90 hover:scale-[1.02]'
-      } ${!hasImage ? 'bg-gradient-to-br from-primary/20 to-primary/40' : ''}`}
+            ? 'ring-2 ring-blue-400/50 shadow-lg shadow-blue-400/10' 
+            : 'shadow-md hover:shadow-xl'
+      } hover:scale-[1.02] ${!hasImage ? 'bg-gradient-to-br from-slate-700 via-slate-600 to-slate-700' : ''}`}
       onClick={handleClick}
     >
-      {/* Background Image - only if image_url exists */}
+      {/* Background Media */}
       {hasImage && (
         <>
-          <img
-            className="absolute inset-0 w-full h-full object-cover"
-            alt={content.title}
-            src={content.image_url}
-            onError={(e) => {
-              // If image fails to load, hide it and show text instead
-              (e.target as HTMLImageElement).style.display = 'none';
-            }}
-          />
-          {/* Gradient Overlay - only when image exists */}
-          <div className="absolute inset-0 bg-[linear-gradient(181deg,rgba(42,65,73,0)_0%,rgba(42,65,73,1)_100%)]" />
+          {isVideo ? (
+            <video
+              className="absolute inset-0 w-full h-full object-cover"
+              src={content.image_url}
+              autoPlay
+              loop
+              muted
+              playsInline
+              onError={(e) => {
+                (e.target as HTMLVideoElement).style.display = 'none';
+              }}
+            />
+          ) : (
+            <img
+              className="absolute inset-0 w-full h-full object-cover"
+              alt={content.title}
+              src={content.image_url}
+              loading={isAnimatedGif ? 'eager' : 'lazy'}
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20" />
         </>
       )}
 
-      {/* Text Content - shown when no image or image fails to load */}
-      {!hasImage && (
-        <div className="absolute inset-0 flex flex-col justify-between p-2.5">
-          <div className="flex-1 flex flex-col justify-center">
-            <h3 className="text-white font-semibold text-xs leading-tight mb-1 line-clamp-2">
-              {content.title}
-            </h3>
-            {content.description && (
-              <p className="text-white/80 text-[10px] leading-tight line-clamp-2">
-                {content.description}
-              </p>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Plan Badge (Top Right) */}
+      {/* Status Badge (Top Left) */}
       {(content.is_pinned || content.is_featured) && (
-        <div className="absolute top-1.5 right-1.5 flex items-center gap-1">
+        <div className="absolute top-2 left-2 z-10">
           {content.is_pinned && (
-            <div className="bg-amber-500/90 backdrop-blur-sm rounded px-1.5 py-0.5 flex items-center gap-0.5">
-              <Pin className="w-2.5 h-2.5 text-white" />
-              <span className="text-[8px] font-semibold text-white">PINNED</span>
+            <div className="bg-amber-400/30 border border-amber-200/30 rounded-full p-1 flex items-center justify-center backdrop-blur-sm">
+              <Pin className="w-2.5 h-2.5 text-white/90" />
             </div>
           )}
           {content.is_featured && !content.is_pinned && (
-            <div className="bg-blue-500/90 backdrop-blur-sm rounded px-1.5 py-0.5 flex items-center gap-0.5">
-              <Star className="w-2.5 h-2.5 text-white" />
-              <span className="text-[8px] font-semibold text-white">FEATURED</span>
+            <div className="bg-blue-400/30 border border-blue-200/30 rounded-full p-1 flex items-center justify-center backdrop-blur-sm">
+              <Star className="w-2.5 h-2.5 text-white/90" />
             </div>
           )}
         </div>
       )}
 
-      {/* Location (Bottom Left) - only show when image exists */}
-      {hasImage && (
-        <div className="absolute bottom-2 left-2 [font-family:'Roboto',Helvetica] font-medium text-white text-xs">
-          {content.location || 'Global'}
+      {/* Plan Type Badge (Top Right) - simplified */}
+      <div className="absolute top-2 right-2 z-10">
+        <div className="flex items-center gap-1 rounded-full px-2 py-0.5 border border-white/10 bg-black/30 backdrop-blur-sm shadow-sm">
+          <span className={`w-2 h-2 rounded-full ${planMeta.dot}`} />
+          <span className="text-[10px] font-semibold text-white/90 uppercase">
+            {planMeta.label}
+          </span>
         </div>
-      )}
-
-      {/* Time/Status (Bottom Right) */}
-      <div className={`absolute bottom-2 right-2 flex items-center gap-1 ${!hasImage ? 'text-white/90' : ''}`}>
-        {content.click_url && (
-          <ExternalLink className="w-2.5 h-2.5 text-white/70" />
-        )}
-        <span className="[font-family:'Roboto',Helvetica] font-medium text-white text-[10px]">
-          {content.plan_type === 'enterprise' ? 'Premium' : content.plan_type === 'professional' ? 'Pro' : 'Ad'}
-        </span>
       </div>
-      
-      {/* Location (Bottom Left) - show when no image */}
-      {!hasImage && (
-        <div className="absolute bottom-2 left-2 [font-family:'Roboto',Helvetica] font-medium text-white/80 text-[10px]">
-          {content.location || 'Global'}
-        </div>
-      )}
 
-      {/* Play Icon (Center) - if provided */}
-      {content.play_icon_url && (
-        <img
-          className="absolute top-1/2 left-1/2 w-6 h-6 -translate-x-1/2 -translate-y-1/2 opacity-80 group-hover:opacity-100 transition-opacity"
-          alt="Play"
-          src={content.play_icon_url}
-          onError={(e) => {
-            (e.target as HTMLImageElement).style.display = 'none';
-          }}
-        />
+      {/* Content Area */}
+      <div className="absolute inset-0 flex flex-col justify-end p-2">
+        {/* Title & Description */}
+        <div className="space-y-0.5 mb-1">
+          <h3 className="text-white font-bold text-[12px] leading-tight line-clamp-2 drop-shadow-lg">
+            {content.title}
+          </h3>
+          {content.description && (
+            <p className="text-white/90 text-[10px] leading-snug line-clamp-1 drop-shadow">
+              {content.description}
+            </p>
+          )}
+        </div>
+
+        {/* Footer Info */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1 text-white/80">
+            <MapPin className="w-3 h-3" />
+            <span className="text-[10px] font-medium">
+              {content.location || 'Global'}
+            </span>
+          </div>
+          
+          {content.click_url && (
+            <div className="flex items-center gap-1 bg-white/20 backdrop-blur-sm rounded-full px-2 py-0.5 group-hover:bg-white/30 transition-colors">
+              <span className="text-[10px] font-semibold text-white">Visit</span>
+              <ExternalLink className="w-3 h-3 text-white" />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Play Icon for Videos */}
+      {content.play_icon_url && isVideo && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-70 group-hover:opacity-90 transition-opacity pointer-events-none">
+          <img
+            className="w-8 h-8 drop-shadow-lg"
+            alt="Video"
+            src={content.play_icon_url}
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />
+        </div>
       )}
 
       {/* Hover Overlay */}
-      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+      <div className="absolute inset-0 bg-white/0 group-hover:bg-white/5 transition-colors" />
     </div>
   );
 };
 
-// Loading skeleton
 const SponsoredCardSkeleton: React.FC = () => (
-  <div className="relative w-full h-20 rounded-md overflow-hidden bg-gray-700/50 animate-pulse">
-    <div className="absolute inset-0 bg-gradient-to-t from-gray-800 to-transparent" />
-    <div className="absolute bottom-2 left-2 w-12 h-3 bg-gray-600 rounded" />
-    <div className="absolute bottom-2 right-2 w-8 h-2 bg-gray-600 rounded" />
+  <div className="relative w-full h-[84px] rounded-lg overflow-hidden bg-slate-700/50 animate-pulse">
+    <div className="absolute inset-0 bg-gradient-to-t from-slate-800 to-transparent" />
+    <div className="absolute top-2 right-2 w-12 h-5 bg-slate-600 rounded-md" />
+    <div className="absolute bottom-3 left-3 space-y-2">
+      <div className="w-32 h-4 bg-slate-600 rounded" />
+      <div className="w-20 h-3 bg-slate-600 rounded" />
+    </div>
   </div>
 );
 
-export const SponsoredSection = (): JSX.Element => {
-  const { t } = useLanguage();
-  const { data, isLoading, error, trackView, trackClick } = useSponsoredContent({
-    location: 'map',
-    limit: 10,
-  });
-
+const PlanCarousel: React.FC<{
+  items: SponsoredContent[];
+  accentClass: string;
+  onView: (id: string) => void;
+  onClick: (id: string) => void;
+}> = ({ items, accentClass, onView, onClick }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const rotationIntervalRef = useRef<number | null>(null);
 
-  // Auto-rotate ads every 5 seconds (only if multiple ads)
+  const CARD_WIDTH = 220;
+  const CARD_GAP = 8;
+
   useEffect(() => {
-    if (data.length <= 1 || isLoading || isPaused) {
+    if (items.length <= 1 || isPaused) {
       if (rotationIntervalRef.current) {
         clearInterval(rotationIntervalRef.current);
         rotationIntervalRef.current = null;
@@ -185,98 +227,171 @@ export const SponsoredSection = (): JSX.Element => {
     }
 
     rotationIntervalRef.current = window.setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % data.length);
-    }, 3000); // Rotate every 5 seconds
+      setCurrentIndex((prev) => (prev + 1) % items.length);
+    }, 3000);
 
     return () => {
       if (rotationIntervalRef.current) {
         clearInterval(rotationIntervalRef.current);
       }
     };
-  }, [data.length, isLoading, isPaused]);
+  }, [items.length, isPaused]);
 
-  // Scroll to show the current ad when index changes
   useEffect(() => {
-    if (!scrollContainerRef.current || data.length <= 1 || isLoading) {
-      return;
-    }
+    if (!scrollContainerRef.current) return;
+    setCurrentIndex(0);
+    scrollContainerRef.current.scrollTo({ left: 0, top: 0, behavior: 'auto' });
+  }, [items]);
 
-    const container = scrollContainerRef.current;
-    const cardHeight = 80 + 10; // card height (h-20 = 80px) + gap (space-y-2.5 = 10px)
-    const scrollPosition = currentIndex * cardHeight;
-
-    container.scrollTo({
-      top: scrollPosition,
+  useEffect(() => {
+    if (!scrollContainerRef.current || items.length <= 1) return;
+    const scrollPosition = currentIndex * (CARD_WIDTH + CARD_GAP);
+    scrollContainerRef.current.scrollTo({
+      left: scrollPosition,
       behavior: 'smooth',
     });
-  }, [currentIndex, data.length, isLoading]);
+  }, [currentIndex, items.length]);
 
-  // Pause on hover
-  const handleMouseEnter = () => setIsPaused(true);
-  const handleMouseLeave = () => setIsPaused(false);
+  return (
+    <div className="space-y-1">
+      <div className={`${accentClass} h-[2px] w-full rounded-full bg-current opacity-60`} />
+      <div
+        ref={scrollContainerRef}
+        className="flex overflow-x-auto overflow-y-hidden custom-scrollbar pb-0.5"
+        style={{
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
+        }}
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+      >
+        <style>{`
+          .custom-scrollbar::-webkit-scrollbar {
+            display: none;
+            height: 0;
+          }
+          .custom-scrollbar {
+            scrollbar-width: none;
+          }
+        `}</style>
+        <div className="flex items-stretch gap-2" style={{ minWidth: 'max-content' }}>
+          {items.map((content) => (
+            <div key={content.id} className="min-w-[220px] max-w-[220px] flex-shrink-0">
+              <SponsoredCard
+                content={content}
+                onView={onView}
+                onClick={onClick}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export const SponsoredSection = (): JSX.Element => {
+  const { t } = useLanguage();
+  const { data, isLoading, error, trackView, trackClick } = useSponsoredContent({
+    location: 'map',
+    limit: 10,
+  });
+
+  const sortAds = (ads: SponsoredContent[]) => {
+    return [...ads].sort((a, b) => {
+      if (a.is_pinned !== b.is_pinned) return a.is_pinned ? -1 : 1;
+      if (a.is_featured !== b.is_featured) return a.is_featured ? -1 : 1;
+      const orderDiff = (a.display_order ?? 9999) - (b.display_order ?? 9999);
+      if (orderDiff !== 0) return orderDiff;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  };
+
+  const planGroups = useMemo(() => {
+    const activeAds = data.filter((ad) => ad.is_active);
+    const groups = [
+      { key: 'enterprise' as const, title: 'Premium', accent: 'text-amber-400' },
+      { key: 'professional' as const, title: 'Professional', accent: 'text-blue-400' },
+      { key: 'basic' as const, title: 'Basic', accent: 'text-slate-300' },
+    ];
+
+    return groups
+      .map((g) => ({
+        ...g,
+        items: sortAds(activeAds.filter((ad) => ad.plan_type === g.key)),
+      }))
+      .filter((g) => g.items.length > 0);
+  }, [data]);
+
+  const totalAds = planGroups.reduce((sum, g) => sum + g.items.length, 0);
 
   return (
     <div
-      className="w-full lg:w-[240px] rounded-lg border border-[#EAEBF024] bg-[#FFFFFF14] shadow-lg flex flex-col overflow-hidden lg:h-[380px] h-[500px] max-h-[55vh] lg:max-h-[380px]"
+      className="w-full lg:w-[240px] rounded-xl border-2 border-slate-700/50 bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-sm shadow-2xl flex flex-col overflow-hidden lg:h-[380px] h-[440px] max-h-[70vh] lg:max-h-[420px]"
       style={{ boxSizing: 'border-box' }}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
     >
       {/* Header */}
-      <div className="px-4 pt-4 pb-3 border-b border-[#EAEBF024]/50 flex items-center justify-between">
-        <Badge
-          variant="secondary"
-          className="bg-transparent border-none [font-family:'Inter',Helvetica] font-medium text-[#a7a7a7] text-sm"
-        >
-          {t("news.sponsored")}
-        </Badge>
-        {data.length > 0 && !isLoading && (
-          <span className="text-[10px] text-[#a7a7a7]/60">{data.length} {t("news.ads")}</span>
-        )}
+      <div className="px-3 pt-2.5 pb-2 border-b border-slate-700/50 bg-slate-800/50">
+        <div className="flex items-center gap-2">
+          <div className="w-1 h-5 bg-gradient-to-b from-amber-400 to-blue-400 rounded-full" />
+          <span className="font-bold text-white text-[13px] tracking-wide">
+            {t("news.sponsored")}
+          </span>
+        </div>
       </div>
 
       {/* Content */}
       <div 
-        ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto min-h-0 custom-scrollbar px-4 py-3"
+        className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 px-3 py-1.5 space-y-1.5"
       >
         {isLoading ? (
-          // Loading state
-          <div className="space-y-2.5">
-            <SponsoredCardSkeleton />
-            <SponsoredCardSkeleton />
-            <SponsoredCardSkeleton />
+          <div className="space-y-1.5">
+            <div className="flex items-stretch gap-2" style={{ minWidth: 'max-content' }}>
+              <div className="min-w-[220px] max-w-[220px]">
+                <SponsoredCardSkeleton />
+              </div>
+              <div className="min-w-[220px] max-w-[220px]">
+                <SponsoredCardSkeleton />
+              </div>
+              <div className="min-w-[220px] max-w-[220px]">
+                <SponsoredCardSkeleton />
+              </div>
+            </div>
           </div>
         ) : error ? (
-          // Error state (still shows fallback data from hook)
-          <div className="space-y-2.5">
-            {data.map((content) => (
-              <SponsoredCard
-                key={content.id}
-                content={content}
+          <div className="space-y-1.5">
+            {planGroups.map((group) => (
+              <PlanCarousel
+                key={group.key}
+                items={group.items}
+                accentClass={group.accent}
                 onView={trackView}
                 onClick={trackClick}
               />
             ))}
           </div>
-        ) : data.length === 0 ? (
-          // Empty state
+        ) : totalAds === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-center py-8">
-            <div className="text-[#a7a7a7]/60 text-sm mb-2">{t("news.noSponsoredContent")}</div>
+            <div className="w-16 h-16 rounded-full bg-slate-700/50 flex items-center justify-center mb-4">
+              <Star className="w-8 h-8 text-slate-500" />
+            </div>
+            <div className="text-slate-400 text-sm font-medium mb-3">
+              {t("news.noSponsoredContent")}
+            </div>
             <a
               href="/?tab=advertise"
-              className="text-xs text-primary hover:underline"
+              className="text-xs text-blue-400 hover:text-blue-300 font-semibold hover:underline transition-colors"
             >
-              {t("news.advertiseWithUs")}
+              {t("news.advertiseWithUs")} →
             </a>
           </div>
         ) : (
-          // Data display
-          <div className="space-y-2.5">
-            {data.map((content) => (
-              <SponsoredCard
-                key={content.id}
-                content={content}
+          <div className="space-y-1.5">
+            {planGroups.map((group) => (
+              <PlanCarousel
+                key={group.key}
+                items={group.items}
+                accentClass={group.accent}
                 onView={trackView}
                 onClick={trackClick}
               />
@@ -284,18 +399,6 @@ export const SponsoredSection = (): JSX.Element => {
           </div>
         )}
       </div>
-
-      {/* Footer - Advertise CTA */}
-      {!isLoading && (
-        <div className="px-4 py-2 border-t border-[#EAEBF024]/30">
-          <a
-            href="/?tab=advertise"
-            className="text-[10px] text-[#a7a7a7]/60 hover:text-primary transition-colors block text-center"
-          >
-            {t("news.wantToAdvertiseHere")} →
-          </a>
-        </div>
-      )}
     </div>
   );
 };

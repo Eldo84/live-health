@@ -29,7 +29,7 @@ export const GlobalHealthIndex = (): JSX.Element => {
     { id: "overview", title: "Overview", icon: BarChart3, component: OverviewSection },
     { id: "demographics", title: "Age & Sex Patterns", icon: Users, component: DemographicsSection },
     { id: "trends", title: "Time Trends", icon: TrendingUp, component: TrendsSection },
-    { id: "risk", title: "Risk Factor Insights", icon: Network, component: RiskFactorsSection },
+    // { id: "risk", title: "Risk Factor Insights", icon: Network, component: RiskFactorsSection },
     { id: "geographic", title: "Geographic Patterns", icon: MapPin, component: GeographicSection },
     { id: "daly", title: "DALY & Intervention Analysis", icon: Activity, component: DALYSection }
   ];

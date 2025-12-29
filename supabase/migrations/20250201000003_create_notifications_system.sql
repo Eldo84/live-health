@@ -132,14 +132,7 @@ BEGIN
   WHERE user_id = p_user_id
     AND status IN ('pending_review', 'approved_pending_payment', 'changes_requested');
   
-  -- Check rate limits
-  IF v_stats.total_submissions >= 5 AND 
-     v_stats.last_submission_at > NOW() - INTERVAL '30 days' THEN
-    RETURN jsonb_build_object(
-      'allowed', false,
-      'reason', 'Maximum 5 submissions per 30 days. You have ' || v_stats.total_submissions || ' submissions in the last 30 days.'
-    );
-  END IF;
+  -- Rate limit check removed - no longer limiting submissions per 30 days
   
   IF v_pending_count >= 2 THEN
     RETURN jsonb_build_object(

@@ -10,14 +10,20 @@ import { FilterState } from "./sections/FilterPanel";
 import { Input } from "../../components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "../../components/ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "../../components/ui/sheet";
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "../../components/ui/collapsible";
 import { useSupabaseOutbreakSignals, categoriesMatch } from "../../lib/useSupabaseOutbreakSignals";
 import { useOutbreakCategories } from "../../lib/useOutbreakCategories";
 import { detectCountryInText, geocodeLocation } from "../../lib/geocode";
 import { geocodeWithOpenCage } from "../../lib/opencage";
 import { useUserLocation } from "../../lib/useUserLocation";
+import { useSponsoredContent } from "../../lib/useSponsoredContent";
 import { Maximize2, Minimize2, X, RefreshCcw, Utensils, Droplet, Bug, Wind, Handshake, Hospital, PawPrint, Heart, Shield, AlertTriangle, MapPin, Brain, Syringe, Activity, AlertCircle, Beaker, Dna, Stethoscope, Cloud, Waves, Sparkles, Filter } from "lucide-react";
 import { useFullscreen } from "../../contexts/FullscreenContext";
+import { useFilterPanel } from "../../contexts/FilterPanelContext";
 import { calculateDistance } from "../../lib/utils";
+
+const MOBILE_ADS_HEIGHT = 90; // Height for mobile ads section
+const MOBILE_BOTTOM_NAV_HEIGHT = 72;
 
 // Removed demo outbreaks; using data-driven InteractiveMap
 
@@ -41,8 +47,9 @@ export const HomePageMap = (): JSX.Element => {
   const locationAutoAppliedRef = React.useRef(false);
   const [nearMeRadius, setNearMeRadius] = React.useState<number>(500); // Default 500km
   const [nearMeCategory, setNearMeCategory] = React.useState<string | null>(null);
-  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = React.useState(false);
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
+  const [isCategoriesPanelOpen, setIsCategoriesPanelOpen] = React.useState(false);
+  const { isMobileFiltersOpen, setIsMobileFiltersOpen } = useFilterPanel();
   const [hoveredCategory, setHoveredCategory] = React.useState<string | null>(null);
   const [hoveredCategoryPosition, setHoveredCategoryPosition] = React.useState<{ x: number; y: number } | null>(null);
   
@@ -658,6 +665,37 @@ export const HomePageMap = (): JSX.Element => {
     setIsUserLocationZoom(false);
   };
 
+  // Listen for category selection from header button (mobile)
+  React.useEffect(() => {
+    const handleCategoryEvent = (event: Event) => {
+      const customEvent = event as CustomEvent<{ categoryName: string }>;
+      if (customEvent.detail?.categoryName) {
+        const categoryName = customEvent.detail.categoryName;
+        setFilters(prev => {
+          const isClearing = prev.category === categoryName;
+          if (isClearing) {
+            setNearMeCategory(null);
+          }
+          return {
+            ...prev,
+            category: isClearing ? null : categoryName,
+            country: null,
+            diseaseSearch: "",
+            diseaseType: "all",
+            nearMe: null,
+          };
+        });
+        setZoomTarget(null);
+        setIsUserLocationZoom(false);
+      }
+    };
+
+    window.addEventListener('outbreakCategorySelected', handleCategoryEvent);
+    return () => {
+      window.removeEventListener('outbreakCategorySelected', handleCategoryEvent);
+    };
+  }, []);
+
   // Calculate category statistics
   const categoryStats = React.useMemo(() => {
     const stats: Record<string, { cases: number; severity: string }> = {};
@@ -993,8 +1031,8 @@ export const HomePageMap = (): JSX.Element => {
   }, [isMapFullscreen, isMobile]); // Recalculate when fullscreen or mobile changes
 
   return (
-    <div className={`bg-[#2a4149] relative ${isMapFullscreen ? 'fixed inset-0 w-full h-full overflow-hidden z-[2000]' : isMobile ? 'absolute inset-0 w-full h-screen overflow-hidden' : 'min-h-screen'}`}>
-      <div className={`relative w-full ${isMobile ? 'h-screen' : ''} ${isMobile ? '' : 'lg:min-w-[1280px]'}`} style={{ minHeight: isMobile ? '100vh' : 'calc(100vh + 320px)', paddingBottom: isMobile ? '0' : '320px', marginBottom: isMobile ? '0' : '0px' }}>
+    <div className={`bg-[#2a4149] relative ${isMapFullscreen ? 'fixed inset-0 w-full h-full overflow-hidden z-[2000]' : isMobile ? 'fixed inset-0 w-full h-full overflow-hidden' : 'min-h-screen'}`}>
+      <div className={`relative w-full ${isMobile ? 'h-full' : ''} ${isMobile ? '' : 'lg:min-w-[1280px]'}`} style={{ minHeight: isMobile ? '100%' : 'calc(100vh + 320px)', paddingBottom: isMobile ? '0' : '320px', marginBottom: isMobile ? '0' : '0px' }}>
         {/* Location Detection Notification */}
         {showLocationNotification && location && (
           <div className={`absolute ${isMobile ? 'top-16' : 'top-20'} left-1/2 transform -translate-x-1/2 z-[1100] bg-[#67DBE2] text-[#2a4149] px-3 py-2 ${isMobile ? 'text-xs' : 'px-4 py-3'} rounded-lg shadow-lg flex items-center gap-2 ${isMobile ? 'max-w-[90vw]' : ''} animate-in fade-in slide-in-from-top-2 duration-300`}>
@@ -1049,133 +1087,7 @@ export const HomePageMap = (): JSX.Element => {
           </h1>
         </div>
         
-        {/* Mobile Header Title - Hidden when Sheet overlay is visible */}
-        {!isMapFullscreen && isMobile && !isSheetOpen && !isMobileFiltersOpen && (
-          <div className="absolute top-2 left-2 right-2 z-40 lg:hidden">
-            <h1 className="[font-family:'Roboto',Helvetica] font-bold text-[#67DBE2] text-lg leading-tight">
-              Global Outbreak & Disease Monitoring
-            </h1>
-          </div>
-        )}
 
-        {/* Mobile Filter Button */}
-        {!isMapFullscreen && isMobile && (
-          <div className="absolute top-2 right-2 z-40 lg:hidden flex gap-2">
-            <Sheet open={isMobileFiltersOpen} onOpenChange={setIsMobileFiltersOpen}>
-              <SheetTrigger asChild>
-                <button className="bg-[#2a4149] hover:bg-[#305961] text-[#67DBE2] p-2 rounded-lg shadow-lg border border-[#67DBE2]/30 flex items-center justify-center">
-                  <Filter className="w-5 h-5" />
-                </button>
-              </SheetTrigger>
-              <SheetContent side="top" className="bg-[#2a4149] border-[#67DBE2]/20 max-h-[80vh] overflow-y-auto">
-                <SheetHeader>
-                  <SheetTitle className="text-[#67DBE2]">Filters & Search</SheetTitle>
-                </SheetHeader>
-                <div className="mt-4 space-y-4">
-                  {/* Date Range Tabs */}
-                  <div>
-                    <label className="text-white text-sm mb-2 block">Time Range</label>
-                    <div className="flex items-center h-[38px] rounded-[6px] border border-[#DAE0E633] bg-transparent px-1 py-1 shadow-[0px_1px_2px_#1018280a]">
-                      <Tabs
-                        value={filters.dateRange || "7d"}
-                        onValueChange={(value) => setFilters(prev => ({ ...prev, dateRange: value }))}
-                        className="w-full"
-                      >
-                        <TabsList className="grid w-full h-full grid-cols-6 bg-transparent border-0 gap-1">
-                          {["24h", "7d", "14d", "30d", "6m", "1y"].map((range) => (
-                            <TabsTrigger
-                              key={range}
-                              value={range}
-                              className="text-xs font-semibold text-[#EBEBEBCC] data-[state=active]:bg-[#FFFFFF24] data-[state=active]:text-white rounded-[4px] h-full"
-                            >
-                              {range}
-                            </TabsTrigger>
-                          ))}
-                        </TabsList>
-                      </Tabs>
-                    </div>
-                  </div>
-                  
-                  {/* Search Bar */}
-                  <div>
-                    <label className="text-white text-sm mb-2 block">Search</label>
-                    <div className="flex h-[40px] items-center gap-2 px-2.5 bg-[#FFFFFF24] rounded-[6px] overflow-hidden border border-solid border-[#DAE0E633] shadow-[0px_1px_2px_#1018280A]">
-                      <img
-                        className="relative w-[16px] h-[16px] flex-shrink-0"
-                        alt="Search"
-                        src="/zoom-search.svg"
-                      />
-                      <Input
-                        type="text"
-                        placeholder="Search..."
-                        value={filters.diseaseSearch || ""}
-                        onChange={(e) => handleSearchChange(e.target.value)}
-                        className="flex-1 bg-transparent border-0 text-[#EBEBEB] text-xs [font-family:'Roboto',Helvetica] font-medium tracking-[-0.10px] leading-5 placeholder:text-[#EBEBEB] focus-visible:ring-0 focus-visible:ring-offset-0 h-auto p-0 min-w-0"
-                      />
-                      {filters.diseaseSearch && (
-                        <button
-                          onClick={() => {
-                            setFilters(prev => ({ ...prev, diseaseSearch: "", country: null }));
-                            setZoomTarget(null);
-                          }}
-                          className="flex items-center justify-center w-4 h-4 text-[#EBEBEB99] hover:text-[#EBEBEB] transition-colors flex-shrink-0"
-                          aria-label="Clear search"
-                        >
-                          <X className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Disease Type Filter */}
-                  <div>
-                    <label className="text-white text-sm mb-2 block">Disease Type</label>
-                    <select
-                      value={filters.diseaseType || "all"}
-                      onChange={(e) => {
-                        const newValue = e.target.value === "all" ? "all" : e.target.value as "human" | "veterinary" | "zoonotic";
-                        setFilters(prev => ({ 
-                          ...prev, 
-                          diseaseType: newValue,
-                          category: null,
-                        }));
-                        if (newValue === "all") {
-                          setZoomTarget(null);
-                          setIsUserLocationZoom(false);
-                        }
-                      }}
-                      className="w-full h-[40px] px-2.5 bg-[#FFFFFF24] rounded-[6px] border border-solid border-[#DAE0E633] text-[#EBEBEB] text-xs [font-family:'Roboto',Helvetica] font-medium tracking-[-0.10px] shadow-[0px_1px_2px_#1018280A] focus:outline-none focus:ring-2 focus:ring-[#67DBE2]/50 [&>option]:bg-[#2a4149] [&>option]:text-white"
-                    >
-                      <option value="all">All Types</option>
-                      <option value="human">Human Only</option>
-                      <option value="veterinary">Veterinary Only</option>
-                      <option value="zoonotic">Zoonotic (Both)</option>
-                    </select>
-                  </div>
-                  
-                  
-                  {/* Reset Button */}
-                  <button
-                    onClick={() => {
-                      handleResetFilters();
-                      setIsMobileFiltersOpen(false);
-                    }}
-                    className="w-full flex items-center justify-center gap-2 h-[40px] rounded-[6px] border border-[#DAE0E633] bg-[#FFFFFF14] text-[#EBEBEBCC] hover:text-white hover:bg-[#FFFFFF24] transition-colors shadow-[0px_1px_2px_#1018280A]"
-                  >
-                    <RefreshCcw className="w-3.5 h-3.5" />
-                    <span className="text-xs">Reset Filters</span>
-                  </button>
-                  
-                  {/* Navigation Tabs - Commented out */}
-                  {/* <div className="pt-4 border-t border-[#DAE0E633]">
-                    <NavigationTabsSection />
-                  </div> */}
-                </div>
-              </SheetContent>
-            </Sheet>
-            
-          </div>
-        )}
 
         {/* Filters and Navigation - Top Right - Desktop Only */}
         <div className={`hidden lg:absolute top-[32px] z-[1000] lg:flex flex-col items-end gap-3 transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} style={{ right: '200px' }}>
@@ -1269,183 +1181,194 @@ export const HomePageMap = (): JSX.Element => {
           </div> */}
         </div>
 
-        {/* Outbreak Categories - Above Map */}
-        <style>{`
-          .category-icons-scrollable::-webkit-scrollbar {
-            display: none;
-          }
-          .category-icons-scrollable {
-            -ms-overflow-style: none;
-            scrollbar-width: none;
-          }
-        `}</style>
-        
-        {/* Desktop Category Icons - Above Map */}
-        <div 
-          className={`hidden lg:block lg:absolute z-40 transition-all duration-300 ${isMapFullscreen || isDialogOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
-          style={{
-            top: isMapFullscreen ? 'auto' : '120px',
-            left: '90px',
-            right: isMapFullscreen ? 'auto' : '260px',
-            height: 'auto',
-            minHeight: '60px',
-            overflow: 'visible',
-            position: 'absolute',
-            visibility: isMapFullscreen || isDialogOpen ? 'hidden' : 'visible',
-            paddingBottom: '25px',
-            marginBottom: '15px',
-          }}
-        >
-          {/* Scrollable container for icons */}
-          <div 
-            className="category-icons-scrollable"
-            style={{
-              overflowX: 'auto',
-              overflowY: 'visible',
-              scrollbarWidth: 'none',
-              paddingRight: '20px',
-              paddingLeft: '0',
-              paddingBottom: '5px',
-              paddingTop: '0',
-              position: 'relative',
-              height: '60px',
-            }}
-          >
-            <div className="flex items-center gap-[18px] flex-nowrap" style={{ minWidth: 'max-content', paddingLeft: '0', paddingRight: '10px', paddingBottom: '0', paddingTop: '0', alignItems: 'center', display: 'flex', marginBottom: '0', height: '48px' }}>
-              {diseaseCategories.map((category) => {
-                return (
-                  <div 
-                    key={category.name} 
-                    className="relative flex flex-col items-center flex-shrink-0" 
-                    style={{ minWidth: '44px' }}
-                    onMouseEnter={(e) => handleMouseEnter(category.name, e)}
-                    onMouseLeave={handleMouseLeave}
-                  >
-                    <button
-                      onClick={() => handleCategoryClick(category.name)}
-                      className="flex items-center justify-center rounded-full cursor-pointer transition-all duration-200 relative"
-                      style={{
-                        width: '44px',
-                        height: '44px',
-                        backgroundColor: '#FFFFFF',
-                        border: 'none',
-                        boxShadow: filters.category === category.name 
-                          ? `0 0 14px ${category.color}60, 0 4px 8px rgba(0,0,0,0.3)` 
-                          : `0 2px 4px rgba(0,0,0,0.2)`,
-                      }}
-                    >
-                      <div 
-                        className="absolute inset-0 rounded-full"
-                        style={{
-                          backgroundColor: category.color,
-                          width: filters.category === category.name ? '44px' : '40px',
-                          height: filters.category === category.name ? '44px' : '40px',
-                          margin: 'auto',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          transition: 'all 0.2s',
-                        }}
-                      >
-                        {React.createElement(category.icon, {
-                          style: {
-                            width: '26px',
-                            height: '26px',
-                            color: '#FFFFFF',
-                            stroke: '#FFFFFF',
-                            fill: 'none',
-                            strokeWidth: 2.5,
-                          }
-                        })}
-                      </div>
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* Mobile Category Icons - Above Map */}
+        {/* Mobile Filters Panel */}
         {!isMapFullscreen && isMobile && (
-          <div 
-            className={`absolute z-40 transition-all duration-300 ${isDialogOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'} bg-[#2a4149]/95 backdrop-blur-sm`}
+          <>
+            {/* Backdrop Overlay */}
+            {isMobileFiltersOpen && (
+              <div 
+                className="lg:hidden fixed inset-0 bg-black/50 z-[1190]"
+                onClick={() => setIsMobileFiltersOpen(false)}
+              />
+            )}
+
+            {/* Filter Panel - Slides down from top */}
+            {isMobileFiltersOpen && (
+              <div className="lg:hidden fixed top-[56px] left-0 right-0 z-[1200] bg-[#2a4149] border-b border-[#EAEBF024] shadow-xl max-h-[calc(80vh-56px)] overflow-y-auto animate-in slide-in-from-top-2 duration-300">
+                <div className="sticky top-0 bg-[#315C64B2] border-b border-[#EAEBF024] px-4 py-3 flex items-center justify-between backdrop-blur-sm">
+                  <div className="flex items-center gap-2">
+                    <Filter className="w-5 h-5 text-[#67DBE2]" />
+                    <h3 className="text-base font-semibold text-white">Filters</h3>
+                  </div>
+                  <button
+                    onClick={() => setIsMobileFiltersOpen(false)}
+                    className="w-8 h-8 flex items-center justify-center text-white hover:bg-[#305961]/50 rounded transition-colors"
+                    aria-label="Close filters"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                <div className="p-4 space-y-4">
+                  {/* Date Range Tabs */}
+                  <div>
+                    <label className="text-xs font-semibold text-white mb-2 block">Date Range</label>
+                    <div className="flex items-center h-[36px] rounded-[6px] border border-[#DAE0E633] bg-transparent px-1 py-1 shadow-[0px_1px_2px_#1018280a]">
+                      <Tabs
+                        value={filters.dateRange || "7d"}
+                        onValueChange={(value) => setFilters(prev => ({ ...prev, dateRange: value }))}
+                        className="w-full"
+                      >
+                        <TabsList className="grid w-full h-full grid-cols-6 bg-transparent border-0 gap-1">
+                          {["24h", "7d", "14d", "30d", "6m", "1y"].map((range) => (
+                            <TabsTrigger
+                              key={range}
+                              value={range}
+                              className="text-xs font-semibold text-[#EBEBEBCC] data-[state=active]:bg-[#FFFFFF24] data-[state=active]:text-white rounded-[4px] h-full"
+                            >
+                              {range}
+                            </TabsTrigger>
+                          ))}
+                        </TabsList>
+                      </Tabs>
+                    </div>
+                  </div>
+
+                  {/* Search Bar */}
+                  <div>
+                    <label className="text-xs font-semibold text-white mb-2 block">Search</label>
+                    <div className="flex h-[36px] items-center gap-2 px-2.5 bg-[#FFFFFF24] rounded-[6px] overflow-hidden border border-solid border-[#DAE0E633] shadow-[0px_1px_2px_#1018280A]">
+                      <img
+                        className="relative w-[14px] h-[14px] flex-shrink-0"
+                        alt="Search"
+                        src="/zoom-search.svg"
+                      />
+                      <Input
+                        type="text"
+                        placeholder="Search disease or country..."
+                        value={filters.diseaseSearch || ""}
+                        onChange={(e) => handleSearchChange(e.target.value)}
+                        className="flex-1 bg-transparent border-0 text-[#EBEBEB] text-xs [font-family:'Roboto',Helvetica] font-medium tracking-[-0.10px] leading-5 placeholder:text-[#EBEBEB] focus-visible:ring-0 focus-visible:ring-offset-0 h-auto p-0 min-w-0"
+                      />
+                      {filters.diseaseSearch && (
+                        <button
+                          onClick={() => {
+                            setFilters(prev => ({ ...prev, diseaseSearch: "", country: null }));
+                            setZoomTarget(null);
+                          }}
+                          className="flex items-center justify-center w-4 h-4 text-[#EBEBEB99] hover:text-[#EBEBEB] transition-colors flex-shrink-0"
+                          aria-label="Clear search"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Disease Type Filter */}
+                  <div>
+                    <label className="text-xs font-semibold text-white mb-2 block">Disease Type</label>
+                    <select
+                      value={filters.diseaseType || "all"}
+                      onChange={(e) => {
+                        const newValue = e.target.value === "all" ? "all" : e.target.value as "human" | "veterinary" | "zoonotic";
+                        setFilters(prev => ({ 
+                          ...prev, 
+                          diseaseType: newValue,
+                          category: null, // Clear category filter when disease type is selected
+                        }));
+                        // Reset map when "All Types" is selected
+                        if (newValue === "all") {
+                          setZoomTarget(null);
+                          setIsUserLocationZoom(false);
+                        }
+                      }}
+                      className="w-full h-[36px] px-2.5 bg-[#FFFFFF24] rounded-[6px] border border-solid border-[#DAE0E633] text-[#EBEBEB] text-xs [font-family:'Roboto',Helvetica] font-medium tracking-[-0.10px] shadow-[0px_1px_2px_#1018280A] focus:outline-none focus:ring-2 focus:ring-[#67DBE2]/50 [&>option]:bg-[#2a4149] [&>option]:text-white"
+                    >
+                      <option value="all">All Types</option>
+                      <option value="human">Human Only</option>
+                      <option value="veterinary">Veterinary Only</option>
+                      <option value="zoonotic">Zoonotic (Both)</option>
+                    </select>
+                  </div>
+
+                  {/* Reset Button */}
+                  <button
+                    onClick={handleResetFilters}
+                    className="w-full flex items-center justify-center gap-2 h-[36px] rounded-[6px] border border-[#DAE0E633] bg-[#FFFFFF14] text-[#EBEBEBCC] hover:text-white hover:bg-[#FFFFFF24] transition-colors shadow-[0px_1px_2px_#1018280A]"
+                  >
+                    <RefreshCcw className="w-3.5 h-3.5" />
+                    <span className="text-xs font-semibold">Reset Filters</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Outbreak Categories Panel - Desktop (Right Side) */}
+        {!isMapFullscreen && !isMobile && (
+          <Collapsible 
+            open={isCategoriesPanelOpen} 
+            onOpenChange={setIsCategoriesPanelOpen} 
+            className={`hidden lg:block absolute z-[1000] transition-opacity duration-300 ${isDialogOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
             style={{
-              top: '60px',
-              left: '0',
-              right: '0',
-              height: 'auto',
-              minHeight: '80px',
-              paddingTop: '8px',
-              paddingBottom: '25px',
-              marginBottom: '15px',
-              overflow: 'visible',
+              top: '135px',
+              right: '200px',
+              width: '280px',
             }}
           >
-            {/* Scrollable container for icons */}
-            <div 
-              className="category-icons-scrollable h-full"
-              style={{
-                overflowX: 'auto',
-                overflowY: 'hidden',
-                scrollbarWidth: 'none',
-                paddingLeft: '12px',
-                paddingRight: '12px',
-                position: 'relative',
-              }}
-            >
-              <div className="flex items-center gap-3 flex-nowrap" style={{ minWidth: 'max-content', height: '64px', alignItems: 'center', display: 'flex' }}>
-                {diseaseCategories.map((category) => {
-                  return (
-                    <div 
-                      key={category.name} 
-                      className="relative flex flex-col items-center flex-shrink-0" 
-                      style={{ minWidth: '50px' }}
-                      onTouchStart={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setHoveredCategory(category.name);
-                        setHoveredCategoryPosition({
-                          x: rect.left + rect.width / 2,
-                          y: rect.top,
-                        });
-                      }}
-                      onTouchEnd={() => {
-                        setTimeout(() => {
-                          setHoveredCategory(null);
-                          setHoveredCategoryPosition(null);
-                        }, 2000);
-                      }}
-                    >
+            <div className="bg-[#315C64B2] border border-[#EAEBF024] rounded-lg shadow-lg backdrop-blur-sm overflow-hidden">
+              <CollapsibleTrigger className="w-full hover:bg-[#305961]/50 transition-colors">
+                <div className="px-3 py-2 border-b border-[#EAEBF024]/20 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[#67DBE2]" />
+                    <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-white text-sm tracking-[-0.10px] leading-4">
+                      Categories
+                    </h3>
+                    {filters.category && (
+                      <span className="w-2 h-2 bg-[#67DBE2] rounded-full"></span>
+                    )}
+                  </div>
+                  <button className="w-4 h-4 p-0 hover:bg-transparent flex-shrink-0">
+                    <img
+                      className="w-4 h-4 transition-transform duration-200"
+                      alt="Dropdown"
+                      src="/group-938.svg"
+                      style={{ transform: isCategoriesPanelOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                    />
+                  </button>
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="px-3 py-3 overflow-y-auto" style={{ maxHeight: '400px' }}>
+                  <div className="grid grid-cols-4 gap-3">
+                    {diseaseCategories.map((category) => (
                       <button
+                        key={category.name}
                         onClick={() => handleCategoryClick(category.name)}
-                        className="flex items-center justify-center rounded-full cursor-pointer transition-all duration-200 relative"
+                        onMouseEnter={(e) => handleMouseEnter(category.name, e)}
+                        onMouseLeave={handleMouseLeave}
+                        className="flex flex-col items-center gap-2 p-2 rounded-lg transition-all hover:bg-[#305961]/50"
                         style={{
-                          width: '50px',
-                          height: '50px',
-                          backgroundColor: '#FFFFFF',
-                          border: 'none',
-                          boxShadow: filters.category === category.name 
-                            ? `0 0 14px ${category.color}60, 0 4px 8px rgba(0,0,0,0.3)` 
-                            : `0 2px 4px rgba(0,0,0,0.2)`,
+                          backgroundColor: filters.category === category.name ? `${category.color}20` : 'transparent',
                         }}
+                        title={category.name}
                       >
                         <div 
-                          className="absolute inset-0 rounded-full"
+                          className="rounded-full flex items-center justify-center transition-all"
                           style={{
+                            width: '40px',
+                            height: '40px',
                             backgroundColor: category.color,
-                            width: filters.category === category.name ? '50px' : '46px',
-                            height: filters.category === category.name ? '50px' : '46px',
-                            margin: 'auto',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'all 0.2s',
+                            boxShadow: filters.category === category.name 
+                              ? `0 0 12px ${category.color}60` 
+                              : `0 2px 4px rgba(0,0,0,0.2)`,
                           }}
                         >
                           {React.createElement(category.icon, {
                             style: {
-                              width: '28px',
-                              height: '28px',
+                              width: '22px',
+                              height: '22px',
                               color: '#FFFFFF',
                               stroke: '#FFFFFF',
                               fill: 'none',
@@ -1453,14 +1376,18 @@ export const HomePageMap = (): JSX.Element => {
                             }
                           })}
                         </div>
+                        <span className="text-[10px] text-white text-center line-clamp-2" style={{ maxWidth: '60px' }}>
+                          {category.name}
+                        </span>
                       </button>
-                    </div>
-                  );
-                })}
-              </div>
+                    ))}
+                  </div>
+                </div>
+              </CollapsibleContent>
             </div>
-          </div>
+          </Collapsible>
         )}
+
 
         {/* Map - Main Content Area */}
         <div 
@@ -1474,15 +1401,16 @@ export const HomePageMap = (): JSX.Element => {
               ? 'top-0 left-0 right-0 bottom-0 w-full h-full rounded-none' 
               : isMobile
                 ? ''
-                : 'top-[190px] left-[90px] w-[calc(100vw-550px)] h-[calc(100vh-350px)] min-w-[750px] min-h-[650px]'
+                : 'top-[135px] left-[90px] w-[calc(100vw-550px)] h-[calc(100vh-350px)] min-w-[750px] min-h-[650px]'
           }`}
           style={isMobile && !isMapFullscreen ? { 
-            position: 'absolute', 
-            top: '160px', 
+            position: 'fixed', 
+            top: '56px', // Start right after header
             left: 0, 
             right: 0, 
-            bottom: 0, 
+            bottom: `${MOBILE_BOTTOM_NAV_HEIGHT + MOBILE_ADS_HEIGHT}px`, // leave room for ads + nav
             width: '100%',
+            height: `calc(100vh - 56px - ${MOBILE_BOTTOM_NAV_HEIGHT + MOBILE_ADS_HEIGHT}px)`, // Full height minus header and bottom UI
             zIndex: 10
           } : isMobile && isMapFullscreen ? {
             position: 'absolute', 
@@ -1598,6 +1526,20 @@ export const HomePageMap = (): JSX.Element => {
           />
         </div>
 
+        {/* Premium Ads Section - Mobile/Tablet (below map, above bottom nav) */}
+        {!isMapFullscreen && isMobile && (
+          <div
+            className="fixed left-0 right-0 z-[1200] bg-[#2a4149] border-t border-[#1f3541] lg:hidden"
+            style={{
+              bottom: `${MOBILE_BOTTOM_NAV_HEIGHT}px`,
+              height: `${MOBILE_ADS_HEIGHT}px`,
+              boxShadow: "0 -4px 12px rgba(0,0,0,0.2)",
+            }}
+          >
+            <PremiumAdsSection mobile={true} compact={true} />
+          </div>
+        )}
+
         {/* Premium Ads Section - Below Map (Normal Mode) */}
         {!isMapFullscreen && !isMobile && (
           <div 
@@ -1635,30 +1577,30 @@ export const HomePageMap = (): JSX.Element => {
           </div>
         )}
 
-        {/* News Section - Right Sidebar - Desktop Only */}
+        {/* Sponsored Section - Right Sidebar - Desktop Only */}
         <div 
           className={`hidden lg:block absolute z-[1000] transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} 
           style={{ 
             // Align the top of the outbreak news section with the map container on laptop/desktop
-            top: '190px',
-            left: 'calc(90px + min(calc(100vw - 550px), calc(100vw - 260px)) + 10px)', 
-            width: '240px' 
-          }}
-        >
-          <NewsSection />
-        </div>
-
-        {/* Sponsored Section - Right Sidebar, Below News - Desktop Only */}
-        <div 
-          className={`hidden lg:block absolute z-[1000] transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} 
-          style={{ 
-            // Position below the news section with extra spacing so they aren't visually attached
-            top: '580px', 
+            top: '135px',
             left: 'calc(90px + min(calc(100vw - 550px), calc(100vw - 260px)) + 10px)', 
             width: '240px' 
           }}
         >
           <SponsoredSection />
+        </div>
+
+        {/* News Section - Right Sidebar, Below Sponsored - Desktop Only */}
+        <div 
+          className={`hidden lg:block absolute z-[1000] transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} 
+          style={{ 
+            // Position below the sponsored section (135px + 380px height + 25px gap = 540px)
+            top: '540px', 
+            left: 'calc(90px + min(calc(100vw - 550px), calc(100vw - 260px)) + 10px)', 
+            width: '240px' 
+          }}
+        >
+          <NewsSection />
         </div>
 
         {/* Mobile Near Me Controls */}
@@ -1714,40 +1656,8 @@ export const HomePageMap = (): JSX.Element => {
           </div>
         )}
 
-        {/* Mobile Bottom Section Container - News/Sponsored */}
-        {!isMapFullscreen && isMobile && (
-          <div 
-            className={`absolute bottom-0 left-0 right-0 z-[1000] transition-all duration-300 ${isDialogOpen ? 'opacity-0 pointer-events-none' : 'opacity-100'} bg-[#2a4149]/95 backdrop-blur-sm`}
-            style={{
-              maxHeight: '80vh',
-              minHeight: '50vh',
-              display: 'flex',
-              flexDirection: 'column',
-            }}
-          >
-            {/* Scrollable content area for News/Sponsored */}
-            <div 
-              className="overflow-y-auto flex-shrink-0 border-t border-[#67DBE2]/20"
-              style={{
-                maxHeight: '80vh',
-                minHeight: '50vh',
-              }}
-            >
-              {/* Two-column layout: Sponsored (left) and News (right) */}
-              <div className="flex gap-2 px-2 pt-2 pb-2">
-                {/* Sponsored Section - Left */}
-                <div className="flex-1 min-w-0 flex flex-col">
-                  <SponsoredSection />
-                </div>
-                
-                {/* News Section - Right */}
-                <div className="flex-1 min-w-0 flex flex-col">
-                  <NewsSection />
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Mobile Ads Section - Above Bottom Section - REMOVED ON MOBILE */}
+        {/* Mobile Bottom Section Container - News/Sponsored - REMOVED ON MOBILE */}
         
         {/* Tooltip Portal - Render tooltip outside scrollable container */}
         {hoveredCategory && hoveredCategoryPosition && (() => {

@@ -252,6 +252,15 @@
     background: rgba(103, 219, 226, 0.6);
   }
 
+  /* Hide scrollbar for sidebar */
+  .sidebar-scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+  .sidebar-scrollbar-hidden {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
   /* Outbreak tooltip overflow fix */
   .outbreak-tooltip {
     max-width: 220px !important;

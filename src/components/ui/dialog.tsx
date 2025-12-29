@@ -1,4 +1,5 @@
 import * as React from "react";
+import { createPortal } from "react-dom";
 
 interface DialogProps {
   open?: boolean;
@@ -63,23 +64,24 @@ export const DialogContent = ({ children, className = "" }: DialogContentProps) 
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-[9999] bg-black/50 backdrop-blur-sm"
-        style={{ zIndex: 9999 }}
+        className="fixed inset-0 z-[12000] bg-black/50 backdrop-blur-sm"
+        style={{ zIndex: 12000 }}
         onClick={() => onOpenChange(false)}
       />
       {/* Dialog */}
       <div
-        className={`fixed left-1/2 top-1/2 z-[10000] max-h-[90vh] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 transform overflow-hidden rounded-lg bg-background border border-border shadow-2xl flex flex-col ${className}`}
-        style={{ zIndex: 10000 }}
+        className={`fixed left-1/2 top-1/2 z-[12001] max-h-[90vh] w-full max-w-2xl -translate-x-1/2 -translate-y-1/2 transform overflow-hidden rounded-lg bg-background border border-border shadow-2xl flex flex-col ${className}`}
+        style={{ zIndex: 12001 }}
         onClick={(e) => e.stopPropagation()}
       >
         {children}
       </div>
-    </>
+    </>,
+    document.body
   );
 };
 

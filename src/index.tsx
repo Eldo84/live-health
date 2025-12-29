@@ -30,6 +30,8 @@ import { AdminDashboard } from "./screens/Admin/AdminDashboard";
 import { AdminAlertReviewPanel } from "./screens/Admin/AdminAlertReviewPanel";
 import { AdminNotificationPanel } from "./screens/Admin/AdminNotificationPanel";
 import { WeeklyReport } from "./screens/Dashboard/WeeklyReport";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+import { News } from "./screens/News";
 
 createRoot(document.getElementById("app") as HTMLElement).render(
   <StrictMode>
@@ -48,16 +50,20 @@ createRoot(document.getElementById("app") as HTMLElement).render(
               {/* App pages - with AppLayout (header/sidebar) */}
               <Route path="/app" element={<AppLayout />}>
                 <Route path="map" element={<HomePageMap />} />
-                <Route path="dashboard" element={<Dashboard />} />
-                <Route path="dashboard/weekly-report" element={<WeeklyReport />} />
+                <Route path="news" element={<News />} />
+                <Route path="dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                <Route path="dashboard/weekly-report" element={<ProtectedRoute><WeeklyReport /></ProtectedRoute>} />
               </Route>
               
               {/* Legacy routes - with AppLayout for backward compatibility */}
               <Route path="/map" element={<AppLayout />}>
                 <Route index element={<HomePageMap />} />
               </Route>
+              <Route path="/news" element={<AppLayout />}>
+                <Route index element={<News />} />
+              </Route>
               <Route path="/dashboard" element={<AppLayout />}>
-                <Route index element={<Dashboard />} />
+                <Route index element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
               </Route>
 
               {/* Advertising routes */}
@@ -78,7 +84,7 @@ createRoot(document.getElementById("app") as HTMLElement).render(
               
               {/* User advertising dashboard */}
               <Route path="/dashboard/advertising" element={<AppLayout />}>
-                <Route index element={<UserAdvertisingDashboard />} />
+                <Route index element={<ProtectedRoute><UserAdvertisingDashboard /></ProtectedRoute>} />
               </Route>
               
               {/* Admin routes */}

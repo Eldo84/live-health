@@ -730,7 +730,7 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoo
 
 type MapType = 'dark' | 'light' | 'street' | 'topographic' | 'imagery';
 
-const MapControls = ({ mapType, onMapTypeChange, isOpen, onOpenChange, isFullscreen = false }: { mapType: MapType; onMapTypeChange: (type: MapType) => void; isOpen: boolean; onOpenChange: (open: boolean) => void; isFullscreen?: boolean }) => {
+const MapControls = ({ mapType, onMapTypeChange, isOpen, onOpenChange, isFullscreen = false, isMobile = false }: { mapType: MapType; onMapTypeChange: (type: MapType) => void; isOpen: boolean; onOpenChange: (open: boolean) => void; isFullscreen?: boolean; isMobile?: boolean }) => {
   const mapTypes: { id: MapType; label: string }[] = [
     { id: 'dark', label: 'Dark' },
     { id: 'light', label: 'Light' },
@@ -739,14 +739,15 @@ const MapControls = ({ mapType, onMapTypeChange, isOpen, onOpenChange, isFullscr
     { id: 'imagery', label: 'Imagery' },
   ];
 
+  const mobileOffset = 16; // small edge spacing; map container already leaves room for nav/ads
+  const positionClass = isFullscreen ? 'bottom-4 right-4' : isMobile ? '' : 'bottom-4 right-4';
+
   return (
     <Collapsible 
       open={isOpen} 
       onOpenChange={onOpenChange} 
-      className={`absolute z-[1200] rounded-lg border border-[#EAEBF024] bg-[#FFFFFF14] shadow-lg backdrop-blur-sm overflow-hidden transition-all duration-300 ${
-        isFullscreen ? 'bottom-12' : 'bottom-4 right-4'
-      }`}
-      style={isFullscreen ? { right: '80px' } : undefined}
+      className={`absolute z-[1200] rounded-lg border border-[#EAEBF024] bg-[#FFFFFF14] shadow-lg backdrop-blur-sm overflow-hidden transition-all duration-300 ${positionClass}`}
+      style={isFullscreen ? { right: '16px', bottom: '16px' } : isMobile ? { right: '16px', bottom: `${mobileOffset}px` } : undefined}
     >
       <CollapsibleTrigger asChild>
         <div className="w-full hover:bg-[#305961]/50 transition-colors cursor-pointer">
@@ -1997,7 +1998,7 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
           shouldKeepOpen={shouldKeepPopupOpen}
           userManuallyClosedRef={userManuallyClosedRef}
         />
-        <MapControls mapType={mapType} onMapTypeChange={setMapType} isOpen={isMapControlsOpen} onOpenChange={setIsMapControlsOpen} isFullscreen={isFullscreen} />
+      <MapControls mapType={mapType} onMapTypeChange={setMapType} isOpen={isMapControlsOpen} onOpenChange={setIsMapControlsOpen} isFullscreen={isFullscreen} isMobile={isMobile} />
         
         {/* User Location Marker - Show when user location is detected */}
         {isUserLocation && zoomTarget && (
@@ -2456,7 +2457,7 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
         open={isCategoryLegendOpen} 
         onOpenChange={setIsCategoryLegendOpen} 
         className={`absolute z-[1200] overflow-hidden transition-all duration-300 ${
-          isFullscreen ? 'bottom-12 left-4' : 'bottom-4 left-4'
+          isFullscreen ? 'bottom-4 left-4' : isMobile ? '' : 'bottom-4 left-4'
         }`}
         style={{
           borderTopLeftRadius: '10px',
@@ -2466,6 +2467,7 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
           boxShadow: '0px 1px 2px 0px #1018280A',
           maxWidth: '300px',
           maxHeight: '400px',
+          ...(isMobile ? { left: '16px', bottom: '16px' } : isFullscreen ? { left: '16px', bottom: '16px' } : {}),
         }}
       >
         <CollapsibleTrigger asChild>

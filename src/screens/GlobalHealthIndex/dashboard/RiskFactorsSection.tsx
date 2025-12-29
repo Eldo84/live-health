@@ -141,7 +141,7 @@ export const RiskFactorsSection = ({ filters }: RiskFactorsSectionProps = {}) =>
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
       {/* Simplified Sankey-style Visualization */}
-      <Card className="bg-[#ffffff14] border-[#eaebf024] hover:bg-[#ffffff1a] transition-colors">
+      {/* <Card className="bg-[#ffffff14] border-[#eaebf024] hover:bg-[#ffffff1a] transition-colors">
         <CardHeader>
           <CardTitle className="[font-family:'Roboto',Helvetica] text-lg font-semibold text-[#ebebeb]">Risk Factor → Disease Connections</CardTitle>
           <p className="[font-family:'Roboto',Helvetica] text-sm text-[#ebebeb99]">
@@ -175,10 +175,10 @@ export const RiskFactorsSection = ({ filters }: RiskFactorsSectionProps = {}) =>
             ))}
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
 
       {/* Network Graph Simplified */}
-      <Card className="bg-[#ffffff14] border-[#eaebf024] hover:bg-[#ffffff1a] transition-colors">
+      {/* <Card className="bg-[#ffffff14] border-[#eaebf024] hover:bg-[#ffffff1a] transition-colors">
         <CardHeader>
           <CardTitle className="[font-family:'Roboto',Helvetica] text-lg font-semibold text-[#ebebeb]">Shared Risk Factor Network</CardTitle>
           <p className="[font-family:'Roboto',Helvetica] text-sm text-[#ebebeb99]">
@@ -187,14 +187,12 @@ export const RiskFactorsSection = ({ filters }: RiskFactorsSectionProps = {}) =>
         </CardHeader>
         <CardContent>
           <div className="relative h-80 bg-[#ffffff0a] rounded-lg p-4 border border-[#eaebf024]">
-            {/* Central nodes */}
             <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
               <div className="[font-family:'Roboto',Helvetica] bg-[#66dbe1] text-[#2a4149] px-3 py-2 rounded-full text-sm font-medium">
                 Cardiovascular
               </div>
             </div>
 
-            {/* Risk factor nodes positioned around the center */}
             {[
               { factor: "Smoking", x: "20%", y: "20%" },
               { factor: "Hypertension", x: "80%", y: "25%" },
@@ -211,7 +209,6 @@ export const RiskFactorsSection = ({ filters }: RiskFactorsSectionProps = {}) =>
                 <div className="[font-family:'Roboto',Helvetica] bg-[#66dbe133] text-[#66dbe1] px-2 py-1 rounded text-xs font-medium border border-[#66dbe150]">
                   {item.factor}
                 </div>
-                {/* Connection lines */}
                 <svg className="absolute top-1/2 left-1/2 w-32 h-32 pointer-events-none">
                   <line
                     x1="0"
@@ -227,7 +224,6 @@ export const RiskFactorsSection = ({ filters }: RiskFactorsSectionProps = {}) =>
               </div>
             ))}
 
-            {/* Disease outcome nodes */}
             {[
               { disease: "Stroke", x: "30%", y: "40%" },
               { disease: "Heart Attack", x: "70%", y: "50%" },
@@ -260,7 +256,7 @@ export const RiskFactorsSection = ({ filters }: RiskFactorsSectionProps = {}) =>
             </div>
           </div>
         </CardContent>
-      </Card>
+      </Card> */}
     </div>
   );
 };

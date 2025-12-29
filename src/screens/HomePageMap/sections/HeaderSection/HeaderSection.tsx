@@ -1,4 +1,4 @@
-import { ChevronDownIcon, Menu, Home, ChevronRight, LogOut, User, Plus, Shield, Megaphone, MessageSquare } from "lucide-react";
+import { ChevronDownIcon, Menu, Home, ChevronRight, LogOut, User, Plus, Shield, Megaphone, MessageSquare, Sparkles, Filter, Utensils, Droplet, Bug, Wind, Handshake, Hospital, PawPrint, Heart, AlertTriangle, Brain, Syringe, Activity, AlertCircle, Beaker, Dna, Stethoscope, Cloud } from "lucide-react";
 import { NotificationBell } from "../../../../components/NotificationBell";
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -16,6 +16,8 @@ import { useAuth } from "../../../../contexts/AuthContext";
 import { useLanguage, SUPPORTED_LANGUAGES } from "../../../../contexts/LanguageContext";
 import { supabase } from "../../../../lib/supabase";
 import outbreakNowLogo from "@/assets/outbreaknow-logo.png";
+import { useOutbreakCategories } from "../../../../lib/useOutbreakCategories";
+import { useFilterPanel } from "../../../../contexts/FilterPanelContext";
 
 const menuItems = [
   {
@@ -64,6 +66,87 @@ export const HeaderSection = (): JSX.Element => {
   const location = useLocation();
   const { user, signOut } = useAuth();
   const { language, setLanguage, t } = useLanguage();
+  const [isMobile, setIsMobile] = useState(false);
+  
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024); // lg breakpoint
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Check if we're on the map page
+  const isMapPage = location.pathname.startsWith("/map") || location.pathname.startsWith("/app/map");
+  
+  // Outbreak categories state for mobile header button
+  const { categories: dbCategories } = useOutbreakCategories();
+  const [isCategoriesPanelOpen, setIsCategoriesPanelOpen] = useState(false);
+  
+  // Filter panel state from context
+  const { isMobileFiltersOpen, setIsMobileFiltersOpen } = useFilterPanel();
+  
+  // Simplified category processing for header
+  const diseaseCategories = React.useMemo(() => {
+    if (!dbCategories || dbCategories.length === 0) return [];
+    
+    const iconMap: Record<string, React.ComponentType<any>> = {
+      'utensils': Utensils, 'droplet': Droplet, 'bug': Bug, 'wind': Wind,
+      'handshake': Handshake, 'hospital': Hospital, 'paw-print': PawPrint,
+      'paw': PawPrint, 'heart': Heart, 'shield': Shield, 'alert-triangle': AlertTriangle,
+      'alert-circle': AlertCircle, 'brain': Brain, 'syringe': Syringe,
+      'activity': Activity, 'beaker': Beaker, 'dna': Dna, 'stethoscope': Stethoscope,
+      'cloud': Cloud,
+    };
+    
+    const categoryIconMap: Record<string, React.ComponentType<any>> = {
+      'Foodborne Outbreaks': Utensils, 'Waterborne Outbreaks': Droplet,
+      'Vector-Borne Outbreaks': Bug, 'Airborne Outbreaks': Wind,
+      'Contact Transmission': Handshake, 'Healthcare-Associated Infections': Hospital,
+      'Zoonotic Outbreaks': PawPrint, 'Veterinary Outbreaks': PawPrint,
+      'Sexually Transmitted Infections': Heart, 'Vaccine-Preventable Diseases': Shield,
+      'Emerging Infectious Diseases': AlertTriangle, 'Neurological Outbreaks': Brain,
+      'Bloodborne Outbreaks': Syringe, 'Gastrointestinal Outbreaks': Activity,
+      'Respiratory Outbreaks': Cloud, 'Other': AlertCircle,
+    };
+    
+    const colorMap: Record<string, string> = {
+      'Foodborne Outbreaks': '#f87171', 'Waterborne Outbreaks': '#66dbe1',
+      'Vector-Borne Outbreaks': '#fbbf24', 'Airborne Outbreaks': '#a78bfa',
+      'Contact Transmission': '#fb923c', 'Healthcare-Associated Infections': '#ef4444',
+      'Zoonotic Outbreaks': '#10b981', 'Veterinary Outbreaks': '#8b5cf6',
+      'Sexually Transmitted Infections': '#ec4899', 'Vaccine-Preventable Diseases': '#3b82f6',
+      'Emerging Infectious Diseases': '#f59e0b', 'Neurological Outbreaks': '#dc2626',
+      'Respiratory Outbreaks': '#9333ea', 'Bloodborne Outbreaks': '#dc2626',
+      'Gastrointestinal Outbreaks': '#f97316', 'Other': '#4eb7bd',
+    };
+    
+    return dbCategories.map(cat => {
+      const normalizedName = cat.name;
+      const IconComponent = categoryIconMap[normalizedName] || 
+        (cat.icon ? iconMap[cat.icon.toLowerCase().replace(/\s+/g, '-')] : AlertCircle) ||
+        AlertCircle;
+      const color = cat.color || colorMap[normalizedName] || '#4eb7bd';
+      
+      return {
+        id: cat.id,
+        name: normalizedName,
+        color,
+        icon: IconComponent,
+      };
+    }).filter(Boolean);
+  }, [dbCategories]);
+  
+  // Handle category click - dispatch custom event for HomePageMap to listen
+  const handleCategoryClick = (categoryName: string) => {
+    const event = new CustomEvent('outbreakCategorySelected', { 
+      detail: { categoryName } 
+    });
+    window.dispatchEvent(event);
+    setIsCategoriesPanelOpen(false);
+  };
 
   // Check if user is admin
   useEffect(() => {
@@ -164,7 +247,7 @@ export const HeaderSection = (): JSX.Element => {
   };
 
   return (
-    <div className="w-full bg-[#2a4149] border-b border-[#89898947] relative z-[10000]">
+    <div className="w-full bg-[#2a4149] border-b border-[#89898947] fixed top-0 left-0 right-0 z-[10000]">
       <header className="flex items-center justify-center bg-transparent">
         <div className="flex w-full max-w-[1280px] h-[56px] items-center justify-between px-4">
           <img
@@ -172,6 +255,13 @@ export const HeaderSection = (): JSX.Element => {
             alt="OutbreakNow Logo"
             src={outbreakNowLogo}
           />
+
+          {/* Mobile Header Title */}
+          <div className="flex-1 px-3 lg:hidden">
+            <p className="[font-family:'Roboto',Helvetica] text-white text-xs font-semibold leading-4 text-center line-clamp-2">
+              Global Outbreak & Disease Monitoring System
+            </p>
+          </div>
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-10">
@@ -300,7 +390,77 @@ export const HeaderSection = (): JSX.Element => {
           </div>
 
           {/* Mobile Navigation Menu */}
-          <div className="xl:hidden">
+          <div className="xl:hidden flex items-center gap-2">
+            {/* Filters Button - Mobile Only, Map Page Only */}
+            {isMobile && isMapPage && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:bg-white/10 bg-[#67DBE2]/20 hover:bg-[#67DBE2]/30 relative"
+                aria-label="Open Filters"
+                onClick={() => setIsMobileFiltersOpen(!isMobileFiltersOpen)}
+              >
+                <Filter className="h-5 w-5" />
+              </Button>
+            )}
+            {/* Outbreak Categories Button - Mobile Only, Map Page Only */}
+            {isMobile && isMapPage && diseaseCategories.length > 0 && (
+              <Sheet open={isCategoriesPanelOpen} onOpenChange={setIsCategoriesPanelOpen}>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-white hover:bg-white/10 bg-[#67DBE2]/20 hover:bg-[#67DBE2]/30"
+                    aria-label="Open Categories"
+                  >
+                    <Sparkles className="h-5 w-5" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="bottom" className="bg-[#2a4149] border-t border-[#67DBE2]/20 max-h-[70vh] overflow-y-auto">
+                  <SheetHeader>
+                    <SheetTitle className="text-[#67DBE2] text-left">Outbreak Categories</SheetTitle>
+                  </SheetHeader>
+                  <div className="mt-4">
+                    <div className="grid grid-cols-4 gap-4">
+                      {diseaseCategories.map((category) => (
+                        <button
+                          key={category.name}
+                          onClick={() => handleCategoryClick(category.name)}
+                          className="flex flex-col items-center gap-2 p-3 rounded-lg transition-all active:scale-95"
+                          style={{
+                            backgroundColor: 'transparent',
+                          }}
+                        >
+                          <div 
+                            className="rounded-full flex items-center justify-center transition-all"
+                            style={{
+                              width: '50px',
+                              height: '50px',
+                              backgroundColor: category.color,
+                              boxShadow: `0 2px 4px rgba(0,0,0,0.2)`,
+                            }}
+                          >
+                            {React.createElement(category.icon, {
+                              style: {
+                                width: '28px',
+                                height: '28px',
+                                color: '#FFFFFF',
+                                stroke: '#FFFFFF',
+                                fill: 'none',
+                                strokeWidth: 2.5,
+                              }
+                            })}
+                          </div>
+                          <span className="text-xs text-white text-center line-clamp-2">
+                            {category.name}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </SheetContent>
+              </Sheet>
+            )}
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>
                 <Button
@@ -312,198 +472,233 @@ export const HeaderSection = (): JSX.Element => {
                   <Menu className="h-6 w-6" />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-[280px] bg-[#2a4149] border-r border-[#eaebf024] [&>button]:text-white [&>button]:hover:text-white [&>button]:hover:bg-white/10">
-                <SheetHeader>
-                  <SheetTitle className="text-left text-white [font-family:'Roboto',Helvetica]">
-                    {t("common.navigation")}
-                  </SheetTitle>
-                </SheetHeader>
-                <nav className="flex flex-col gap-2 mt-6">
-                  {menuItems.map((item) => {
-                    if (item.id === "dashboard" && item.subItems) {
-                      return (
-                        <Collapsible
-                          key={item.id}
-                          open={isDashboardOpen}
-                          onOpenChange={setIsDashboardOpen}
-                        >
-                          <CollapsibleTrigger asChild>
+              <SheetContent
+                side="left"
+                className="w-[320px] sm:w-[360px] p-0 bg-[#1f3541] border-r border-white/10 text-white shadow-2xl overflow-hidden h-[100dvh] max-h-[100dvh] z-[1600]"
+              >
+                <div className="flex flex-col h-full">
+                  <div className="px-5 pt-5 pb-4 border-b border-white/10 bg-white/5">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 rounded-xl bg-[#67DBE2]/15 text-[#67DBE2] flex items-center justify-center font-bold tracking-tight">
+                        LH
+                      </div>
+                      <div className="space-y-0.5">
+                        <SheetTitle className="text-left text-white [font-family:'Roboto',Helvetica] text-lg leading-5">
+                          {t("common.navigation")}
+                        </SheetTitle>
+                        <p className="text-xs text-white/60">
+                          Stay on top of outbreaks and alerts
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div
+                    className="flex-1 overflow-y-auto px-4 py-5 space-y-6"
+                    style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 140px)" }}
+                  >
+                    <div className="space-y-2">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-white/60 px-1">
+                        {t("common.navigation")}
+                      </p>
+                      <nav className="flex flex-col gap-2">
+                        {menuItems.map((item) => {
+                          if (item.id === "dashboard" && item.subItems) {
+                            return (
+                              <Collapsible
+                                key={item.id}
+                                open={isDashboardOpen}
+                                onOpenChange={setIsDashboardOpen}
+                              >
+                                <CollapsibleTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    className={`w-full justify-start h-[48px] px-4 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition-colors ${
+                                      isActive(item.path) ? "border-[#67DBE2]/50 bg-[#67DBE2]/10" : ""
+                                    }`}
+                                  >
+                                    <img
+                                      className="w-[22px] h-[22px] flex-shrink-0"
+                                      alt={`${item.label} icon`}
+                                      src={item.icon}
+                                    />
+                                    <span className={`flex-1 text-left ml-3 [font-family:'Roboto',Helvetica] ${
+                                      isActive(item.path) ? "font-semibold text-white" : "font-medium text-white/80"
+                                    } text-[15px]`}>
+                                      {item.label}
+                                    </span>
+                                    <ChevronRight
+                                      className={`w-4 h-4 text-white/70 transition-transform ${
+                                        isDashboardOpen ? "rotate-90" : ""
+                                      }`}
+                                    />
+                                  </Button>
+                                </CollapsibleTrigger>
+                                <CollapsibleContent>
+                                  <div className="flex flex-col gap-2 pl-2 mt-2">
+                                    {item.subItems.map((subItem, index) => {
+                                      const isPathBased = 'path' in subItem && subItem.path;
+                                      const currentTab = new URLSearchParams(location.search).get("tab");
+                                      const isActiveItem = isPathBased
+                                        ? location.pathname === subItem.path
+                                        : isActive("/dashboard") && (
+                                            index === 0
+                                              ? (!currentTab || currentTab === "overview")
+                                              : currentTab === subItem.tab
+                                          );
+                                      return (
+                                        <button
+                                          key={index}
+                                          onClick={() => handleDashboardSubItem(subItem)}
+                                          className="flex items-center gap-3.5 w-full text-left hover:opacity-90 transition-opacity py-2 px-2 rounded-lg bg-white/5"
+                                        >
+                                          <div className="flex items-center justify-center w-[5px] h-[22px]">
+                                            <div className="w-[5px] h-1.5 bg-[#ffffff80] rounded-[5px]" />
+                                          </div>
+                                          <span className={`flex-1 [font-family:'Inter',Helvetica] font-semibold text-xs ${
+                                            isActiveItem ? "text-[#66dbe1]" : "text-[#ffffffb3]"
+                                          }`}>
+                                            {subItem.tab === "overview" ? t("header.diseaseOutbreak") :
+                                             subItem.tab === "predictions" ? t("header.aiPrediction") :
+                                             subItem.tab === "health-index" ? t("header.globalHealthIndex") :
+                                             subItem.label}
+                                          </span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </CollapsibleContent>
+                              </Collapsible>
+                            );
+                          }
+                          return (
                             <Button
+                              key={item.id}
                               variant="ghost"
-                              className={`w-full justify-start h-[46px] px-4 hover:bg-[#ffffff1a] rounded-none ${
-                                isActive(item.path) ? "bg-[#ffffff1a]" : ""
+                              onClick={() => handleNavigation(item.path)}
+                              className={`w-full justify-start h-[48px] px-4 rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 transition-colors ${
+                                isActive(item.path) ? "border-[#67DBE2]/50 bg-[#67DBE2]/10" : ""
                               }`}
                             >
-                              <img
-                                className="w-[22px] h-[22px] flex-shrink-0"
-                                alt={`${item.label} icon`}
-                                src={item.icon}
-                              />
+                              {item.icon === "home" ? (
+                                <Home className="w-[22px] h-[22px] flex-shrink-0 text-white/80" />
+                              ) : (
+                                <img
+                                  className="w-[22px] h-[22px] flex-shrink-0"
+                                  alt={`${item.label} icon`}
+                                  src={item.icon}
+                                />
+                              )}
                               <span className={`flex-1 text-left ml-3 [font-family:'Roboto',Helvetica] ${
-                                isActive(item.path) ? "font-semibold text-[#ffffff]" : "font-normal text-[#ffffff99]"
+                                isActive(item.path) ? "font-semibold text-white" : "font-medium text-white/80"
                               } text-[15px]`}>
                                 {item.label}
                               </span>
-                              <ChevronRight
-                                className={`w-4 h-4 text-[#ffffff99] transition-transform ${
-                                  isDashboardOpen ? "rotate-90" : ""
-                                }`}
-                              />
                             </Button>
-                          </CollapsibleTrigger>
-                          <CollapsibleContent>
-                            <div className="flex flex-col gap-2 pl-6 mt-2">
-                              {item.subItems.map((subItem, index) => {
-                                const isPathBased = 'path' in subItem && subItem.path;
-                                const currentTab = new URLSearchParams(location.search).get("tab");
-                                const isActiveItem = isPathBased
-                                  ? location.pathname === subItem.path
-                                  : isActive("/dashboard") && (
-                                      index === 0
-                                        ? (!currentTab || currentTab === "overview")
-                                        : currentTab === subItem.tab
-                                    );
-                                return (
-                                  <button
-                                    key={index}
-                                    onClick={() => handleDashboardSubItem(subItem)}
-                                    className={`flex items-center gap-3.5 w-full text-left hover:opacity-80 transition-opacity py-2`}
-                                  >
-                                    <div className="flex items-center justify-center w-[5px] h-[22px]">
-                                      <div className="w-[5px] h-1.5 bg-[#ffffff80] rounded-[5px]" />
-                                    </div>
-                                    <span className={`flex-1 [font-family:'Inter',Helvetica] font-semibold text-xs ${
-                                      isActiveItem ? "text-[#66dbe1]" : "text-[#ffffff80]"
-                                    }`}>
-                                      {subItem.tab === "overview" ? t("header.diseaseOutbreak") :
-                                       subItem.tab === "predictions" ? t("header.aiPrediction") :
-                                       subItem.tab === "health-index" ? t("header.globalHealthIndex") :
-                                       subItem.label}
-                                    </span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </CollapsibleContent>
-                        </Collapsible>
-                      );
-                    }
-                    return (
-                      <Button
-                        key={item.id}
-                        variant="ghost"
-                        onClick={() => handleNavigation(item.path)}
-                        className={`w-full justify-start h-[46px] px-4 hover:bg-[#ffffff1a] rounded-none ${
-                          isActive(item.path) ? "bg-[#ffffff1a]" : ""
-                        }`}
-                      >
-                        {item.icon === "home" ? (
-                          <Home className="w-[22px] h-[22px] flex-shrink-0 text-[#ffffff99]" />
-                        ) : (
-                          <img
-                            className="w-[22px] h-[22px] flex-shrink-0"
-                            alt={`${item.label} icon`}
-                            src={item.icon}
-                          />
-                        )}
-                        <span className={`flex-1 text-left ml-3 [font-family:'Roboto',Helvetica] ${
-                          isActive(item.path) ? "font-semibold text-[#ffffff]" : "font-normal text-[#ffffff99]"
-                        } text-[15px]`}>
-                          {item.label}
-                        </span>
-                      </Button>
-                    );
-                  })}
-                </nav>
-                
-                {/* Mobile Auth Section */}
-                <div className="mt-6 pt-6 border-t border-[#ffffff1a]">
-                  <div className="flex flex-col gap-2">
-                    <Button
-                      variant="ghost"
-                      onClick={() => {
-                        handleAddAlertClick();
-                        setMobileMenuOpen(false);
-                      }}
-                      className="w-full justify-start h-[46px] px-4 hover:bg-[#ffffff1a] rounded-none text-white border border-[#4eb7bd]/50 hover:border-[#4eb7bd] transition-colors"
-                    >
-                      <Plus className="w-[22px] h-[22px] flex-shrink-0" />
-                      <span className="flex-1 text-left ml-3 [font-family:'Roboto',Helvetica] font-semibold text-[15px]">
-                        {t("common.addAlert")}
-                      </span>
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      onClick={() => {
-                        setFeedbackDialogOpen(true);
-                        setMobileMenuOpen(false);
-                      }}
-                      className="w-full justify-start h-[46px] px-4 hover:bg-[#ffffff1a] rounded-none text-white border border-[#4eb7bd]/50 hover:border-[#4eb7bd] transition-colors"
-                    >
-                      <MessageSquare className="w-[22px] h-[22px] flex-shrink-0" />
-                      <span className="flex-1 text-left ml-3 [font-family:'Roboto',Helvetica] font-semibold text-[15px]">
-                        Feedback
-                      </span>
-                    </Button>
-                    {user ? (
-                      <>
+                          );
+                        })}
+                      </nav>
+                    </div>
+
+                    <div className="space-y-2">
+                      <p className="text-[11px] uppercase tracking-[0.14em] text-white/60 px-1">
+                        Quick actions
+                      </p>
+                      <div className="grid gap-2">
                         <Button
                           variant="ghost"
                           onClick={() => {
-                            navigate('/dashboard/advertising');
+                            handleAddAlertClick();
                             setMobileMenuOpen(false);
                           }}
-                          className="w-full justify-start h-[46px] px-4 hover:bg-[#ffffff1a] rounded-none text-white border border-primary/50 hover:border-primary transition-colors"
+                          className="w-full justify-start h-[48px] px-4 rounded-lg border border-[#4eb7bd]/40 bg-[#4eb7bd]/10 hover:bg-[#4eb7bd]/20 text-white transition-colors"
                         >
-                          <Megaphone className="w-[22px] h-[22px] flex-shrink-0" />
+                          <Plus className="w-[20px] h-[20px] flex-shrink-0" />
                           <span className="flex-1 text-left ml-3 [font-family:'Roboto',Helvetica] font-semibold text-[15px]">
-                            {t("common.myAdvertising")}
+                            {t("common.addAlert")}
                           </span>
                         </Button>
-                        {isAdmin && (
-                          <Button
-                            variant="ghost"
-                            onClick={() => {
-                              navigate('/admin/advertising');
-                              setMobileMenuOpen(false);
-                            }}
-                            className="w-full justify-start h-[46px] px-4 hover:bg-[#ffffff1a] rounded-none text-white border border-yellow-500/50 hover:border-yellow-500 transition-colors"
-                          >
-                            <Shield className="w-[22px] h-[22px] flex-shrink-0" />
-                            <span className="flex-1 text-left ml-3 [font-family:'Roboto',Helvetica] font-semibold text-[15px]">
-                              {t("common.adminPanel")}
-                            </span>
-                          </Button>
-                        )}
-                        <div className="flex items-center gap-2 px-4 py-2 text-white">
-                          <NotificationBell />
-                          <User className="w-4 h-4" />
-                          <span className="[font-family:'Roboto',Helvetica] font-medium text-sm">
-                            {user.email}
+                        <Button
+                          variant="ghost"
+                          onClick={() => {
+                            setFeedbackDialogOpen(true);
+                            setMobileMenuOpen(false);
+                          }}
+                          className="w-full justify-start h-[48px] px-4 rounded-lg border border-[#4eb7bd]/40 bg-white/5 hover:bg-white/10 text-white transition-colors"
+                        >
+                          <MessageSquare className="w-[20px] h-[20px] flex-shrink-0" />
+                          <span className="flex-1 text-left ml-3 [font-family:'Roboto',Helvetica] font-semibold text-[15px]">
+                            Feedback
                           </span>
+                        </Button>
+                        {user && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              onClick={() => {
+                                navigate('/dashboard/advertising');
+                                setMobileMenuOpen(false);
+                              }}
+                              className="w-full justify-start h-[48px] px-4 rounded-lg border border-primary/40 bg-primary/10 hover:bg-primary/20 text-white transition-colors"
+                            >
+                              <Megaphone className="w-[20px] h-[20px] flex-shrink-0" />
+                              <span className="flex-1 text-left ml-3 [font-family:'Roboto',Helvetica] font-semibold text-[15px]">
+                                {t("common.myAdvertising")}
+                              </span>
+                            </Button>
+                            {isAdmin && (
+                              <Button
+                                variant="ghost"
+                                onClick={() => {
+                                  navigate('/admin/advertising');
+                                  setMobileMenuOpen(false);
+                                }}
+                                className="w-full justify-start h-[48px] px-4 rounded-lg border border-yellow-500/50 bg-yellow-500/10 hover:bg-yellow-500/20 text-white transition-colors"
+                              >
+                                <Shield className="w-[20px] h-[20px] flex-shrink-0" />
+                                <span className="flex-1 text-left ml-3 [font-family:'Roboto',Helvetica] font-semibold text-[15px]">
+                                  {t("common.adminPanel")}
+                                </span>
+                              </Button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="px-4 py-4 border-t border-white/10 bg-white/5 backdrop-blur-sm">
+                    {user ? (
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-white/5 border border-white/10">
+                          <NotificationBell />
+                          <div className="flex flex-col">
+                            <span className="[font-family:'Roboto',Helvetica] font-semibold text-sm">{user.email}</span>
+                            <span className="text-xs text-white/60">Signed in</span>
+                          </div>
                         </div>
                         <Button
                           variant="ghost"
                           onClick={handleLogout}
-                          className="w-full justify-start h-[46px] px-4 hover:bg-[#ffffff1a] rounded-none text-white"
+                          className="w-full justify-center h-[46px] rounded-lg bg-white/10 hover:bg-white/15 text-white"
                         >
-                          <LogOut className="w-[22px] h-[22px] flex-shrink-0" />
-                          <span className="flex-1 text-left ml-3 [font-family:'Roboto',Helvetica] font-normal text-[#ffffff99] text-[15px]">
+                          <LogOut className="w-[18px] h-[18px] mr-2" />
+                          <span className="[font-family:'Roboto',Helvetica] font-medium text-[15px]">
                             {t("common.logOut")}
                           </span>
                         </Button>
-                      </>
+                      </div>
                     ) : (
-                      <>
+                      <div className="grid grid-cols-2 gap-3">
                         <Button
                           variant="ghost"
                           onClick={() => {
                             openAuthDialog("login");
                             setMobileMenuOpen(false);
                           }}
-                          className="w-full justify-start h-[46px] px-4 hover:bg-[#ffffff1a] rounded-none text-white"
+                          className="h-[46px] rounded-lg bg-white/10 hover:bg-white/15 text-white"
                         >
-                          <span className="flex-1 text-left [font-family:'Roboto',Helvetica] font-normal text-[#ffffff99] text-[15px]">
+                          <span className="[font-family:'Roboto',Helvetica] font-medium text-[15px]">
                             {t("common.logIn")}
                           </span>
                         </Button>
@@ -512,13 +707,13 @@ export const HeaderSection = (): JSX.Element => {
                             openAuthDialog("signup");
                             setMobileMenuOpen(false);
                           }}
-                          className="w-full justify-start h-[46px] px-4 bg-app-primary hover:bg-app-primary/90 rounded-none text-white"
+                          className="h-[46px] rounded-lg bg-[#67DBE2] hover:bg-[#58c8d0] text-[#0f2430] font-semibold"
                         >
-                          <span className="flex-1 text-left [font-family:'Roboto',Helvetica] font-semibold text-[15px]">
+                          <span className="[font-family:'Roboto',Helvetica] text-[15px]">
                             {t("common.signUp")}
                           </span>
                         </Button>
-                      </>
+                      </div>
                     )}
                   </div>
                 </div>

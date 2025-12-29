@@ -37,6 +37,7 @@ interface Submission {
   ad_title: string | null;
   ad_image_url: string | null;
   ad_click_url: string | null;
+  ad_location: string | null;
 }
 
 interface SponsoredContent {
@@ -292,7 +293,7 @@ export const AdminAdvertisingPanel: React.FC = () => {
   const totalRevenue = submissions
     .filter(s => s.payment_status === 'paid')
     .reduce((sum, s) => {
-      const prices = { basic: 50, professional: 150, enterprise: 300 };
+      const prices = { basic: 30, professional: 75, enterprise: 150 };
       return sum + (prices[s.selected_plan as keyof typeof prices] || 0);
     }, 0);
 
@@ -569,14 +570,88 @@ export const AdminAdvertisingPanel: React.FC = () => {
           </DialogHeader>
           {viewingSubmission && (
             <div className="space-y-4">
-              {viewingSubmission.ad_image_url && (
-                <div className="rounded-lg overflow-hidden border bg-muted">
-                  <img
-                    src={viewingSubmission.ad_image_url}
-                    alt={viewingSubmission.ad_title || 'Ad image'}
-                    className="w-full h-52 object-cover"
-                    loading="lazy"
-                  />
+              {/* Ad Media Preview */}
+              {viewingSubmission.ad_image_url ? (() => {
+                const mediaUrl = viewingSubmission.ad_image_url;
+                const urlLower = mediaUrl.toLowerCase();
+                const isVideo = urlLower.includes('.mp4') || urlLower.includes('.webm') || urlLower.includes('.mov') || urlLower.includes('.avi') || urlLower.includes('video/');
+                const isGif = urlLower.includes('.gif') || urlLower.includes('image/gif');
+                
+                return (
+                  <div className="rounded-lg overflow-hidden border-2 border-primary/20 bg-muted">
+                    <div className="p-2 bg-primary/10 border-b">
+                      <p className="text-sm font-semibold text-primary">Ad Media Preview</p>
+                    </div>
+                    <div className="relative w-full bg-black/5" style={{ minHeight: '200px', maxHeight: '500px' }}>
+                      {isVideo ? (
+                        <video
+                          src={mediaUrl}
+                          controls
+                          className="w-full h-full object-contain"
+                          style={{ maxHeight: '500px', minHeight: '200px' }}
+                          onError={(e) => {
+                            console.error('Video failed to load:', mediaUrl);
+                            const target = e.target as HTMLVideoElement;
+                            target.style.display = 'none';
+                            const parent = target.parentElement;
+                            if (parent && !parent.querySelector('.error-message')) {
+                              const errorDiv = document.createElement('div');
+                              errorDiv.className = 'error-message p-4 text-center text-red-500 bg-red-50 rounded';
+                              errorDiv.innerHTML = `<p class="font-semibold">Failed to load video</p><p class="text-xs mt-1 break-all">${mediaUrl}</p>`;
+                              parent.appendChild(errorDiv);
+                            }
+                          }}
+                        >
+                          Your browser does not support the video tag.
+                        </video>
+                      ) : (
+                        <img
+                          src={mediaUrl}
+                          alt={viewingSubmission.ad_title || 'Ad media'}
+                          className="w-full h-full object-contain"
+                          style={{ maxHeight: '500px', minHeight: '200px' }}
+                          loading="lazy"
+                          onError={(e) => {
+                            console.error('Image failed to load:', mediaUrl);
+                            const target = e.target as HTMLImageElement;
+                            target.style.display = 'none';
+                            const parent = target.parentElement;
+                            if (parent && !parent.querySelector('.error-message')) {
+                              const errorDiv = document.createElement('div');
+                              errorDiv.className = 'error-message p-4 text-center text-red-500 bg-red-50 rounded';
+                              errorDiv.innerHTML = `<p class="font-semibold">Failed to load image</p><p class="text-xs mt-1 break-all">${mediaUrl}</p><p class="text-xs mt-2">Please check if the URL is accessible.</p>`;
+                              parent.appendChild(errorDiv);
+                            }
+                          }}
+                        />
+                      )}
+                      {(isVideo || isGif) && (
+                        <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded flex items-center gap-1">
+                          {isVideo ? '▶ Video' : '🎬 GIF'}
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-3 bg-muted/50 border-t">
+                      <p className="text-xs font-medium text-muted-foreground mb-1">Media URL:</p>
+                      <p className="text-xs text-muted-foreground break-all font-mono bg-background p-2 rounded border">
+                        {mediaUrl}
+                      </p>
+                      <a
+                        href={mediaUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline mt-2 inline-block"
+                      >
+                        Open in new tab →
+                      </a>
+                    </div>
+                  </div>
+                );
+              })() : (
+                <div className="rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/30 p-8 text-center">
+                  <Eye className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-sm font-medium text-muted-foreground">No Media Provided</p>
+                  <p className="text-xs text-muted-foreground mt-1">The advertiser did not upload any image, video, or GIF for this ad.</p>
                 </div>
               )}
 
@@ -635,25 +710,38 @@ export const AdminAdvertisingPanel: React.FC = () => {
                 </div>
               </div>
 
-              {(viewingSubmission.ad_title || viewingSubmission.ad_click_url) && (
-                <div className="space-y-1 text-sm">
-                  <p className="text-muted-foreground">Ad</p>
-                  {viewingSubmission.ad_title && <p className="font-medium">Title: {viewingSubmission.ad_title}</p>}
-                  {viewingSubmission.ad_click_url && (
-                    <p className="font-medium">
-                      Click URL:{' '}
-                      <a 
-                        href={viewingSubmission.ad_click_url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline break-all"
-                      >
-                        {viewingSubmission.ad_click_url}
-                      </a>
-                    </p>
-                  )}
-                </div>
-              )}
+              {/* Ad Details Section */}
+              <div className="space-y-2 text-sm border-t pt-4">
+                <p className="text-muted-foreground font-semibold">Ad Details</p>
+                {viewingSubmission.ad_title && (
+                  <div>
+                    <span className="text-muted-foreground">Title: </span>
+                    <span className="font-medium">{viewingSubmission.ad_title}</span>
+                  </div>
+                )}
+                {viewingSubmission.ad_click_url && (
+                  <div>
+                    <span className="text-muted-foreground">Click URL: </span>
+                    <a 
+                      href={viewingSubmission.ad_click_url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline break-all font-medium"
+                    >
+                      {viewingSubmission.ad_click_url}
+                    </a>
+                  </div>
+                )}
+                {viewingSubmission.ad_location && (
+                  <div>
+                    <span className="text-muted-foreground">Location: </span>
+                    <span className="font-medium">{viewingSubmission.ad_location}</span>
+                  </div>
+                )}
+                {!viewingSubmission.ad_title && !viewingSubmission.ad_click_url && !viewingSubmission.ad_location && (
+                  <p className="text-muted-foreground italic">No ad details provided</p>
+                )}
+              </div>
 
               {viewingSubmission.description && (
                 <div className="text-sm space-y-1">

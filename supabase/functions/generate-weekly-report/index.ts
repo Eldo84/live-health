@@ -55,7 +55,60 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // 1) Get weekly top 10 diseases from SQL helper
+    // 1) First, try to load pre-generated weekly report from database
+    // Try today's report first, then fall back to most recent active report
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const reportDate = today.toISOString().split('T')[0]; // YYYY-MM-DD format
+
+    // Try to get today's report
+    let { data: storedReport, error: fetchReportError } = await supabase
+      .from("weekly_reports")
+      .select("*")
+      .eq("report_date", reportDate)
+      .eq("is_active", true)
+      .order("generated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    // If today's report not found, get the most recent active report
+    if (fetchReportError || !storedReport) {
+      const { data: recentReport, error: recentError } = await supabase
+        .from("weekly_reports")
+        .select("*")
+        .eq("is_active", true)
+        .order("report_date", { ascending: false })
+        .order("generated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!recentError && recentReport) {
+        storedReport = recentReport;
+        fetchReportError = null;
+      }
+    }
+
+    // If we have a stored report, return it immediately (fast path)
+    if (!fetchReportError && storedReport) {
+      console.log(`Returning pre-generated weekly report from database (report_date: ${storedReport.report_date})`);
+      return new Response(
+        JSON.stringify({
+          diseases: storedReport.diseases,
+          recommendations: storedReport.recommendations,
+          cached: true,
+          reportDate: storedReport.report_date,
+          weekStartDate: storedReport.week_start_date,
+          weekEndDate: storedReport.week_end_date,
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // 2) If no stored report found, generate on-the-fly (fallback for when cron hasn't run yet)
+    console.log("No stored report found, generating on-the-fly");
     const { data: summary, error: summaryError } = await supabase
       .rpc<WeeklyDiseaseSummary>("get_weekly_top_diseases");
 
@@ -329,7 +382,16 @@ Make recommendations specific, actionable, and based on the actual diseases list
     }
 
     // 3) Fallback recommendations if AI generation failed or API key not available
-    if (recommendations.userRecommendations.length === 0) {
+    // Check if we need to use fallback (if summary is empty OR userRecommendations is empty OR diseaseSpecific is empty)
+    const needsFallback = 
+      !recommendations.summary || 
+      recommendations.summary.trim() === "" ||
+      recommendations.userRecommendations.length === 0 ||
+      !recommendations.diseaseSpecific || 
+      recommendations.diseaseSpecific.length === 0;
+
+    if (needsFallback) {
+      console.log("Using fallback recommendations - AI generation may have failed or returned incomplete data");
       recommendations = {
         summary: `Top ${topDiseases.length} diseases detected in the past week. Stay informed and practice good hygiene.`,
         userRecommendations: [
@@ -350,7 +412,7 @@ Make recommendations specific, actionable, and based on the actual diseases list
       };
     }
 
-    // Fetch disease-specific recommendations from database
+    // Fetch disease-specific recommendations from database (only if we have stored ones)
     const diseaseNames = topDiseases.map((d) => d.disease_name);
     const { data: storedRecommendations, error: fetchError } = await supabase
       .from("disease_recommendations")
@@ -358,17 +420,61 @@ Make recommendations specific, actionable, and based on the actual diseases list
       .in("disease_name", diseaseNames)
       .eq("is_active", true);
 
+    // Only use stored recommendations if they exist and we're not using fallback
+    // OR if we're using fallback but want to enhance it with stored data
     if (!fetchError && storedRecommendations && storedRecommendations.length > 0) {
-      // Map stored recommendations to the expected format
-      recommendations.diseaseSpecific = storedRecommendations.map((rec) => ({
-        disease_name: rec.disease_name,
-        userRecommendations: rec.user_recommendations || [],
-        medicalPersonnelRecommendations: rec.medical_personnel_recommendations || [],
-      }));
+      // Create a map of stored recommendations by disease name
+      const storedMap = new Map(
+        storedRecommendations.map((rec) => [
+          rec.disease_name,
+          {
+            disease_name: rec.disease_name,
+            userRecommendations: rec.user_recommendations || [],
+            medicalPersonnelRecommendations: rec.medical_personnel_recommendations || [],
+          }
+        ])
+      );
+
+      // Merge stored recommendations with existing diseaseSpecific
+      // For diseases with stored recommendations, use stored; otherwise keep existing
+      recommendations.diseaseSpecific = topDiseases.map((disease) => {
+        const stored = storedMap.get(disease.disease_name);
+        if (stored && stored.userRecommendations.length > 0) {
+          return stored;
+        }
+        // Find existing recommendation for this disease or create fallback
+        const existing = recommendations.diseaseSpecific?.find(
+          (rec) => rec.disease_name === disease.disease_name
+        );
+        return existing || {
+          disease_name: disease.disease_name,
+          userRecommendations: [
+            `Stay informed about ${disease.disease_name} activity in your area and follow guidance from health authorities.`,
+            `Practice core prevention measures: hand hygiene, staying home when sick, and seeking care early if symptoms worsen.`,
+            `If vaccines or specific preventive measures exist for ${disease.disease_name} in your region, discuss them with a healthcare provider.`,
+          ],
+          medicalPersonnelRecommendations: [
+            `Maintain appropriate surveillance and reporting for ${disease.disease_name}, especially in higher‑risk populations and settings.`,
+            `Ensure diagnostic and treatment protocols for ${disease.disease_name} are available to frontline staff and aligned with current guidelines.`,
+            `Review local capacity (staff, diagnostics, therapeutics) to respond to potential increases in ${disease.disease_name} cases.`,
+          ],
+        };
+      });
     } else {
-      // If no stored recommendations, use AI-generated or fallback
+      // If no stored recommendations, ensure diseaseSpecific is populated for all diseases
       if (!recommendations.diseaseSpecific || recommendations.diseaseSpecific.length === 0) {
         recommendations.diseaseSpecific = buildFallbackDiseaseSpecific(topDiseases);
+      } else {
+        // Ensure all diseases have recommendations (fill in missing ones)
+        const existingDiseaseNames = new Set(
+          recommendations.diseaseSpecific.map((rec) => rec.disease_name)
+        );
+        const missingDiseases = topDiseases.filter(
+          (d) => !existingDiseaseNames.has(d.disease_name)
+        );
+        if (missingDiseases.length > 0) {
+          recommendations.diseaseSpecific.push(...buildFallbackDiseaseSpecific(missingDiseases));
+        }
       }
     }
 

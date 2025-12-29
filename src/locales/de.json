@@ -516,7 +516,7 @@
       "mostPopularBadge": "AM BELIEBTESTEN",
       "basic": {
         "name": "Basis-Paket",
-        "price": "$50/Monat",
+        "price": "$30/Monat",
         "duration": "30 Tage",
         "feature1": "Platzierung im gesponserten Kartenbereich",
         "feature2": "Anzeigedauer von 30 Tagen",
@@ -525,7 +525,7 @@
       },
       "professional": {
         "name": "Professional-Paket",
-        "price": "$150/Monat",
+        "price": "$75/Monat",
         "duration": "60 Tage",
         "feature1": "Platzierung auf Karte + Startseiten-Banner",
         "feature2": "Anzeigedauer von 60 Tagen",
@@ -536,7 +536,7 @@
       },
       "enterprise": {
         "name": "Enterprise-Paket",
-        "price": "$300/Monat",
+        "price": "$150/Monat",
         "duration": "90 Tage",
         "feature1": "Alle Plattformen (Karte, Startseite, Newsletter)",
         "feature2": "Anzeigedauer von 90 Tagen",

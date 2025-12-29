@@ -485,7 +485,7 @@ BEGIN
   CASE plan
     WHEN 'basic' THEN
       RETURN jsonb_build_object(
-        'price', 50.00,
+        'price', 30.00,
         'duration_days', 30,
         'display_order', 200,
         'is_featured', false,
@@ -495,7 +495,7 @@ BEGIN
       );
     WHEN 'professional' THEN
       RETURN jsonb_build_object(
-        'price', 150.00,
+        'price', 75.00,
         'duration_days', 60,
         'display_order', 100,
         'is_featured', true,
@@ -505,7 +505,7 @@ BEGIN
       );
     WHEN 'enterprise' THEN
       RETURN jsonb_build_object(
-        'price', 300.00,
+        'price', 150.00,
         'duration_days', 90,
         'display_order', 50,
         'is_featured', true,

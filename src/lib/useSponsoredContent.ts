@@ -126,7 +126,7 @@ const fallbackSponsoredContent: SponsoredContent[] = [
 ];
 
 export function useSponsoredContent(options: UseSponsoredContentOptions = {}): UseSponsoredContentReturn {
-  const { location = 'map', limit = 10, enabled = true } = options;
+  const { location = 'map', limit = 1000, enabled = true } = options;
   
   const [data, setData] = useState<SponsoredContent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -155,8 +155,6 @@ export function useSponsoredContent(options: UseSponsoredContentOptions = {}): U
           .select('*')
           .eq('is_active', true)
           .contains('display_locations', [location])
-          .order('is_pinned', { ascending: false })
-          .order('display_order', { ascending: true })
           .order('created_at', { ascending: false })
           .limit(limit);
 
@@ -209,12 +207,20 @@ export function useSponsoredContent(options: UseSponsoredContentOptions = {}): U
     if (contentId.startsWith('fallback-')) return;
 
     try {
+      // Get the ad's user_id to set as content_owner_id
+      const { data: adData } = await supabase
+        .from('sponsored_content')
+        .select('user_id')
+        .eq('id', contentId)
+        .single();
+
       // Increment view count
       await supabase.rpc('increment_sponsored_view', { p_content_id: contentId });
 
-      // Record analytics event
+      // Record analytics event with content_owner_id
       await supabase.from('advertising_analytics').insert({
         sponsored_content_id: contentId,
+        content_owner_id: adData?.user_id || null,
         event_type: 'view',
         event_data: {
           referrer: document.referrer,
@@ -234,12 +240,20 @@ export function useSponsoredContent(options: UseSponsoredContentOptions = {}): U
     if (contentId.startsWith('fallback-')) return;
 
     try {
+      // Get the ad's user_id to set as content_owner_id
+      const { data: adData } = await supabase
+        .from('sponsored_content')
+        .select('user_id')
+        .eq('id', contentId)
+        .single();
+
       // Increment click count
       await supabase.rpc('increment_sponsored_click', { p_content_id: contentId });
 
-      // Record analytics event
+      // Record analytics event with content_owner_id
       await supabase.from('advertising_analytics').insert({
         sponsored_content_id: contentId,
+        content_owner_id: adData?.user_id || null,
         event_type: 'click',
         event_data: {
           referrer: document.referrer,

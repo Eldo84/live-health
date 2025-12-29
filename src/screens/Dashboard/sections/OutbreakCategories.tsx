@@ -13,7 +13,12 @@ interface CategoryData {
   diseaseCount: number;
 }
 
-export const OutbreakCategories = (): JSX.Element => {
+interface OutbreakCategoriesProps {
+  timeRange?: string;
+  countryId?: string | null;
+}
+
+export const OutbreakCategories = ({ timeRange = "7d", countryId }: OutbreakCategoriesProps): JSX.Element => {
   const { t } = useLanguage();
   const { categories: dbCategories, loading: categoriesLoading } = useOutbreakCategories();
   const [categories, setCategories] = useState<CategoryData[]>([]);
@@ -41,10 +46,34 @@ export const OutbreakCategories = (): JSX.Element => {
           throw new Error("Missing Supabase configuration");
         }
 
-        // Fetch disease counts for each category
-        // Query disease_categories table to count diseases per category
-        const queryResponse = await fetch(
-          `${supabaseUrl}/rest/v1/disease_categories?select=category_id,disease_id`,
+        // Calculate date range
+        const now = new Date();
+        const timeRanges: Record<string, number> = {
+          "24h": 1,
+          "7d": 7,
+          "30d": 30,
+          "1y": 365,
+        };
+
+        const range = timeRanges[timeRange] || timeRanges["7d"];
+        const startDate = new Date(now);
+        startDate.setDate(startDate.getDate() - range);
+
+        // Build query params for outbreak_signals
+        const signalParams = new URLSearchParams();
+        signalParams.set('select', 'disease_id');
+        signalParams.set('detected_at', `gte.${startDate.toISOString()}`);
+        
+        // Add country filter if provided
+        if (countryId) {
+          signalParams.set('country_id', `eq.${countryId}`);
+        }
+
+        // Fetch outbreak signals with disease information
+        // We need to join through disease_categories to get category_id for each disease
+        // First, get all outbreak signals in the date range and country
+        const signalsResponse = await fetch(
+          `${supabaseUrl}/rest/v1/outbreak_signals?${signalParams.toString()}`,
           {
             headers: {
               apikey: supabaseKey,
@@ -55,25 +84,63 @@ export const OutbreakCategories = (): JSX.Element => {
 
         let diseaseCounts: Record<string, number> = {};
 
-        if (queryResponse.ok) {
-          const diseaseCategoryData: any[] = await queryResponse.json();
+        if (signalsResponse.ok) {
+          const signals: any[] = await signalsResponse.json();
           
-          // Count unique diseases per category
-          const categoryDiseaseMap = new Map<string, Set<string>>();
+          // Get unique disease IDs from signals
+          const diseaseIds = new Set(signals.map(s => s.disease_id).filter(Boolean));
           
-          diseaseCategoryData.forEach((dc: any) => {
-            if (dc.category_id && dc.disease_id) {
-              if (!categoryDiseaseMap.has(dc.category_id)) {
-                categoryDiseaseMap.set(dc.category_id, new Set());
+          if (diseaseIds.size > 0) {
+            // Fetch all disease_categories and filter client-side
+            // This is more reliable than using 'in' filter with many UUIDs
+            const categoryQueryParams = new URLSearchParams();
+            categoryQueryParams.set('select', 'category_id,disease_id');
+            
+            const categoryResponse = await fetch(
+              `${supabaseUrl}/rest/v1/disease_categories?${categoryQueryParams.toString()}`,
+              {
+                headers: {
+                  apikey: supabaseKey,
+                  Authorization: `Bearer ${supabaseKey}`,
+                },
               }
-              categoryDiseaseMap.get(dc.category_id)!.add(dc.disease_id);
-            }
-          });
+            );
 
-          // Convert to counts
-          categoryDiseaseMap.forEach((diseaseSet, categoryId) => {
-            diseaseCounts[categoryId] = diseaseSet.size;
-          });
+            if (categoryResponse.ok) {
+              const diseaseCategoryData: any[] = await categoryResponse.json();
+              
+              // Create a map of disease_id to category_ids, only for diseases in our filtered signals
+              const diseaseToCategories = new Map<string, Set<string>>();
+              diseaseCategoryData.forEach((dc: any) => {
+                if (dc.disease_id && dc.category_id && diseaseIds.has(dc.disease_id)) {
+                  if (!diseaseToCategories.has(dc.disease_id)) {
+                    diseaseToCategories.set(dc.disease_id, new Set());
+                  }
+                  diseaseToCategories.get(dc.disease_id)!.add(dc.category_id);
+                }
+              });
+
+              // Count unique diseases per category based on signals
+              const categoryDiseaseMap = new Map<string, Set<string>>();
+              
+              signals.forEach((signal: any) => {
+                if (signal.disease_id && diseaseToCategories.has(signal.disease_id)) {
+                  const categoryIds = diseaseToCategories.get(signal.disease_id)!;
+                  categoryIds.forEach((categoryId: string) => {
+                    if (!categoryDiseaseMap.has(categoryId)) {
+                      categoryDiseaseMap.set(categoryId, new Set());
+                    }
+                    categoryDiseaseMap.get(categoryId)!.add(signal.disease_id);
+                  });
+                }
+              });
+
+              // Convert to counts
+              categoryDiseaseMap.forEach((diseaseSet, categoryId) => {
+                diseaseCounts[categoryId] = diseaseSet.size;
+              });
+            }
+          }
         }
 
         // Normalize category name to consolidate duplicates and variations
@@ -346,11 +413,13 @@ export const OutbreakCategories = (): JSX.Element => {
     }
 
     fetchCategoryData();
-  }, [dbCategories, categoriesLoading]);
+  }, [dbCategories, categoriesLoading, timeRange, countryId]);
+
+  // Filter categories to only show those with diseases matching the filters
+  const filteredCategories = categories.filter(category => category.diseaseCount > 0);
 
   // Transform categories data for pie chart (only show categories with diseases)
-  const pieChartData = categories
-    .filter(category => category.diseaseCount > 0)
+  const pieChartData = filteredCategories
     .map(category => ({
       name: category.name,
       value: category.diseaseCount,
@@ -493,12 +562,13 @@ export const OutbreakCategories = (): JSX.Element => {
             {t("dashboard.categoryDetails")}
           </h3>
           <p className="[font-family:'Roboto',Helvetica] font-normal text-[#ebebeb99] text-sm mt-2">
-            {t("dashboard.detailedInformationAboutEachCategory", { count: categories.length })}
+            {t("dashboard.detailedInformationAboutEachCategory", { count: filteredCategories.length })}
           </p>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {categories.map((category) => (
+          {filteredCategories.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredCategories.map((category) => (
               <div
                 key={category.id}
                 className="p-5 rounded-lg border border-[#ffffff1a] bg-[#ffffff08] hover:bg-[#ffffff12] hover:border-[#ffffff24] transition-all duration-200 cursor-pointer group"
@@ -523,8 +593,15 @@ export const OutbreakCategories = (): JSX.Element => {
                   {category.description || t("dashboard.noDescriptionAvailable")}
                 </p>
               </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center text-[#ebebeb99] py-12">
+              <p className="[font-family:'Roboto',Helvetica] text-sm">
+                {t("dashboard.noDataAvailable")}
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

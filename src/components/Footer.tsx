@@ -39,9 +39,9 @@ export const Footer = () => {
   };
 
   return (
-    <footer className="border-t border-border bg-muted/30 pt-32 pb-12 max-lg:pb-0 max-lg:pt-4">
+    <footer className="border-t border-border bg-muted/30 pt-32 pb-12 max-lg:pb-0 max-lg:pt-4 xl:pl-[160px]">
       <div className="container-prose">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 md:gap-8 text-xs sm:text-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 text-xs sm:text-sm">
           {/* Logo and Description */}
           <div className="space-y-4 lg:col-span-2 min-w-0">
             <div className="flex items-start gap-3">
@@ -117,68 +117,6 @@ export const Footer = () => {
                   </div>
                 </DialogContent>
               </Dialog>
-            </div>
-          </div>
-
-          {/* Quick Links 1 */}
-          <div className="space-y-4 min-w-0">
-            <h4 className="font-semibold text-foreground text-xs sm:text-sm">{t("footer.quickLinks")}</h4>
-            <div className="flex flex-col space-y-2">
-              <a 
-                href="#" 
-                className="text-muted-foreground hover:text-foreground transition-colors text-xs sm:text-sm break-words"
-              >
-                {t("footer.fundProjects")}
-              </a>
-              <a 
-                href="#" 
-                className="text-muted-foreground hover:text-foreground transition-colors text-xs sm:text-sm break-words"
-              >
-                {t("footer.communities")}
-              </a>
-              <a 
-                href="#" 
-                className="text-muted-foreground hover:text-foreground transition-colors text-xs sm:text-sm break-words"
-              >
-                {t("footer.features")}
-              </a>
-              <a 
-                href="#" 
-                className="text-muted-foreground hover:text-foreground transition-colors text-xs sm:text-sm break-words"
-              >
-                {t("footer.enterprise")}
-              </a>
-            </div>
-          </div>
-
-          {/* Quick Links 2 */}
-          <div className="space-y-4 min-w-0">
-            <h4 className="font-semibold text-foreground text-xs sm:text-sm">{t("footer.quickLinks")}</h4>
-            <div className="flex flex-col space-y-2">
-              <a 
-                href="#" 
-                className="text-muted-foreground hover:text-foreground transition-colors text-xs sm:text-sm break-words"
-              >
-                {t("footer.feeds")}
-              </a>
-              <a 
-                href="#" 
-                className="text-muted-foreground hover:text-foreground transition-colors text-xs sm:text-sm break-words"
-              >
-                {t("footer.doktaPlus")}
-              </a>
-              <a 
-                href="#" 
-                className="text-muted-foreground hover:text-foreground transition-colors text-xs sm:text-sm break-words"
-              >
-                {t("footer.rxMarket")}
-              </a>
-              <a 
-                href="#" 
-                className="text-muted-foreground hover:text-foreground transition-colors text-xs sm:text-sm break-words"
-              >
-                {t("footer.explore")}
-              </a>
             </div>
           </div>
 

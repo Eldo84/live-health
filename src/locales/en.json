@@ -521,7 +521,7 @@
       "mostPopularBadge": "MOST POPULAR",
       "basic": {
         "name": "Basic Plan",
-        "price": "$50/month",
+        "price": "$30/month",
         "duration": "30 days",
         "feature1": "Map sponsored section placement",
         "feature2": "30-day display duration",
@@ -530,7 +530,7 @@
       },
       "professional": {
         "name": "Professional Plan",
-        "price": "$150/month",
+        "price": "$75/month",
         "duration": "60 days",
         "feature1": "Map + Homepage banner placement",
         "feature2": "60-day display duration",
@@ -541,7 +541,7 @@
       },
       "enterprise": {
         "name": "Enterprise Plan",
-        "price": "$300/month",
+        "price": "$150/month",
         "duration": "90 days",
         "feature1": "All platforms (Map, Homepage, Newsletter)",
         "feature2": "90-day display duration",

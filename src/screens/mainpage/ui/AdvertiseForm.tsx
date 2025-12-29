@@ -5,7 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Upload, DollarSign, Target, Zap, Users, Globe2, TrendingUp, BarChart3, Eye, MousePointerClick, Award, Loader2, CheckCircle, MapPin, Clock, LogIn, AlertCircle } from 'lucide-react';
+import { Upload, DollarSign, Target, Zap, Users, Globe2, TrendingUp, BarChart3, Eye, MousePointerClick, Award, Loader2, CheckCircle, MapPin, Clock, LogIn, AlertCircle, Edit, ArrowLeft, ExternalLink, Star, Pin } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,8 +15,8 @@ const advertisingPlans = [
   {
     id: 'basic',
     name: 'Basic Plan',
-    price: '$50/month',
-    priceValue: 50,
+    price: '$30/month',
+    priceValue: 30,
     duration: '30 days',
     features: [
       'Map sponsored section placement',
@@ -29,8 +29,8 @@ const advertisingPlans = [
   {
     id: 'professional',
     name: 'Professional Plan',
-    price: '$150/month',
-    priceValue: 150,
+    price: '$75/month',
+    priceValue: 75,
     duration: '60 days',
     features: [
       'Map + Homepage banner placement',
@@ -45,8 +45,8 @@ const advertisingPlans = [
   {
     id: 'enterprise',
     name: 'Enterprise Plan',
-    price: '$300/month',
-    priceValue: 300,
+    price: '$150/month',
+    priceValue: 150,
     duration: '90 days',
     features: [
       'All platforms (Map, Homepage, Newsletter)',
@@ -76,6 +76,8 @@ interface FormData {
   adLocation: string;
 }
 
+type MediaType = 'image' | 'video' | 'gif' | 'animation';
+
 const AdvertiseForm = () => {
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
@@ -85,6 +87,9 @@ const AdvertiseForm = () => {
   const [submissionId, setSubmissionId] = useState<string | null>(null);
   const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [rateLimitCheck, setRateLimitCheck] = useState<{ allowed: boolean; reason?: string } | null>(null);
+  const [showPreview, setShowPreview] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
+  const [mediaType, setMediaType] = useState<MediaType | null>(null);
   
   const [formData, setFormData] = useState<FormData>({
     companyName: '',
@@ -105,89 +110,231 @@ const AdvertiseForm = () => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const getMediaType = (file: File): MediaType | null => {
+    const type = file.type.toLowerCase();
+    if (type.startsWith('image/')) {
+      // Check if it's a GIF (animated or static)
+      if (type === 'image/gif') {
+        return 'gif';
+      }
+      return 'image';
+    }
+    if (type.startsWith('video/')) {
+      return 'video';
+    }
+    // Check for animation formats
+    if (type === 'image/webp' || type === 'image/apng') {
+      return 'animation';
+    }
+    return null;
+  };
+
+  const handleMediaUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] || null;
     
-    // Validate file type (images only)
-    if (file && !file.type.startsWith('image/')) {
+    if (!file) return;
+    
+    // Validate file type
+    const detectedType = getMediaType(file);
+    if (!detectedType) {
       toast({
         title: "Invalid file type",
-        description: "Please select an image file (JPG, PNG, or WebP).",
+        description: "Please select an image (JPG, PNG, WebP), GIF, or short video (MP4, WebM, MOV).",
         variant: "destructive"
       });
       return;
     }
     
-    // Validate file size (max 5MB for images)
-    if (file && file.size > 5 * 1024 * 1024) {
+    // Validate file size based on type
+    const maxSize = detectedType === 'video' ? 15 * 1024 * 1024 : 10 * 1024 * 1024; // 15MB for videos, 10MB for images/GIFs/animations
+    const maxSizeMB = detectedType === 'video' ? 15 : 10;
+    
+    if (file.size > maxSize) {
       toast({
-        title: "Image too large",
-        description: "Please select an image smaller than 5MB.",
+        title: "File too large",
+        description: `Please select a file smaller than ${maxSizeMB}MB. For videos, keep them short (under 30 seconds recommended).`,
         variant: "destructive"
       });
       return;
     }
     
+    // For videos, validate duration (optional - client-side check)
+    if (detectedType === 'video') {
+      const videoUrl = URL.createObjectURL(file);
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.onloadedmetadata = () => {
+        const duration = video.duration;
+        window.URL.revokeObjectURL(videoUrl);
+        if (duration > 60) { // 60 seconds max
+          toast({
+            title: "Video too long",
+            description: "Please keep videos under 60 seconds for optimal performance.",
+            variant: "destructive"
+          });
+          setFormData(prev => ({ ...prev, adImage: null }));
+          setMediaType(null);
+          return;
+        }
+      };
+      video.onerror = () => {
+        window.URL.revokeObjectURL(videoUrl);
+      };
+      video.src = videoUrl;
+    }
+    
+    setMediaType(detectedType);
     setFormData(prev => ({ ...prev, adImage: file }));
   };
 
-  const uploadAdImage = async (file: File): Promise<string | null> => {
+  const uploadAdMedia = async (file: File): Promise<string | null> => {
     setIsUploading(true);
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `ad-${user?.id || 'anonymous'}-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
       
-      // Try sponsored-images bucket first (public), fallback to advertising-documents
-      let bucket = 'sponsored-images';
+      // Choose bucket based on media type
+      // Videos go to a separate bucket or advertising-documents (which allows larger files)
+      // Images/GIFs go to sponsored-images (public bucket for faster loading)
+      let bucket: string;
+      if (mediaType === 'video') {
+        // Try sponsored-videos bucket first (if it exists), then advertising-documents
+        bucket = 'sponsored-videos';
+      } else {
+        // Images, GIFs, animations go to sponsored-images
+        bucket = 'sponsored-images';
+      }
+      
       let filePath = fileName;
+      let uploadError: any = null;
 
-      const { error: uploadError } = await supabase.storage
+      // Try uploading to the primary bucket
+      const { error: primaryError } = await supabase.storage
         .from(bucket)
         .upload(filePath, file, {
-          cacheControl: '3600',
-          upsert: false
+          cacheControl: mediaType === 'video' ? '86400' : '3600', // Longer cache for videos
+          upsert: false,
+          contentType: file.type
         });
 
-      // If sponsored-images bucket doesn't exist, try advertising-documents
-      if (uploadError && uploadError.message.includes('Bucket not found')) {
-        bucket = 'advertising-documents';
-        const { error: fallbackError } = await supabase.storage
-          .from(bucket)
-          .upload(filePath, file, {
-            cacheControl: '3600',
-            upsert: false
-          });
+      uploadError = primaryError;
 
-        if (fallbackError) {
-          console.error('Image upload error:', fallbackError);
-          toast({
-            title: "Note",
-            description: "Image upload skipped - storage not configured. Your application will still be submitted.",
-            variant: "default"
-          });
-          return null;
+      // If primary bucket doesn't exist or fails, try fallback
+      if (uploadError) {
+        if (uploadError.message.includes('Bucket not found') || uploadError.message.includes('not found')) {
+          // For videos, try advertising-documents as fallback (allows larger files)
+          if (mediaType === 'video') {
+            bucket = 'advertising-documents';
+            const { error: fallbackError } = await supabase.storage
+              .from(bucket)
+              .upload(filePath, file, {
+                cacheControl: '86400',
+                upsert: false,
+                contentType: file.type
+              });
+
+            if (fallbackError) {
+              console.error('Video upload error (fallback):', fallbackError);
+              uploadError = fallbackError;
+            } else {
+              uploadError = null; // Success with fallback
+            }
+          } else {
+            // For images, try advertising-documents as fallback
+            bucket = 'advertising-documents';
+            const { error: fallbackError } = await supabase.storage
+              .from(bucket)
+              .upload(filePath, file, {
+                cacheControl: '3600',
+                upsert: false,
+                contentType: file.type
+              });
+
+            if (fallbackError) {
+              console.error('Image upload error (fallback):', fallbackError);
+              uploadError = fallbackError;
+            } else {
+              uploadError = null; // Success with fallback
+            }
+          }
         }
-      } else if (uploadError) {
-        console.error('Image upload error:', uploadError);
+      }
+
+      // Handle errors
+      if (uploadError) {
+        console.error('Media upload error:', uploadError);
+        
+        // Check for specific error types
         if (uploadError.message.includes('row-level security') || uploadError.message.includes('permission')) {
           toast({
-            title: "Note",
-            description: "Image upload skipped - access denied. Your application will still be submitted.",
-            variant: "default"
+            title: "Upload Permission Denied",
+            description: "Media upload failed - access denied. Your application will still be submitted, but without media.",
+            variant: "destructive"
           });
           return null;
         }
-        throw uploadError;
+        
+        if (uploadError.message.includes('File size') || uploadError.message.includes('too large')) {
+          toast({
+            title: "File Too Large",
+            description: "The file exceeds the storage limit. Please use a smaller file or compress your media.",
+            variant: "destructive"
+          });
+          return null;
+        }
+
+        if (uploadError.message.includes('content type') || uploadError.message.includes('not allowed')) {
+          toast({
+            title: "File Type Not Allowed",
+            description: `The storage bucket doesn't allow ${mediaType} files. Please contact support or use a different format.`,
+            variant: "destructive"
+          });
+          return null;
+        }
+
+        // Generic error
+        toast({
+          title: "Upload Failed",
+          description: `Media upload failed: ${uploadError.message}. Your application will still be submitted.`,
+          variant: "destructive"
+        });
+        return null;
       }
 
       // Get the public URL
-      const { data } = supabase.storage
+      const { data: publicUrlData } = supabase.storage
         .from(bucket)
         .getPublicUrl(filePath);
 
-      return data.publicUrl;
-    } catch (error) {
-      console.error('Error uploading image:', error);
+      const mediaUrl = publicUrlData.publicUrl;
+      
+      // Log upload success for debugging
+      console.log('Media uploaded successfully:', {
+        bucket,
+        filePath,
+        mediaType,
+        fileSize: `${(file.size / 1024 / 1024).toFixed(2)}MB`,
+        url: mediaUrl
+      });
+
+      // If bucket is private (advertising-documents), warn user
+      if (bucket === 'advertising-documents') {
+        console.warn('Media uploaded to private bucket. Videos may not display properly. Consider creating sponsored-videos bucket.');
+        toast({
+          title: "Upload Successful",
+          description: "Media uploaded, but using fallback bucket. For best results, create a 'sponsored-videos' bucket in Supabase.",
+          variant: "default"
+        });
+      }
+
+      return mediaUrl;
+    } catch (error: any) {
+      console.error('Error uploading media:', error);
+      toast({
+        title: "Upload Error",
+        description: error.message || "An unexpected error occurred during upload. Your application will still be submitted.",
+        variant: "destructive"
+      });
       return null;
     } finally {
       setIsUploading(false);
@@ -224,7 +371,24 @@ const AdvertiseForm = () => {
     checkRateLimit();
   }, [user, authLoading]);
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  // Cleanup preview media URL when component unmounts or preview is closed
+  useEffect(() => {
+    return () => {
+      if (previewImageUrl && previewImageUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(previewImageUrl);
+      }
+    };
+  }, [previewImageUrl]);
+
+  // Reset media type when file is cleared
+  useEffect(() => {
+    if (!formData.adImage) {
+      setMediaType(null);
+    }
+  }, [formData.adImage]);
+
+  // Handle form validation and show preview
+  const handleReviewSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
     // Require authentication
@@ -268,15 +432,53 @@ const AdvertiseForm = () => {
       return;
     }
 
+    // Generate preview media URL if media file is selected
+    if (formData.adImage) {
+      setPreviewImageUrl(URL.createObjectURL(formData.adImage));
+      const detectedType = getMediaType(formData.adImage);
+      setMediaType(detectedType);
+    } else if (formData.adImageUrl) {
+      setPreviewImageUrl(formData.adImageUrl);
+      // Try to detect type from URL extension
+      const urlLower = formData.adImageUrl.toLowerCase();
+      if (urlLower.includes('.mp4') || urlLower.includes('.webm') || urlLower.includes('.mov')) {
+        setMediaType('video');
+      } else if (urlLower.includes('.gif')) {
+        setMediaType('gif');
+      } else if (urlLower.includes('.webp') || urlLower.includes('.apng')) {
+        setMediaType('animation');
+      } else {
+        setMediaType('image');
+      }
+    } else {
+      setPreviewImageUrl(null);
+      setMediaType(null);
+    }
+
+    // Show preview
+    setShowPreview(true);
+    // Scroll to preview section
+    setTimeout(() => {
+      const previewElement = document.getElementById('ad-preview-section');
+      if (previewElement) {
+        previewElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+  };
+
+  // Final submission after preview confirmation
+  const handleFinalSubmit = async () => {
+    if (!user) return;
+
     setIsSubmitting(true);
 
     try {
-      // Upload ad image if provided
+      // Upload ad media if provided
       let imageUrl = formData.adImageUrl; // Use URL if provided directly
       if (formData.adImage) {
-        const uploadedImageUrl = await uploadAdImage(formData.adImage);
-        if (uploadedImageUrl) {
-          imageUrl = uploadedImageUrl;
+        const uploadedMediaUrl = await uploadAdMedia(formData.adImage);
+        if (uploadedMediaUrl) {
+          imageUrl = uploadedMediaUrl;
         }
       }
 
@@ -341,6 +543,25 @@ const AdvertiseForm = () => {
       });
     } finally {
       setIsSubmitting(false);
+      if (previewImageUrl && previewImageUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(previewImageUrl);
+      }
+      setShowPreview(false);
+      setPreviewImageUrl(null);
+    }
+  };
+
+  // Get plan badge info for preview
+  const getPlanBadgeInfo = (planType: string) => {
+    switch (planType) {
+      case 'enterprise':
+        return { label: 'Enterprise', color: 'bg-amber-500' };
+      case 'professional':
+        return { label: 'Professional', color: 'bg-blue-500' };
+      case 'basic':
+        return { label: 'Basic', color: 'bg-gray-500' };
+      default:
+        return { label: 'Standard', color: 'bg-gray-500' };
     }
   };
 
@@ -673,7 +894,7 @@ const AdvertiseForm = () => {
                   </div>
                 )}
 
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form onSubmit={handleReviewSubmit} className="space-y-5">
                   {/* Company Info */}
                   <div className="space-y-2">
                     <Label htmlFor="companyName">Company Name *</Label>
@@ -757,7 +978,7 @@ const AdvertiseForm = () => {
                       Ad Content (Optional)
                     </h3>
                     <p className="text-sm text-muted-foreground mb-4">
-                      You can provide ad content now or after approval. Our team can help create your ad if needed.
+                      You can provide ad content now or after approval. Upload images, GIFs, animations, or short videos to make your ad stand out. Our team can help create your ad if needed.
                     </p>
                     
                     <div className="space-y-4">
@@ -773,13 +994,13 @@ const AdvertiseForm = () => {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor="adImage">Ad Image (Optional)</Label>
+                        <Label htmlFor="adImage">Ad Media (Optional)</Label>
                         <div className="flex items-center gap-3">
                           <Input
                             id="adImage"
                             type="file"
-                            accept="image/jpeg,image/jpg,image/png,image/webp"
-                            onChange={handleImageUpload}
+                            accept="image/jpeg,image/jpg,image/png,image/webp,image/gif,image/apng,video/mp4,video/webm,video/quicktime,video/x-msvideo"
+                            onChange={handleMediaUpload}
                             className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
                             disabled={isSubmitting || isUploading}
                           />
@@ -790,27 +1011,41 @@ const AdvertiseForm = () => {
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          Upload your ad image (JPG, PNG, or WebP, Max 5MB). This will be displayed on the map. If not provided, a default image will be used.
+                          Upload your ad media: Images (JPG, PNG, WebP - Max 10MB), GIFs (Max 10MB), Animations (Max 10MB), or short videos (MP4, WebM, MOV - Max 15MB, under 60 seconds recommended). This will be displayed on the map.
                         </p>
                         {formData.adImage && (
                           <div className="mt-2">
                             <p className="text-sm text-primary mb-2">
-                              Selected: {formData.adImage.name}
+                              Selected: {formData.adImage.name} 
+                              {mediaType && (
+                                <span className="ml-2 text-xs text-muted-foreground">
+                                  ({(mediaType === 'video' ? 'Video' : mediaType === 'gif' ? 'GIF' : mediaType === 'animation' ? 'Animation' : 'Image')})
+                                </span>
+                              )}
                             </p>
-                            <div className="relative w-full h-32 border rounded-lg overflow-hidden">
-                              <img
-                                src={URL.createObjectURL(formData.adImage)}
-                                alt="Preview"
-                                className="w-full h-full object-cover"
-                              />
+                            <div className="relative w-full h-32 border rounded-lg overflow-hidden bg-muted">
+                              {mediaType === 'video' ? (
+                                <video
+                                  src={URL.createObjectURL(formData.adImage)}
+                                  controls
+                                  className="w-full h-full object-cover"
+                                  muted
+                                />
+                              ) : (
+                                <img
+                                  src={URL.createObjectURL(formData.adImage)}
+                                  alt="Preview"
+                                  className="w-full h-full object-cover"
+                                />
+                              )}
                             </div>
                           </div>
                         )}
                         {formData.adImageUrl && !formData.adImage && (
                           <div className="mt-2">
-                            <p className="text-xs text-muted-foreground mb-2">Or enter image URL:</p>
+                            <p className="text-xs text-muted-foreground mb-2">Or enter media URL:</p>
                             <Input
-                              placeholder="https://example.com/image.jpg"
+                              placeholder="https://example.com/media.jpg or .mp4"
                               value={formData.adImageUrl}
                               onChange={(e) => handleInputChange('adImageUrl', e.target.value)}
                               disabled={isSubmitting}
@@ -906,7 +1141,10 @@ const AdvertiseForm = () => {
                         Submitting Application...
                       </>
                     ) : (
-                      'Submit Advertising Application'
+                      <>
+                        <Eye className="mr-2 h-4 w-4" />
+                        Review & Submit Application
+                      </>
                     )}
                   </Button>
 
@@ -919,6 +1157,265 @@ const AdvertiseForm = () => {
           </div>
         </div>
       </section>
+
+      {/* Ad Preview Section */}
+      {showPreview && (
+        <section id="ad-preview-section" className="section bg-muted/30">
+          <div className="container-prose">
+            <div className="mx-auto max-w-4xl">
+              <Card className="shadow-elegant border-primary/20">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Eye className="w-5 h-5 text-primary" />
+                        Review Your Ad Preview
+                      </CardTitle>
+                      <CardDescription className="mt-2">
+                        This is how your ad will appear to users on the platform. Review carefully and edit if needed before submitting.
+                      </CardDescription>
+                    </div>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        if (previewImageUrl && previewImageUrl.startsWith('blob:')) {
+                          URL.revokeObjectURL(previewImageUrl);
+                        }
+                        setShowPreview(false);
+                        setPreviewImageUrl(null);
+                      }}
+                      className="flex items-center gap-2"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      Back to Edit
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Preview Display */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Star className="w-4 h-4 text-amber-400" />
+                      <h3 className="font-semibold text-lg">How Your Ad Will Look</h3>
+                    </div>
+
+                    {/* Premium Ad Preview (for Enterprise plan) */}
+                    {formData.selectedPlan === 'enterprise' && (
+                      <div className="bg-[#2a4149] rounded-lg p-4">
+                        <div className="relative w-full h-[120px] rounded-lg overflow-hidden cursor-pointer group transition-all duration-300 shadow-lg bg-gradient-to-br from-primary/20 to-primary/40">
+                          {/* Background Media */}
+                          {previewImageUrl && (
+                            <>
+                              {mediaType === 'video' ? (
+                                <video
+                                  className="absolute inset-0 w-full h-full object-cover"
+                                  src={previewImageUrl}
+                                  autoPlay
+                                  loop
+                                  muted
+                                  playsInline
+                                  onError={(e) => {
+                                    (e.target as HTMLVideoElement).style.display = 'none';
+                                  }}
+                                />
+                              ) : (
+                                <img
+                                  className="absolute inset-0 w-full h-full object-cover"
+                                  alt={formData.adTitle || formData.companyName}
+                                  src={previewImageUrl}
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                              )}
+                              <div className="absolute inset-0 bg-[linear-gradient(181deg,rgba(42,65,73,0)_0%,rgba(42,65,73,0.85)_100%)]" />
+                            </>
+                          )}
+
+                          {/* Content Overlay */}
+                          <div className="absolute inset-0 flex flex-col justify-between p-4">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1 min-w-0">
+                                <h4 className="text-white font-semibold text-sm leading-tight mb-1 line-clamp-2">
+                                  {formData.adTitle || formData.companyName}
+                                </h4>
+                                {formData.description && (
+                                  <p className="text-white/80 text-xs leading-tight line-clamp-2">
+                                    {formData.description}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                                {formData.adLocation && (
+                                  <div className="flex items-center gap-1 bg-black/30 px-2 py-1 rounded text-[10px] text-white">
+                                    <MapPin className="w-3 h-3" />
+                                    <span>{formData.adLocation}</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between mt-2">
+                              <div className="flex items-center gap-2">
+                                <span className="bg-amber-500 text-white text-[10px] font-semibold px-2 py-0.5 rounded">
+                                  Enterprise
+                                </span>
+                                {formData.adClickUrl && (
+                                  <ExternalLink className="w-3 h-3 text-white/60" />
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Sponsored Ad Preview (for Basic and Professional plans) */}
+                    {(formData.selectedPlan === 'basic' || formData.selectedPlan === 'professional') && (
+                      <div className="bg-[#2a4149] rounded-lg p-4">
+                        <div className="relative w-full h-20 rounded-md overflow-hidden cursor-pointer group transition-all duration-200 shadow-sm bg-gradient-to-br from-primary/20 to-primary/40">
+                          {/* Background Media */}
+                          {previewImageUrl && (
+                            <>
+                              {mediaType === 'video' ? (
+                                <video
+                                  className="absolute inset-0 w-full h-full object-cover"
+                                  src={previewImageUrl}
+                                  autoPlay
+                                  loop
+                                  muted
+                                  playsInline
+                                  onError={(e) => {
+                                    (e.target as HTMLVideoElement).style.display = 'none';
+                                  }}
+                                />
+                              ) : (
+                                <img
+                                  className="absolute inset-0 w-full h-full object-cover"
+                                  alt={formData.adTitle || formData.companyName}
+                                  src={previewImageUrl}
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).style.display = 'none';
+                                  }}
+                                />
+                              )}
+                              <div className="absolute inset-0 bg-[linear-gradient(181deg,rgba(42,65,73,0)_0%,rgba(42,65,73,1)_100%)]" />
+                            </>
+                          )}
+
+                          {/* Text Content */}
+                          {!previewImageUrl && (
+                            <div className="absolute inset-0 flex flex-col justify-between p-2.5">
+                              <div className="flex-1 flex flex-col justify-center">
+                                <h4 className="text-white font-semibold text-xs leading-tight mb-1 line-clamp-2">
+                                  {formData.adTitle || formData.companyName}
+                                </h4>
+                                {formData.description && (
+                                  <p className="text-white/80 text-[10px] leading-tight line-clamp-2">
+                                    {formData.description}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Content with Image */}
+                          {previewImageUrl && (
+                            <div className="absolute inset-0 flex flex-col justify-between p-2.5">
+                              <div className="flex-1 flex flex-col justify-end">
+                                <h4 className="text-white font-semibold text-xs leading-tight mb-1 line-clamp-2">
+                                  {formData.adTitle || formData.companyName}
+                                </h4>
+                                {formData.description && (
+                                  <p className="text-white/80 text-[10px] leading-tight line-clamp-1">
+                                    {formData.description}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Plan Badge */}
+                          <div className="absolute top-2 right-2">
+                            <span className={`${getPlanBadgeInfo(formData.selectedPlan).color} text-white text-[10px] font-semibold px-2 py-0.5 rounded`}>
+                              {getPlanBadgeInfo(formData.selectedPlan).label}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Ad Details Summary */}
+                    <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                      <h4 className="font-semibold">Ad Details</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <span className="text-muted-foreground">Company:</span>
+                          <p className="font-medium">{formData.companyName}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Plan:</span>
+                          <p className="font-medium">{selectedPlanDetails?.name || 'Not selected'}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Title:</span>
+                          <p className="font-medium">{formData.adTitle || formData.companyName || 'Not provided'}</p>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Location:</span>
+                          <p className="font-medium">{formData.adLocation || 'Global'}</p>
+                        </div>
+                        {formData.adClickUrl && (
+                          <div className="md:col-span-2">
+                            <span className="text-muted-foreground">Click URL:</span>
+                            <p className="font-medium break-all">{formData.adClickUrl}</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        if (previewImageUrl && previewImageUrl.startsWith('blob:')) {
+                          URL.revokeObjectURL(previewImageUrl);
+                        }
+                        setShowPreview(false);
+                        setPreviewImageUrl(null);
+                      }}
+                      className="flex-1"
+                      disabled={isSubmitting}
+                    >
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit Ad
+                    </Button>
+                    <Button
+                      onClick={handleFinalSubmit}
+                      size="lg"
+                      className="flex-1"
+                      disabled={isSubmitting || isUploading}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="mr-2 h-4 w-4" />
+                          Confirm & Submit
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Auth Dialog */}
       <AuthDialog

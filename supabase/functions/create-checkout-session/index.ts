@@ -10,17 +10,17 @@ const corsHeaders = {
 // Plan configuration
 const PLAN_CONFIG = {
   basic: {
-    price: 5000, // $50.00 in cents
+    price: 3000, // $30.00 in cents
     name: "Basic Plan",
     duration_days: 30,
   },
   professional: {
-    price: 15000, // $150.00 in cents
+    price: 7500, // $75.00 in cents
     name: "Professional Plan",
     duration_days: 60,
   },
   enterprise: {
-    price: 30000, // $300.00 in cents
+    price: 15000, // $150.00 in cents
     name: "Enterprise Plan",
     duration_days: 90,
   },

@@ -64,7 +64,6 @@
 
 ## 📊 Rate Limiting Rules
 
-- **Max 5 submissions per user per 30 days**
 - **Max 2 pending submissions at once**
 - **Auto-flag if reputation < 50** (from rejections)
 - **Reputation system:**
@@ -105,7 +104,7 @@
 - [ ] Click notification → Should navigate to relevant page
 - [ ] Admin approves submission → User should see notification instantly
 - [ ] Complete payment → Should see "Payment Confirmed" notification
-- [ ] Check rate limits → Try submitting 6 times in 30 days
+- [ ] Check rate limits → Try submitting with 2+ pending submissions
 - [ ] Check dashboard → Notifications tab should show all
 
 ---
