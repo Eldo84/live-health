@@ -91,8 +91,12 @@ export const AppLayout = (): JSX.Element => {
 
   // Check if we're on the dashboard route
   const isDashboard = location.pathname.startsWith("/dashboard") || location.pathname.startsWith("/app/dashboard");
+  // Check if we're on the news route
+  const isNewsPage = location.pathname.startsWith("/news") || location.pathname.startsWith("/app/news");
   // Check if we're on the map route
   const isMapPage = location.pathname.startsWith("/map") || location.pathname.startsWith("/app/map");
+  // Check if we should show sticky ads (dashboard or news on mobile)
+  const shouldShowStickyAds = isDashboard || (isMobile && isNewsPage);
   
   return (
     <FilterPanelProvider>
@@ -103,14 +107,14 @@ export const AppLayout = (): JSX.Element => {
         <div className="hidden xl:block fixed top-[56px] left-0 h-[calc(100vh-56px)] w-[160px] shrink-0 z-40">
           <SidebarMenuSection />
         </div>
-        <main className={`flex-1 relative w-full ${isFullscreen ? 'overflow-hidden h-full' : isMobile && isMapPage ? 'overflow-hidden h-full' : ''} xl:ml-[160px]`} style={{ paddingBottom: !isFullscreen && isMobile && isDashboard ? `${MOBILE_BOTTOM_NAV_HEIGHT + 90}px` : !isFullscreen && isMobile && !isMapPage ? `${MOBILE_BOTTOM_NAV_HEIGHT}px` : isDashboard && !isMobile ? '130px' : '0' }}>
+        <main className={`flex-1 relative w-full ${isFullscreen ? 'overflow-hidden h-full' : isMobile && isMapPage ? 'overflow-hidden h-full' : ''} xl:ml-[160px]`} style={{ paddingBottom: !isFullscreen && isMobile && shouldShowStickyAds ? `${MOBILE_BOTTOM_NAV_HEIGHT + 90}px` : !isFullscreen && isMobile && !isMapPage ? `${MOBILE_BOTTOM_NAV_HEIGHT}px` : isDashboard && !isMobile ? '130px' : '0' }}>
           <Outlet />
         </main>
       </div>
       {!isFullscreen && <Footer />}
       
-      {/* Sticky Premium Ads Section - Dashboard Only */}
-      {!isFullscreen && isDashboard && (
+      {/* Sticky Premium Ads Section - Dashboard and News (mobile only) */}
+      {!isFullscreen && shouldShowStickyAds && (
         <>
           {/* Mobile Ads - Above Bottom Navigation */}
           {isMobile && (

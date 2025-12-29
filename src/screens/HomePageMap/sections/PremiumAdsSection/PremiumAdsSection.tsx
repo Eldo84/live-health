@@ -500,9 +500,10 @@ export const PremiumAdsSection = ({ floating = false, mobile = false, compact = 
 
   return (
     <div 
-      className={`w-full ${floating ? 'bg-transparent' : mobile ? 'bg-[#2a4149]' : 'bg-[#2a4149] border-t border-[#EAEBF024]'} ${mobile ? (compact ? 'py-1' : 'py-2') : compact ? 'py-1.5' : 'py-4'} overflow-visible`}
+      className={`w-full ${floating ? 'bg-transparent' : mobile ? 'bg-[#2a4149]' : 'bg-[#2a4149] border-t border-[#EAEBF024]'} ${mobile ? (compact ? 'py-1' : 'py-2') : compact ? 'py-1.5' : 'py-4'} ${mobile ? 'overflow-hidden' : 'overflow-visible'}`}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      style={mobile ? { maxHeight: compact ? '90px' : '110px' } : undefined}
     >
       <div className={`w-full ${mobile ? 'px-0' : compact ? 'px-2' : 'px-4'} overflow-hidden`}>
         {!floating && !mobile && (

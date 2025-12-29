@@ -1078,20 +1078,13 @@ export const HomePageMap = (): JSX.Element => {
           </div>
         )}
         
-        {/* Header Title - Top Left - Desktop Only */}
-        <div className={`hidden lg:absolute top-[32px] left-[90px] z-[1000] transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
-          <h1 className="[font-family:'Roboto',Helvetica] font-bold text-[#67DBE2] text-[32px] tracking-[-0.5px] leading-[40px] max-w-[500px]">
-            Global Outbreak & Disease
-            <br />
-            Monitoring System
-          </h1>
-        </div>
-        
-
-
-        {/* Filters and Navigation - Top Right - Desktop Only */}
-        <div className={`hidden lg:absolute top-[32px] z-[1000] lg:flex flex-col items-end gap-3 transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} style={{ right: '200px' }}>
-          <div className="flex items-center gap-1" style={{ maxWidth: 'calc(50vw - 100px)' }}>
+        {/* Filters and Navigation - Top - Desktop Only */}
+        <div className={`hidden lg:absolute top-[32px] z-[1000] lg:flex flex-col gap-3 transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} style={{ left: '90px', right: '200px' }}>
+          <div className="w-full flex items-center justify-between gap-6">
+            <h1 className="[font-family:'Roboto',Helvetica] font-bold text-[#67DBE2] text-[28px] tracking-[-0.5px] leading-[36px]">
+              Global Outbreak & Disease Monitoring System
+            </h1>
+            <div className="flex items-center gap-1 justify-end" style={{ maxWidth: 'calc(50vw - 100px)' }}>
             {/* Date Range Tabs */}
             <div className="flex items-center h-[38px] rounded-[6px] border border-[#DAE0E633] bg-transparent px-1 py-1 shadow-[0px_1px_2px_#1018280a]" style={{ width: '220px', minWidth: '220px', borderBottomColor: "#FFFFFF33", borderBottomWidth: "1px" }}>
               <Tabs
@@ -1173,6 +1166,7 @@ export const HomePageMap = (): JSX.Element => {
             >
               <RefreshCcw className="w-3.5 h-3.5" />
             </button>
+            </div>
           </div>
 
           {/* Navigation Tabs - Commented out */}
@@ -1529,7 +1523,7 @@ export const HomePageMap = (): JSX.Element => {
         {/* Premium Ads Section - Mobile/Tablet (below map, above bottom nav) */}
         {!isMapFullscreen && isMobile && (
           <div
-            className="fixed left-0 right-0 z-[1200] bg-[#2a4149] border-t border-[#1f3541] lg:hidden"
+            className="fixed left-0 right-0 z-[1200] bg-[#2a4149] border-t border-[#1f3541] lg:hidden overflow-hidden"
             style={{
               bottom: `${MOBILE_BOTTOM_NAV_HEIGHT}px`,
               height: `${MOBILE_ADS_HEIGHT}px`,
