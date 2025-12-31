@@ -72,6 +72,9 @@ const COUNTRY_TO_CONTINENT: Record<string, string> = {
   "Italy": "Europe",
   "Poland": "Europe",
   "Russia": "Europe",
+  "Belgium": "Europe",
+  "Greece": "Europe",
+  "Austria": "Europe",
   // Asia
   "China": "Asia",
   "India": "Asia",
@@ -86,6 +89,10 @@ const COUNTRY_TO_CONTINENT: Record<string, string> = {
   "Indonesia": "Asia",
   "Philippines": "Asia",
   "Vietnam": "Asia",
+  "Taiwan": "Asia",
+  "Palestine": "Asia",
+  "Jordan": "Asia",
+  "Saudi Arabia": "Asia",
   // Oceania
   "Australia": "Oceania",
   "New Zealand": "Oceania",
@@ -98,6 +105,7 @@ const COUNTRY_TO_CONTINENT: Record<string, string> = {
   "Ghana": "Africa",
   "Ethiopia": "Africa",
   "Tanzania": "Africa",
+  "Togo": "Africa",
 };
 
 // Get continent from country data (prefer database value, fallback to manual mapping)
@@ -251,10 +259,6 @@ export function useRegionalRiskLevels(timeRange: string = "30d", countryId?: str
           const countryName = country.name;
           const countryContinent = country.continent; // Get continent from database
           
-          // Debug logging (only in development)
-          if (process.env.NODE_ENV === 'development' && countryContinent === "Unknown") {
-            console.warn(`Country "${countryName}" has continent="Unknown" in database, using fallback mapping`);
-          }
           const cases = signal.case_count_mentioned || 0;
           const severity = signal.severity_assessment || "low";
           const severityNum =
@@ -303,8 +307,8 @@ export function useRegionalRiskLevels(timeRange: string = "30d", countryId?: str
           const continent = getContinent(countryName, countryStats.continent);
           
           // Debug logging (only in development)
-          if (process.env.NODE_ENV === 'development' && continent === "Unknown") {
-            console.warn(`Country "${countryName}" mapped to continent="Unknown". Continent from DB: "${countryStats.continent}", Using manual mapping fallback.`);
+          if (process.env.NODE_ENV === 'development' && continent === "Other") {
+            console.warn(`Country "${countryName}" has no continent from DB ("${countryStats.continent || 'null'}") and no manual mapping; using "Other".`);
           }
           const countryRisk = calculateRiskLevel(
             countryStats.outbreakCount,

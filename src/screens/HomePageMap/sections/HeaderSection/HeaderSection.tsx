@@ -1,7 +1,7 @@
 import { ChevronDownIcon, Menu, Home, ChevronRight, LogOut, User, Plus, Shield, Megaphone, MessageSquare, Sparkles, Filter, Utensils, Droplet, Bug, Wind, Handshake, Hospital, PawPrint, Heart, AlertTriangle, Brain, Syringe, Activity, AlertCircle, Beaker, Dna, Stethoscope, Cloud } from "lucide-react";
 import { NotificationBell } from "../../../../components/NotificationBell";
 import React, { useState, useEffect, useRef } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Button } from "../../../../components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "../../../../components/ui/sheet";
 import {
@@ -18,6 +18,7 @@ import { supabase } from "../../../../lib/supabase";
 import outbreakNowLogo from "@/assets/outbreaknow-logo.png";
 import { useOutbreakCategories } from "../../../../lib/useOutbreakCategories";
 import { useFilterPanel } from "../../../../contexts/FilterPanelContext";
+import { buildStandardizedCategories } from "../../../../lib/outbreakCategoryUtils";
 
 const menuItems = [
   {
@@ -67,6 +68,8 @@ export const HeaderSection = (): JSX.Element => {
   const { user, signOut } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const [isMobile, setIsMobile] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
   
   // Detect mobile screen size
   useEffect(() => {
@@ -81,6 +84,33 @@ export const HeaderSection = (): JSX.Element => {
   // Check if we're on the map page
   const isMapPage = location.pathname.startsWith("/map") || location.pathname.startsWith("/app/map");
   
+  // Listen for category selection changes broadcast by HomePageMap
+  useEffect(() => {
+    const handleCategoryChange = (event: Event) => {
+      const detail = (event as CustomEvent<{ category: string | null }>).detail;
+      setSelectedCategory(detail?.category || null);
+    };
+    window.addEventListener('outbreakCategorySelectionChanged', handleCategoryChange);
+    return () => window.removeEventListener('outbreakCategorySelectionChanged', handleCategoryChange);
+  }, []);
+
+  // Listen for category stats (counts) broadcast by HomePageMap
+  useEffect(() => {
+    const handleStatsUpdate = (event: Event) => {
+      const detail = (event as CustomEvent<Record<string, { cases?: number }>>).detail;
+      if (!detail) {
+        setCategoryCounts({});
+        return;
+      }
+      const counts = Object.fromEntries(
+        Object.entries(detail).map(([name, value]) => [name, value?.cases ?? 0])
+      );
+      setCategoryCounts(counts);
+    };
+    window.addEventListener('outbreakCategoryStatsUpdated', handleStatsUpdate);
+    return () => window.removeEventListener('outbreakCategoryStatsUpdated', handleStatsUpdate);
+  }, []);
+  
   // Outbreak categories state for mobile header button
   const { categories: dbCategories } = useOutbreakCategories();
   const [isCategoriesPanelOpen, setIsCategoriesPanelOpen] = useState(false);
@@ -89,64 +119,31 @@ export const HeaderSection = (): JSX.Element => {
   const { isMobileFiltersOpen, setIsMobileFiltersOpen } = useFilterPanel();
   
   // Simplified category processing for header
-  const diseaseCategories = React.useMemo(() => {
-    if (!dbCategories || dbCategories.length === 0) return [];
-    
-    const iconMap: Record<string, React.ComponentType<any>> = {
-      'utensils': Utensils, 'droplet': Droplet, 'bug': Bug, 'wind': Wind,
-      'handshake': Handshake, 'hospital': Hospital, 'paw-print': PawPrint,
-      'paw': PawPrint, 'heart': Heart, 'shield': Shield, 'alert-triangle': AlertTriangle,
-      'alert-circle': AlertCircle, 'brain': Brain, 'syringe': Syringe,
-      'activity': Activity, 'beaker': Beaker, 'dna': Dna, 'stethoscope': Stethoscope,
-      'cloud': Cloud,
-    };
-    
-    const categoryIconMap: Record<string, React.ComponentType<any>> = {
-      'Foodborne Outbreaks': Utensils, 'Waterborne Outbreaks': Droplet,
-      'Vector-Borne Outbreaks': Bug, 'Airborne Outbreaks': Wind,
-      'Contact Transmission': Handshake, 'Healthcare-Associated Infections': Hospital,
-      'Zoonotic Outbreaks': PawPrint, 'Veterinary Outbreaks': PawPrint,
-      'Sexually Transmitted Infections': Heart, 'Vaccine-Preventable Diseases': Shield,
-      'Emerging Infectious Diseases': AlertTriangle, 'Neurological Outbreaks': Brain,
-      'Bloodborne Outbreaks': Syringe, 'Gastrointestinal Outbreaks': Activity,
-      'Respiratory Outbreaks': Cloud, 'Other': AlertCircle,
-    };
-    
-    const colorMap: Record<string, string> = {
-      'Foodborne Outbreaks': '#f87171', 'Waterborne Outbreaks': '#66dbe1',
-      'Vector-Borne Outbreaks': '#fbbf24', 'Airborne Outbreaks': '#a78bfa',
-      'Contact Transmission': '#fb923c', 'Healthcare-Associated Infections': '#ef4444',
-      'Zoonotic Outbreaks': '#10b981', 'Veterinary Outbreaks': '#8b5cf6',
-      'Sexually Transmitted Infections': '#ec4899', 'Vaccine-Preventable Diseases': '#3b82f6',
-      'Emerging Infectious Diseases': '#f59e0b', 'Neurological Outbreaks': '#dc2626',
-      'Respiratory Outbreaks': '#9333ea', 'Bloodborne Outbreaks': '#dc2626',
-      'Gastrointestinal Outbreaks': '#f97316', 'Other': '#4eb7bd',
-    };
-    
-    return dbCategories.map(cat => {
-      const normalizedName = cat.name;
-      const IconComponent = categoryIconMap[normalizedName] || 
-        (cat.icon ? iconMap[cat.icon.toLowerCase().replace(/\s+/g, '-')] : AlertCircle) ||
-        AlertCircle;
-      const color = cat.color || colorMap[normalizedName] || '#4eb7bd';
-      
-      return {
-        id: cat.id,
-        name: normalizedName,
-        color,
-        icon: IconComponent,
-      };
-    }).filter(Boolean);
-  }, [dbCategories]);
+  const diseaseCategories = React.useMemo(
+    () => buildStandardizedCategories(dbCategories || []),
+    [dbCategories]
+  );
   
   // Handle category click - dispatch custom event for HomePageMap to listen
-  const handleCategoryClick = (categoryName: string) => {
+  const handleCategoryClick = (categoryName: string, options?: { keepOpen?: boolean }) => {
+    const nextSelection = selectedCategory === categoryName ? null : categoryName;
+    setSelectedCategory(nextSelection);
     const event = new CustomEvent('outbreakCategorySelected', { 
       detail: { categoryName } 
     });
     window.dispatchEvent(event);
-    setIsCategoriesPanelOpen(false);
+    if (!options?.keepOpen) {
+      setIsCategoriesPanelOpen(false);
+    }
   };
+
+  const handleResetCategory = () => {
+    if (!selectedCategory) return;
+    // Send the same category name to allow map to clear it (toggle logic)
+    handleCategoryClick(selectedCategory, { keepOpen: true });
+  };
+
+  const getCategoryCount = (name: string) => categoryCounts[name] ?? 0;
 
   // Check if user is admin
   useEffect(() => {
@@ -250,11 +247,17 @@ export const HeaderSection = (): JSX.Element => {
     <div className="w-full bg-[#2a4149] border-b border-[#89898947] fixed top-0 left-0 right-0 z-[10000]">
       <header className="flex items-center justify-center bg-transparent">
         <div className="flex w-full max-w-[1280px] h-[56px] items-center justify-between px-4">
-          <img
-            className="h-10 w-auto object-contain lg:h-16"
-            alt="OutbreakNow Logo"
-            src={outbreakNowLogo}
-          />
+          <Link
+            to="/"
+            className="flex items-center cursor-pointer hover:opacity-80 transition-opacity"
+            aria-label="Go to home page"
+          >
+            <img
+              className="h-12 w-auto object-contain sm:h-14 md:h-16 lg:h-20 xl:h-24"
+              alt="OutbreakNow Logo"
+              src={outbreakNowLogo}
+            />
+          </Link>
 
           {/* Mobile Header Title */}
           <div className="flex-1 px-3 lg:hidden">
@@ -420,8 +423,20 @@ export const HeaderSection = (): JSX.Element => {
                   <SheetHeader>
                     <SheetTitle className="text-[#67DBE2] text-left">Outbreak Categories</SheetTitle>
                   </SheetHeader>
-                  <div className="mt-4">
-                    <div className="grid grid-cols-4 gap-4">
+                <div className="mt-4 space-y-3">
+                  {selectedCategory && (
+                    <div className="flex justify-end">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-white border border-white/15 bg-white/5 hover:bg-white/10"
+                        onClick={handleResetCategory}
+                      >
+                        Reset selection
+                      </Button>
+                    </div>
+                  )}
+                  <div className="grid grid-cols-4 gap-4">
                       {diseaseCategories.map((category) => (
                         <button
                           key={category.name}
@@ -454,12 +469,33 @@ export const HeaderSection = (): JSX.Element => {
                           <span className="text-xs text-white text-center line-clamp-2">
                             {category.name}
                           </span>
+                          <span className="text-[11px] text-white/70">
+                            {getCategoryCount(category.name)} outbreaks
+                          </span>
                         </button>
                       ))}
                     </div>
                   </div>
                 </SheetContent>
               </Sheet>
+            )}
+            {/* Add Alert - Mobile/Tablet on Map */}
+            {isMobile && isMapPage && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:bg-white/10 bg-[#67DBE2]/20 hover:bg-[#67DBE2]/30"
+                aria-label="Add alert"
+                onClick={handleAddAlertClick}
+              >
+                <Plus className="h-5 w-5" />
+              </Button>
+            )}
+            {/* Notifications - Mobile/Tablet on Map */}
+            {isMobile && isMapPage && (
+              <div className="flex items-center">
+                <NotificationBell />
+              </div>
             )}
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
               <SheetTrigger asChild>

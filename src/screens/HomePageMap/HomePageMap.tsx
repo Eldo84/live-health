@@ -21,6 +21,7 @@ import { Maximize2, Minimize2, X, RefreshCcw, Utensils, Droplet, Bug, Wind, Hand
 import { useFullscreen } from "../../contexts/FullscreenContext";
 import { useFilterPanel } from "../../contexts/FilterPanelContext";
 import { calculateDistance } from "../../lib/utils";
+import { buildStandardizedCategories, normalizeCategoryForDisplay } from "../../lib/outbreakCategoryUtils";
 
 const MOBILE_ADS_HEIGHT = 90; // Height for mobile ads section
 const MOBILE_BOTTOM_NAV_HEIGHT = 72;
@@ -58,14 +59,29 @@ export const HomePageMap = (): JSX.Element => {
   
   // Detect mobile screen size
   const [isMobile, setIsMobile] = React.useState(false);
+  // Detect tablet/medium screens (MacBook Pro 13.3: 1280x800, Large Tablet: 1366x1024, MacBook Pro 16: 1536x960, etc.)
+  // Tablet: width >= 1024 but < 1600, or height < 1100 (to catch landscape tablets and smaller laptops)
+  const [isTablet, setIsTablet] = React.useState(false);
+  // Detect small height screens (like MacBook Pro 13.3 with 800px height)
+  const [isSmallHeight, setIsSmallHeight] = React.useState(false);
+  const [viewportHeight, setViewportHeight] = React.useState<number>(
+    typeof window !== "undefined" ? window.innerHeight : 1080
+  );
   
   React.useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024); // lg breakpoint
+    const checkScreenSize = () => {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      setIsMobile(width < 1024); // lg breakpoint
+      // Tablet: width >= 1024 but < 1600 (catches 1280, 1366, 1536), or height < 1100 (catches landscape tablets and smaller laptops)
+      setIsTablet(width >= 1024 && (width < 1600 || height < 1100));
+      // Small height: height < 900px (catches MacBook Pro 13.3 and similar short screens)
+      setIsSmallHeight(height < 900);
+      setViewportHeight(height);
     };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
   // Detect when any Sheet (mobile menu or filters) is open
@@ -89,6 +105,19 @@ export const HomePageMap = (): JSX.Element => {
 
     return () => observer.disconnect();
   }, []);
+
+  // Broadcast current category selection so header/mobile sheet can react (e.g., show reset)
+  React.useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent('outbreakCategorySelectionChanged', {
+        detail: { category: filters.category },
+      })
+    );
+  }, [filters.category]);
+
+  const clampValue = (value: number, min: number, max: number): number => {
+    return Math.min(Math.max(value, min), max);
+  };
   
   // Fetch signals to calculate category stats (use filters but don't filter by category for stats)
   const statsFilters = { ...filters, category: null };
@@ -348,300 +377,11 @@ export const HomePageMap = (): JSX.Element => {
     }
   }, [filters.dateRange]);
 
-  // Map icon names from database to icon components
-  const iconMap: Record<string, React.ComponentType<any>> = {
-    'utensils': Utensils,
-    'droplet': Droplet,
-    'bug': Bug,
-    'wind': Wind,
-    'handshake': Handshake,
-    'hand': Handshake,
-    'hospital': Hospital,
-    'paw-print': PawPrint,
-    'paw': PawPrint,
-    'heart': Heart,
-    'shield': Shield,
-    'alert-triangle': AlertTriangle,
-    'alert-circle': AlertCircle,
-    'brain': Brain,
-    'syringe': Syringe,
-    'activity': Activity,
-    'flask': Beaker,
-    'beaker': Beaker,
-    'virus': Dna,
-    'dna': Dna,
-    'stethoscope': Stethoscope,
-    'cloud': Cloud,
-    'waves': Waves,
-    'sparkles': Sparkles,
-  };
-
-  // Unique icon assignment map to ensure each normalized category gets a unique icon
-  const categoryIconMap: Record<string, React.ComponentType<any>> = {
-    'Foodborne Outbreaks': Utensils,
-    'Waterborne Outbreaks': Droplet,
-    'Vector-Borne Outbreaks': Bug,
-    'Airborne Outbreaks': Wind,
-    'Contact Transmission': Handshake,
-    'Healthcare-Associated Infections': Hospital,
-    'Zoonotic Outbreaks': PawPrint,
-    'Veterinary Outbreaks': PawPrint,
-    'Sexually Transmitted Infections': Heart,
-    'Vaccine-Preventable Diseases': Shield,
-    'Emerging Infectious Diseases': AlertTriangle,
-    'Neurological Outbreaks': Brain,
-    'Bloodborne Outbreaks': Syringe,
-    'Gastrointestinal Outbreaks': Activity,
-    'Respiratory Outbreaks': Cloud,
-    'Skin and Soft Tissue Outbreaks': Stethoscope,
-    'Hemorrhagic Fever Outbreaks': Dna,
-    'Antimicrobial-Resistant Outbreaks': Beaker,
-    'Other': AlertCircle,
-  };
-
-  // Normalize category name to handle variations and duplicates
-  const normalizeCategoryForDisplay = (categoryName: string): string => {
-    const nameLower = categoryName.toLowerCase().trim();
-    
-    // Handle composite categories - extract first category
-    if (categoryName.includes(',')) {
-      const firstCategory = categoryName.split(',')[0].trim();
-      return normalizeCategoryForDisplay(firstCategory); // Recursively normalize
-    }
-    
-    // Normalize variations - handle duplicates FIRST before capitalization
-    // Veterinary variations
-    if (nameLower === 'veterinary outbreak' || nameLower === 'veterinary outbreaks') {
-      return 'Veterinary Outbreaks';
-    }
-    
-    // Sexually transmitted variations
-    if (nameLower.includes('sexually transmitted')) {
-      // Normalize both "Infections" and "Outbreaks" to "Infections"
-      if (nameLower.includes('infection')) {
-        return 'Sexually Transmitted Infections';
-      }
-      return 'Sexually Transmitted Infections'; // Default to Infections
-    }
-    
-    // Emerging diseases variations
-    if (nameLower.includes('emerging')) {
-      if (nameLower.includes('infectious diseases')) {
-        return 'Emerging Infectious Diseases';
-      }
-      if (nameLower.includes('re-emerging') || nameLower.includes('reemerging')) {
-        return 'Emerging Infectious Diseases';
-      }
-      // If it just says "emerging" without more context, assume "Emerging Infectious Diseases"
-      return 'Emerging Infectious Diseases';
-    }
-    
-    // Standard base categories - capitalize properly
-    const standardCategories: Record<string, string> = {
-      'foodborne outbreaks': 'Foodborne Outbreaks',
-      'waterborne outbreaks': 'Waterborne Outbreaks',
-      'vector-borne outbreaks': 'Vector-Borne Outbreaks',
-      'airborne outbreaks': 'Airborne Outbreaks',
-      'contact transmission': 'Contact Transmission',
-      'healthcare-associated infections': 'Healthcare-Associated Infections',
-      'zoonotic outbreaks': 'Zoonotic Outbreaks',
-      'vaccine-preventable diseases': 'Vaccine-Preventable Diseases',
-      'respiratory outbreaks': 'Respiratory Outbreaks',
-      'neurological outbreaks': 'Neurological Outbreaks',
-      'bloodborne outbreaks': 'Bloodborne Outbreaks',
-      'gastrointestinal outbreaks': 'Gastrointestinal Outbreaks',
-      'other': 'Other',
-    };
-    
-    // Check if it matches a standard category
-    if (standardCategories[nameLower]) {
-      return standardCategories[nameLower];
-    }
-    
-    // Capitalize first letter of each word for consistency (fallback)
-    return categoryName
-      .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
-  };
-
   // Transform database categories to component format with icons, removing duplicates
-  const diseaseCategories = React.useMemo(() => {
-    // Map to store unique normalized categories
-    const categoryMap = new Map<string, {
-      id: string;
-      name: string;
-      color: string;
-      icon: React.ComponentType<any>;
-      originalName: string; // Keep original for reference
-    }>();
-    
-    // Process each category and deduplicate by normalized name
-    dbCategories.forEach(cat => {
-      // Normalize the category name (handles composites, variations, etc.)
-      const normalizedName = normalizeCategoryForDisplay(cat.name);
-      
-      // Skip if we already have this normalized category
-      if (categoryMap.has(normalizedName)) {
-        const existing = categoryMap.get(normalizedName)!;
-        // Prefer the exact match if available (better capitalization)
-        // Or prefer the one without commas if both are similar
-        const isExactMatch = cat.name === normalizedName;
-        const existingIsExact = existing.originalName === normalizedName;
-        const hasComma = cat.name.includes(',');
-        const existingHasComma = existing.originalName.includes(',');
-        
-        // Keep this one if: it's an exact match and existing isn't, OR
-        // this one has no comma and existing has comma
-        if (!((isExactMatch && !existingIsExact) || (!hasComma && existingHasComma))) {
-          return; // Skip duplicate - keep existing
-        }
-        // Otherwise, continue to replace with better version
-      }
-      
-      // Map icon name from database to icon component, ensuring uniqueness
-      let IconComponent: React.ComponentType<any> = AlertCircle; // Default icon
-      
-      // First, check if we have a predefined unique icon for this normalized category
-      if (categoryIconMap[normalizedName]) {
-        IconComponent = categoryIconMap[normalizedName];
-      } else if (cat.icon) {
-        // Try to map the database icon name
-        const iconKey = cat.icon.toLowerCase().replace(/\s+/g, '-');
-        IconComponent = iconMap[iconKey] || AlertCircle;
-      } else {
-        // Fallback: try to infer icon from normalized category name
-        const nameLower = normalizedName.toLowerCase();
-        if (nameLower.includes('food')) IconComponent = Utensils;
-        else if (nameLower.includes('water')) IconComponent = Droplet;
-        else if (nameLower.includes('vector')) IconComponent = Bug;
-        else if (nameLower.includes('airborne')) IconComponent = Wind;
-        else if (nameLower.includes('respiratory')) IconComponent = Cloud;
-        else if (nameLower.includes('contact')) IconComponent = Handshake;
-        else if (nameLower.includes('healthcare') || nameLower.includes('hospital')) IconComponent = Hospital;
-        else if (nameLower.includes('zoonotic')) IconComponent = PawPrint;
-        else if (nameLower.includes('veterinary')) IconComponent = PawPrint;
-        else if (nameLower.includes('sexually')) IconComponent = Heart;
-        else if (nameLower.includes('vaccine')) IconComponent = Shield;
-        else if (nameLower.includes('emerging')) IconComponent = AlertTriangle;
-        else if (nameLower.includes('neurological')) IconComponent = Brain;
-        else if (nameLower.includes('blood')) IconComponent = Syringe;
-        else if (nameLower.includes('gastrointestinal')) IconComponent = Activity;
-        else if (nameLower.includes('skin') || nameLower.includes('soft tissue')) IconComponent = Stethoscope;
-        else if (nameLower.includes('hemorrhagic') || nameLower.includes('fever')) IconComponent = Dna;
-        else if (nameLower.includes('antimicrobial') || nameLower.includes('resistant')) IconComponent = Beaker;
-      }
-      
-      // Use database color, but ensure we have a valid color
-      let categoryColor = cat.color || '#66dbe1';
-      
-      // If color is missing or invalid, assign based on normalized name to match pie chart
-      if (!cat.color || cat.color === '#66dbe1') {
-        // Try to match colors from the pie chart's CATEGORY_COLORS
-        const colorMap: Record<string, string> = {
-          'Foodborne Outbreaks': '#f87171',
-          'Waterborne Outbreaks': '#66dbe1',
-          'Vector-Borne Outbreaks': '#fbbf24',
-          'Airborne Outbreaks': '#a78bfa',
-          'Contact Transmission': '#fb923c',
-          'Healthcare-Associated Infections': '#ef4444',
-          'Zoonotic Outbreaks': '#10b981',
-          'Veterinary Outbreaks': '#8b5cf6',
-          'Sexually Transmitted Infections': '#ec4899',
-          'Vaccine-Preventable Diseases': '#3b82f6',
-          'Emerging Infectious Diseases': '#f59e0b',
-          'Neurological Outbreaks': '#dc2626',
-          'Respiratory Outbreaks': '#9333ea',
-          'Bloodborne Outbreaks': '#dc2626',
-          'Gastrointestinal Outbreaks': '#f97316',
-          'Other': '#4eb7bd',
-        };
-        if (colorMap[normalizedName]) {
-          categoryColor = colorMap[normalizedName];
-        }
-      }
-      
-      categoryMap.set(normalizedName, {
-        id: cat.id,
-        name: normalizedName, // Use normalized name for display
-        color: categoryColor,
-        icon: IconComponent,
-        originalName: cat.name, // Keep original for reference
-      });
-    });
-    
-    // Define the standard categories from map dropdown (CATEGORY_COLORS)
-    const standardCategories = [
-      "Foodborne Outbreaks",
-      "Waterborne Outbreaks",
-      "Vector-Borne Outbreaks",
-      "Airborne Outbreaks",
-      "Contact Transmission",
-      "Healthcare-Associated Infections",
-      "Zoonotic Outbreaks",
-      "Sexually Transmitted Infections",
-      "Vaccine-Preventable Diseases",
-      "Emerging Infectious Diseases",
-      "Veterinary Outbreaks",
-      "Neurological Outbreaks",
-      "Respiratory Outbreaks",
-      "Bloodborne Outbreaks",
-      "Gastrointestinal Outbreaks",
-      "Other"
-    ];
-    
-    // Filter to only include categories that match the standard categories from map dropdown
-    // and ensure they're in the same order
-    const filteredCategories = standardCategories
-      .map(categoryName => {
-        // Find matching category from database (exact match or normalized match)
-        const found = Array.from(categoryMap.values()).find(cat => 
-          cat.name === categoryName || 
-          normalizeCategoryForDisplay(cat.name) === categoryName
-        );
-        
-        if (found) {
-          return found;
-        }
-        
-        // If not found in database, create a default entry with standard color
-        const standardColors: Record<string, string> = {
-          'Foodborne Outbreaks': '#f87171',
-          'Waterborne Outbreaks': '#66dbe1',
-          'Vector-Borne Outbreaks': '#fbbf24',
-          'Airborne Outbreaks': '#a78bfa',
-          'Contact Transmission': '#fb923c',
-          'Healthcare-Associated Infections': '#ef4444',
-          'Zoonotic Outbreaks': '#10b981',
-          'Sexually Transmitted Infections': '#ec4899',
-          'Vaccine-Preventable Diseases': '#3b82f6',
-          'Emerging Infectious Diseases': '#f59e0b',
-          'Veterinary Outbreaks': '#8b5cf6',
-          'Neurological Outbreaks': '#dc2626',
-          'Respiratory Outbreaks': '#9333ea',
-          'Bloodborne Outbreaks': '#dc2626',
-          'Gastrointestinal Outbreaks': '#f97316',
-          'Other': '#4eb7bd',
-        };
-        
-        // Get icon for this category
-        let IconComponent = AlertCircle;
-        if (categoryIconMap[categoryName]) {
-          IconComponent = categoryIconMap[categoryName];
-        }
-        
-        return {
-          id: categoryName.toLowerCase().replace(/\s+/g, '-'),
-          name: categoryName,
-          color: standardColors[categoryName] || '#4eb7bd',
-          icon: IconComponent,
-        };
-      })
-      .filter(Boolean); // Remove any undefined entries
-    
-    // Convert to array and remove originalName field
-    return filteredCategories.map(({ originalName, ...cat }) => cat);
-  }, [dbCategories]);
+  const diseaseCategories = React.useMemo(
+    () => buildStandardizedCategories(dbCategories),
+    [dbCategories]
+  );
 
   // Handle category selection from disease category icons
   const handleCategoryClick = (categoryName: string) => {
@@ -732,6 +472,15 @@ export const HomePageMap = (): JSX.Element => {
     
     return stats;
   }, [signals]);
+
+  // Broadcast category statistics for other UI (e.g., header categories sheet) to show counts
+  React.useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent('outbreakCategoryStatsUpdated', {
+        detail: categoryStats,
+      })
+    );
+  }, [categoryStats]);
 
   // Filter categories that have outbreaks within radius of user's location
   const nearbyCategories = React.useMemo(() => {
@@ -1030,6 +779,69 @@ export const HomePageMap = (): JSX.Element => {
     };
   }, [isMapFullscreen, isMobile]); // Recalculate when fullscreen or mobile changes
 
+  const sidebarGap = 16;
+  const mapLeftOffset = 90;
+  const sidebarTop = !isMapFullscreen && !isMobile
+    ? (isTablet ? (isSmallHeight ? 88 : 112) : 135)
+    : 0;
+  const sidebarWidth = !isMapFullscreen && !isMobile
+    ? (isTablet ? (isSmallHeight ? 230 : 250) : 260)
+    : 0;
+  const sidebarRight = !isMapFullscreen && !isMobile
+    ? (isTablet ? (isSmallHeight ? 12 : 20) : 64)
+    : 0;
+  const availableSidebarHeight = !isMapFullscreen && !isMobile
+    ? Math.max(320, viewportHeight - sidebarTop - 56)
+    : 0;
+  const sidebarCardHeight = !isMapFullscreen && !isMobile
+    ? clampValue((availableSidebarHeight - sidebarGap) / 2, isSmallHeight ? 260 : 320, isTablet ? 420 : 460)
+    : 0;
+  const newsTop = sidebarTop + sidebarCardHeight + sidebarGap;
+
+  const mapTop = isMobile ? 0 : (isTablet ? (isSmallHeight ? 96 : 120) : 135);
+  const mapMinHeight = isMobile ? 0 : (isTablet ? (isSmallHeight ? 360 : 540) : 650);
+  const mapHeightValue = isMobile || isMapFullscreen
+    ? null
+    : Math.max(mapMinHeight, viewportHeight - mapTop - (isTablet ? 220 : 260));
+  const mapRightOffset = isMobile || isMapFullscreen ? 0 : sidebarWidth + sidebarRight + sidebarGap;
+
+  const mapInlineStyle = React.useMemo(() => {
+    if (isMapFullscreen) {
+      return {
+        position: 'absolute' as const,
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        width: '100%',
+        height: '100%',
+        zIndex: 10,
+      };
+    }
+
+    if (isMobile) {
+      return {
+        position: 'fixed' as const,
+        top: '56px',
+        left: 0,
+        right: 0,
+        bottom: `${MOBILE_BOTTOM_NAV_HEIGHT + MOBILE_ADS_HEIGHT}px`,
+        width: '100%',
+        height: `calc(100vh - 56px - ${MOBILE_BOTTOM_NAV_HEIGHT + MOBILE_ADS_HEIGHT}px)`,
+        zIndex: 10,
+      };
+    }
+
+    return {
+      top: `${mapTop}px`,
+      left: `${mapLeftOffset}px`,
+      right: `${mapRightOffset}px`,
+      height: mapHeightValue ? `${mapHeightValue}px` : undefined,
+      minWidth: isTablet ? '0px' : '720px',
+      minHeight: mapMinHeight ? `${mapMinHeight}px` : undefined,
+    };
+  }, [isMapFullscreen, isMobile, mapTop, mapLeftOffset, mapRightOffset, mapHeightValue, isTablet, mapMinHeight]);
+
   return (
     <div className={`bg-[#2a4149] relative ${isMapFullscreen ? 'fixed inset-0 w-full h-full overflow-hidden z-[2000]' : isMobile ? 'fixed inset-0 w-full h-full overflow-hidden' : 'min-h-screen'}`}>
       <div className={`relative w-full ${isMobile ? 'h-full' : ''} ${isMobile ? '' : 'lg:min-w-[1280px]'}`} style={{ minHeight: isMobile ? '100%' : 'calc(100vh + 320px)', paddingBottom: isMobile ? '0' : '320px', marginBottom: isMobile ? '0' : '0px' }}>
@@ -1079,7 +891,7 @@ export const HomePageMap = (): JSX.Element => {
         )}
         
         {/* Filters and Navigation - Top - Desktop Only */}
-        <div className={`hidden lg:absolute top-[32px] z-[1000] lg:flex flex-col gap-3 transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} style={{ left: '90px', right: '200px' }}>
+        <div className={`hidden lg:absolute top-[32px] z-[1000] lg:flex flex-col gap-3 transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} style={{ left: '90px', right: isTablet && isSmallHeight ? '320px' : isTablet ? '250px' : '200px' }}>
           <div className="w-full flex items-center justify-between gap-6">
             <h1 className="[font-family:'Roboto',Helvetica] font-bold text-[#67DBE2] text-[28px] tracking-[-0.5px] leading-[36px]">
               Global Outbreak & Disease Monitoring System
@@ -1299,8 +1111,8 @@ export const HomePageMap = (): JSX.Element => {
           </>
         )}
 
-        {/* Outbreak Categories Panel - Desktop (Right Side) */}
-        {!isMapFullscreen && !isMobile && (
+        {/* Outbreak Categories Panel - Desktop (Right Side) - Hidden on tablet */}
+        {!isMapFullscreen && !isMobile && !isTablet && (
           <Collapsible 
             open={isCategoriesPanelOpen} 
             onOpenChange={setIsCategoriesPanelOpen} 
@@ -1390,32 +1202,8 @@ export const HomePageMap = (): JSX.Element => {
             isMobile 
               ? 'absolute left-0 right-0 w-full rounded-none z-10' 
               : 'absolute rounded-[12px] z-[1000] overflow-hidden shadow-2xl border border-[#67DBE2]/20 transition-all duration-500 ease-in-out'
-          } ${
-            isMapFullscreen 
-              ? 'top-0 left-0 right-0 bottom-0 w-full h-full rounded-none' 
-              : isMobile
-                ? ''
-                : 'top-[135px] left-[90px] w-[calc(100vw-550px)] h-[calc(100vh-350px)] min-w-[750px] min-h-[650px]'
-          }`}
-          style={isMobile && !isMapFullscreen ? { 
-            position: 'fixed', 
-            top: '56px', // Start right after header
-            left: 0, 
-            right: 0, 
-            bottom: `${MOBILE_BOTTOM_NAV_HEIGHT + MOBILE_ADS_HEIGHT}px`, // leave room for ads + nav
-            width: '100%',
-            height: `calc(100vh - 56px - ${MOBILE_BOTTOM_NAV_HEIGHT + MOBILE_ADS_HEIGHT}px)`, // Full height minus header and bottom UI
-            zIndex: 10
-          } : isMobile && isMapFullscreen ? {
-            position: 'absolute', 
-            top: 0, 
-            left: 0, 
-            right: 0, 
-            bottom: 0, 
-            width: '100%', 
-            height: '100%',
-            zIndex: 10
-          } : undefined}
+          } ${isMapFullscreen ? 'top-0 left-0 right-0 bottom-0 w-full h-full rounded-none' : ''}`}
+          style={mapInlineStyle}
         >
           {/* Fullscreen Toggle Button - Desktop Only */}
           {!isMobile && (
@@ -1540,10 +1328,9 @@ export const HomePageMap = (): JSX.Element => {
             className="hidden lg:block absolute z-[1400] transition-opacity duration-300 overflow-visible"
             style={{ 
               top: adsTop, // Dynamically calculated based on map container bottom
-              left: '90px',
-              right: '260px',
-              width: 'calc(100vw - 550px)',
-              minWidth: '750px',
+              left: `${mapLeftOffset}px`,
+              right: `${mapRightOffset}px`,
+              minWidth: isTablet ? '420px' : '760px',
               paddingRight: '0',
             }}
           >
@@ -1575,26 +1362,36 @@ export const HomePageMap = (): JSX.Element => {
         <div 
           className={`hidden lg:block absolute z-[1000] transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} 
           style={{ 
-            // Align the top of the outbreak news section with the map container on laptop/desktop
-            top: '135px',
-            left: 'calc(90px + min(calc(100vw - 550px), calc(100vw - 260px)) + 10px)', 
-            width: '240px' 
+            top: sidebarTop ? `${sidebarTop}px` : undefined,
+            right: `${sidebarRight}px`,
+            width: sidebarWidth ? `${sidebarWidth}px` : undefined,
+            maxWidth: sidebarWidth ? `${sidebarWidth}px` : undefined,
+            minWidth: sidebarWidth ? `${sidebarWidth}px` : undefined,
           }}
         >
-          <SponsoredSection />
+          <SponsoredSection 
+            width={sidebarWidth || undefined} 
+            height={sidebarCardHeight || undefined} 
+            maxHeight={sidebarCardHeight || undefined} 
+          />
         </div>
 
         {/* News Section - Right Sidebar, Below Sponsored - Desktop Only */}
         <div 
           className={`hidden lg:block absolute z-[1000] transition-opacity duration-300 ${isMapFullscreen ? 'opacity-0 pointer-events-none' : 'opacity-100'}`} 
           style={{ 
-            // Position below the sponsored section (135px + 380px height + 25px gap = 540px)
-            top: '540px', 
-            left: 'calc(90px + min(calc(100vw - 550px), calc(100vw - 260px)) + 10px)', 
-            width: '240px' 
+            top: newsTop ? `${newsTop}px` : undefined, 
+            right: `${sidebarRight}px`, 
+            width: sidebarWidth ? `${sidebarWidth}px` : undefined,
+            maxWidth: sidebarWidth ? `${sidebarWidth}px` : undefined,
+            minWidth: sidebarWidth ? `${sidebarWidth}px` : undefined,
           }}
         >
-          <NewsSection />
+          <NewsSection 
+            width={sidebarWidth || undefined} 
+            height={sidebarCardHeight || undefined} 
+            maxHeight={sidebarCardHeight || undefined} 
+          />
         </div>
 
         {/* Mobile Near Me Controls */}

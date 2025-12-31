@@ -66,13 +66,24 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ onCl
   const unreadNotifications = notifications.filter(n => !n.read);
   const recentNotifications = notifications.slice(0, 10);
 
+  const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1024;
+  const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
+  const isNarrow = viewportWidth < 520;
+
+  const topOffset = position ? Math.max(position.top + 8, 12) : 0;
+  const dropdownMaxHeight = position
+    ? Math.max(240, viewportHeight - topOffset - 16)
+    : 600;
+
   const dropdownStyle = position
     ? {
         position: 'fixed' as const,
-        top: `${Math.min(position.top + 8, window.innerHeight - 650)}px`, // Add extra top margin to ensure header is visible
-        right: `${Math.max(position.right, 16)}px`, // Ensure it doesn't go off right edge
-        zIndex: 99999, // Very high z-index to be above map (which uses z-[2000])
-        maxHeight: `${Math.min(600, window.innerHeight - position.top - 28)}px`, // Adjust max height based on available space
+        top: `${topOffset}px`,
+        right: isNarrow ? '12px' : `${Math.max(position.right, 16)}px`,
+        left: isNarrow ? '12px' : 'auto',
+        zIndex: 99999, // Above map layers
+        maxHeight: `${dropdownMaxHeight}px`,
+        width: isNarrow ? 'calc(100vw - 24px)' : '384px',
       }
     : {
         position: 'absolute' as const,
@@ -82,9 +93,13 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ onCl
         zIndex: 99999,
       };
 
+  const scrollMaxHeight = position
+    ? Math.max(200, viewportHeight - topOffset - 140)
+    : 500;
+
   return (
     <div 
-      className="w-96 bg-background border border-border rounded-lg shadow-2xl flex flex-col overflow-hidden mt-2"
+      className="w-full max-w-[384px] bg-background border border-border rounded-lg shadow-2xl flex flex-col overflow-hidden mt-2"
       style={dropdownStyle}
     >
       {/* Header */}
@@ -112,7 +127,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ onCl
       </div>
 
       {/* Notifications List */}
-      <ScrollArea className="flex-1" style={{ maxHeight: position ? `${Math.min(500, window.innerHeight - (position.top + 120))}px` : '500px' }}>
+      <ScrollArea className="flex-1" style={{ maxHeight: `${scrollMaxHeight}px` }}>
         {recentNotifications.length === 0 ? (
           <div className="p-8 text-center text-muted-foreground">
             <Bell className="h-12 w-12 mx-auto mb-4 opacity-50" />

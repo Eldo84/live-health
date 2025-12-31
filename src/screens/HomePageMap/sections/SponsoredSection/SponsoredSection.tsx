@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { useSponsoredContent, SponsoredContent } from "../../../../lib/useSponsoredContent";
 import { Star, Pin, ExternalLink, MapPin } from "lucide-react";
 import { useLanguage } from "../../../../contexts/LanguageContext";
@@ -208,13 +208,14 @@ const PlanCarousel: React.FC<{
   accentClass: string;
   onView: (id: string) => void;
   onClick: (id: string) => void;
-}> = ({ items, accentClass, onView, onClick }) => {
+  cardWidth: number;
+}> = ({ items, accentClass, onView, onClick, cardWidth }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [isPaused, setIsPaused] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const rotationIntervalRef = useRef<number | null>(null);
 
-  const CARD_WIDTH = 220;
+  const CARD_WIDTH = cardWidth;
   const CARD_GAP = 8;
 
   useEffect(() => {
@@ -276,7 +277,7 @@ const PlanCarousel: React.FC<{
         `}</style>
         <div className="flex items-stretch gap-2" style={{ minWidth: 'max-content' }}>
           {items.map((content) => (
-            <div key={content.id} className="min-w-[220px] max-w-[220px] flex-shrink-0">
+            <div key={content.id} className="flex-shrink-0" style={{ minWidth: `${CARD_WIDTH}px`, maxWidth: `${CARD_WIDTH}px` }}>
               <SponsoredCard
                 content={content}
                 onView={onView}
@@ -290,12 +291,25 @@ const PlanCarousel: React.FC<{
   );
 };
 
-export const SponsoredSection = (): JSX.Element => {
+interface SponsoredSectionProps {
+  width?: number;
+  height?: number | string;
+  maxHeight?: number | string;
+  className?: string;
+}
+
+export const SponsoredSection = ({ width, height, maxHeight, className }: SponsoredSectionProps = {}): JSX.Element => {
   const { t } = useLanguage();
   const { data, isLoading, error, trackView, trackClick } = useSponsoredContent({
     location: 'map',
     limit: 10,
   });
+
+  const effectiveCardWidth = useMemo(() => {
+    const base = width ?? 240;
+    // Keep cards fully visible in narrow sidebars while not shrinking too much
+    return Math.max(190, Math.min(220, base - 10));
+  }, [width]);
 
   const sortAds = (ads: SponsoredContent[]) => {
     return [...ads].sort((a, b) => {
@@ -325,10 +339,26 @@ export const SponsoredSection = (): JSX.Element => {
 
   const totalAds = planGroups.reduce((sum, g) => sum + g.items.length, 0);
 
+  const rootClasses = [
+    'w-full',
+    width ? '' : 'lg:w-[240px]',
+    'rounded-xl border-2 border-slate-700/50 bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-sm shadow-2xl flex flex-col overflow-hidden lg:h-[380px] h-[440px] max-h-[70vh] lg:max-h-[420px]',
+    className || '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const sizeStyles: CSSProperties = {
+    boxSizing: 'border-box',
+    ...(width ? { width: `${width}px`, maxWidth: `${width}px`, minWidth: `${width}px` } : {}),
+    ...(height ? { height: typeof height === 'number' ? `${height}px` : height } : {}),
+    ...(maxHeight ? { maxHeight: typeof maxHeight === 'number' ? `${maxHeight}px` : maxHeight } : {}),
+  };
+
   return (
     <div
-      className="w-full lg:w-[240px] rounded-xl border-2 border-slate-700/50 bg-gradient-to-br from-slate-800/95 to-slate-900/95 backdrop-blur-sm shadow-2xl flex flex-col overflow-hidden lg:h-[380px] h-[440px] max-h-[70vh] lg:max-h-[420px]"
-      style={{ boxSizing: 'border-box' }}
+      className={rootClasses}
+      style={sizeStyles}
     >
       {/* Header */}
       <div className="px-3 pt-2.5 pb-2 border-b border-slate-700/50 bg-slate-800/50">
@@ -347,13 +377,13 @@ export const SponsoredSection = (): JSX.Element => {
         {isLoading ? (
           <div className="space-y-1.5">
             <div className="flex items-stretch gap-2" style={{ minWidth: 'max-content' }}>
-              <div className="min-w-[220px] max-w-[220px]">
+              <div style={{ minWidth: `${effectiveCardWidth}px`, maxWidth: `${effectiveCardWidth}px` }}>
                 <SponsoredCardSkeleton />
               </div>
-              <div className="min-w-[220px] max-w-[220px]">
+              <div style={{ minWidth: `${effectiveCardWidth}px`, maxWidth: `${effectiveCardWidth}px` }}>
                 <SponsoredCardSkeleton />
               </div>
-              <div className="min-w-[220px] max-w-[220px]">
+              <div style={{ minWidth: `${effectiveCardWidth}px`, maxWidth: `${effectiveCardWidth}px` }}>
                 <SponsoredCardSkeleton />
               </div>
             </div>
@@ -367,6 +397,7 @@ export const SponsoredSection = (): JSX.Element => {
                 accentClass={group.accent}
                 onView={trackView}
                 onClick={trackClick}
+                cardWidth={effectiveCardWidth}
               />
             ))}
           </div>
@@ -394,6 +425,7 @@ export const SponsoredSection = (): JSX.Element => {
                 accentClass={group.accent}
                 onView={trackView}
                 onClick={trackClick}
+                cardWidth={effectiveCardWidth}
               />
             ))}
           </div>

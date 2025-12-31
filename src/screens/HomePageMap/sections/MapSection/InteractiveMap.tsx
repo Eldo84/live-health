@@ -1903,6 +1903,7 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
         worldCopyJump={true}
         style={{ height: "100%", width: "100%", background: "#1a2332" }}
         zoomControl={true}
+        attributionControl={false}
       >
         {/* Point count badge */}
         <div className={`absolute z-[1200] bg-[#0f172acc] text-white text-xs px-2 py-1 rounded ${
@@ -2450,6 +2451,7 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
             </>
           )
         }
+        
       </MapContainer>
       
       {/* Outbreak Categories Legend - Below Map */}

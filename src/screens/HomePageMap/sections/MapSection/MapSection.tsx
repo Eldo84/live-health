@@ -1,5 +1,3 @@
-import React from "react";
-
 export const MapSection = (): JSX.Element => {
   return (
     <div className="flex items-center justify-between gap-4 px-4 py-3 rounded-lg border border-[#EAEBF024] bg-[#FFFFFF14] shadow-lg">
@@ -19,10 +17,6 @@ export const MapSection = (): JSX.Element => {
         </button>
       </div>
 
-      {/* Attribution */}
-      <div className="[font-family:'Roboto',Helvetica] text-[#a7a7a7] text-xs">
-        Leaflet | © Esri, © OpenStreetMap
-      </div>
     </div>
   );
 };

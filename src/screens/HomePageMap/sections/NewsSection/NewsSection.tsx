@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { CSSProperties, useEffect, useState } from "react";
 import { useLanguage } from "../../../../contexts/LanguageContext";
 
 interface NewsArticle {
@@ -14,7 +14,14 @@ interface NewsArticle {
   };
 }
 
-export const NewsSection = (): JSX.Element => {
+interface NewsSectionProps {
+  width?: number;
+  height?: number | string;
+  maxHeight?: number | string;
+  className?: string;
+}
+
+export const NewsSection = ({ width, height, maxHeight, className }: NewsSectionProps = {}): JSX.Element => {
   const { t } = useLanguage();
   const [articles, setArticles] = useState<NewsArticle[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -174,8 +181,24 @@ export const NewsSection = (): JSX.Element => {
     return cleanContent.substring(0, maxLength).trim() + '...';
   };
 
+  const rootClasses = [
+    'w-full',
+    width ? '' : 'lg:w-[240px]',
+    'rounded-lg border border-[#EAEBF024] bg-[#FFFFFF14] shadow-lg flex flex-col overflow-hidden lg:h-[380px] h-[500px] max-h-[55vh] lg:max-h-[380px]',
+    className || '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  const sizeStyles: CSSProperties = {
+    boxSizing: 'border-box',
+    ...(width ? { width: `${width}px`, maxWidth: `${width}px`, minWidth: `${width}px` } : {}),
+    ...(height ? { height: typeof height === 'number' ? `${height}px` : height } : {}),
+    ...(maxHeight ? { maxHeight: typeof maxHeight === 'number' ? `${maxHeight}px` : maxHeight } : {}),
+  };
+
   return (
-    <div className="w-full lg:w-[240px] rounded-lg border border-[#EAEBF024] bg-[#FFFFFF14] shadow-lg flex flex-col overflow-hidden lg:h-[380px] h-[500px] max-h-[55vh] lg:max-h-[380px]" style={{ boxSizing: 'border-box' }}>
+    <div className={rootClasses} style={sizeStyles}>
       <div className="px-4 pt-4 pb-3 border-b border-[#EAEBF024]/50">
         <h2 className="[font-family:'Roboto',Helvetica] font-bold text-white text-base tracking-[-0.2px]">
           {t("news.outbreakNews")}
