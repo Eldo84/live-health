@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Bell } from 'lucide-react';
 import { Button } from './ui/button';
 import { useNotifications } from '@/lib/useNotifications';
@@ -45,17 +46,18 @@ export const NotificationBell: React.FC = () => {
         )}
       </Button>
       
-      {isOpen && dropdownPosition && (
+      {isOpen && dropdownPosition && typeof window !== 'undefined' && createPortal(
         <>
           <div
-            className="fixed inset-0 z-[99998] bg-black/10"
+            className="fixed inset-0 z-[999998] bg-black/10"
             onClick={() => setIsOpen(false)}
           />
           <NotificationDropdown 
             onClose={() => setIsOpen(false)}
             position={dropdownPosition}
           />
-        </>
+        </>,
+        document.body
       )}
     </div>
   );

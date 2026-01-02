@@ -1,6 +1,7 @@
 import { ChevronDownIcon, Menu, Home, ChevronRight, LogOut, User, Plus, Shield, Megaphone, MessageSquare, Sparkles, Filter, Utensils, Droplet, Bug, Wind, Handshake, Hospital, PawPrint, Heart, AlertTriangle, Brain, Syringe, Activity, AlertCircle, Beaker, Dna, Stethoscope, Cloud } from "lucide-react";
 import { NotificationBell } from "../../../../components/NotificationBell";
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Button } from "../../../../components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "../../../../components/ui/sheet";
@@ -62,6 +63,7 @@ export const HeaderSection = (): JSX.Element => {
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false);
+  const [languageDropdownPosition, setLanguageDropdownPosition] = useState<{ top: number; right: number } | null>(null);
   const languageDropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
@@ -185,6 +187,19 @@ export const HeaderSection = (): JSX.Element => {
     checkAdminRole();
   }, [user]);
 
+  // Update dropdown position when it opens
+  useEffect(() => {
+    if (languageDropdownOpen && languageDropdownRef.current) {
+      const rect = languageDropdownRef.current.getBoundingClientRect();
+      setLanguageDropdownPosition({
+        top: rect.bottom + 8,
+        right: window.innerWidth - rect.right,
+      });
+    } else {
+      setLanguageDropdownPosition(null);
+    }
+  }, [languageDropdownOpen]);
+
   // Close language dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -293,32 +308,45 @@ export const HeaderSection = (): JSX.Element => {
                   </span>
                   <ChevronDownIcon className={`w-5 h-5 text-white transition-transform ${languageDropdownOpen ? 'rotate-180' : ''}`} />
                 </div>
-                {languageDropdownOpen && (
-                  <div className="absolute top-full right-0 mt-2 w-56 bg-[#2a4149] border-2 border-[#4eb7bd]/50 rounded-lg shadow-2xl z-[9999] overflow-hidden backdrop-blur-sm">
-                    <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
-                      {SUPPORTED_LANGUAGES.map((lang) => (
-                        <button
-                          key={lang.code}
-                          onClick={() => {
-                            setLanguage(lang.code);
-                            setLanguageDropdownOpen(false);
-                          }}
-                          className={`w-full text-left px-4 py-3 hover:bg-[#4eb7bd]/20 transition-all duration-200 border-b border-[#89898947]/30 last:border-b-0 ${
-                            language === lang.code ? 'bg-[#4eb7bd]/15 border-l-2 border-l-[#4eb7bd]' : ''
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="[font-family:'Roboto',Helvetica] font-medium text-[#ffffff] text-sm">
-                              {lang.nativeName}
-                            </span>
-                            {language === lang.code && (
-                              <span className="text-app-primary text-base font-bold">✓</span>
-                            )}
-                          </div>
-                        </button>
-                      ))}
+                {languageDropdownOpen && languageDropdownPosition && typeof window !== 'undefined' && createPortal(
+                  <>
+                    <div
+                      className="fixed inset-0 z-[999998] bg-black/10"
+                      onClick={() => setLanguageDropdownOpen(false)}
+                    />
+                    <div 
+                      className="fixed w-56 bg-[#2a4149] border-2 border-[#4eb7bd]/50 rounded-lg shadow-2xl z-[999999] overflow-hidden backdrop-blur-sm"
+                      style={{
+                        top: `${languageDropdownPosition.top}px`,
+                        right: `${languageDropdownPosition.right}px`,
+                      }}
+                    >
+                      <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+                        {SUPPORTED_LANGUAGES.map((lang) => (
+                          <button
+                            key={lang.code}
+                            onClick={() => {
+                              setLanguage(lang.code);
+                              setLanguageDropdownOpen(false);
+                            }}
+                            className={`w-full text-left px-4 py-3 hover:bg-[#4eb7bd]/20 transition-all duration-200 border-b border-[#89898947]/30 last:border-b-0 ${
+                              language === lang.code ? 'bg-[#4eb7bd]/15 border-l-2 border-l-[#4eb7bd]' : ''
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="[font-family:'Roboto',Helvetica] font-medium text-[#ffffff] text-sm">
+                                {lang.nativeName}
+                              </span>
+                              {language === lang.code && (
+                                <span className="text-app-primary text-base font-bold">✓</span>
+                              )}
+                            </div>
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  </>,
+                  document.body
                 )}
               </div>
             </div>

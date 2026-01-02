@@ -430,14 +430,16 @@ export const DiseaseTracking = (): JSX.Element => {
       return { disease, color: colorPalette[index % colorPalette.length], data: filteredData };
     });
 
-    let globalMax = 0;
-    rawDatasets.forEach((ds) => ds.data.forEach((p) => { if (p.interest_value > globalMax) globalMax = p.interest_value; }));
-
+    // Use raw interest_value directly - already normalized by Google Trends API within each group
+    // Google Trends API normalizes scores 0-100 where 100 is the peak for the group
+    // We should NOT re-normalize here as it would create incorrect comparisons
+    // Note: Diseases from different groups may not be directly comparable, but this matches
+    // Google Trends website behavior when diseases are in the same group
     return rawDatasets.map((ds) => ({
       ...ds,
       data: ds.data.map((p) => ({
         ...p,
-        normalized_value: globalMax > 0 ? Math.round((p.interest_value / globalMax) * 100) : 0,
+        normalized_value: p.interest_value, // Use raw value, already normalized by API
       })),
     }));
   }, [selectedDiseases, trends, cutoffDate]);

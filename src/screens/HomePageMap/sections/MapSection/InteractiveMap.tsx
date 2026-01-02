@@ -212,10 +212,17 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoo
   const lastIsUserLocationRef = React.useRef(false);
   const userLocationZoomedRef = React.useRef(false);
   const zoomAttemptsRef = React.useRef(0);
+  const isZoomingRef = React.useRef(false);
   
   // Helper function to zoom to user location
   const zoomToUserLocation = React.useCallback((target: [number, number], attemptNumber: number = 0) => {
     try {
+      // Prevent multiple simultaneous zoom operations
+      if (isZoomingRef.current && attemptNumber === 0) {
+        console.log('⏸️ Zoom already in progress, skipping');
+        return false;
+      }
+      
       console.log(`🎯 Zoom attempt ${attemptNumber + 1} to user location:`, target, 'zoom level:', zoomLevel);
       
       // Ensure map is ready
@@ -223,6 +230,9 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoo
         console.warn('Map not ready yet, will retry');
         return false;
       }
+      
+      // Set zooming flag
+      isZoomingRef.current = true;
       
       // Validate coordinates
       if (!target || target.length !== 2 || isNaN(target[0]) || isNaN(target[1])) {
@@ -236,9 +246,6 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoo
         console.error('Coordinates out of range:', target);
         return false;
       }
-      
-      // Invalidate map size to ensure it's properly rendered
-      map.invalidateSize();
       
       // Find closest outbreaks within reasonable distance (1000km) so we can keep them in view with the user
       const MAX_DISTANCE_KM = 1000; // Limit to outbreaks within 1000km
@@ -307,10 +314,15 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoo
           console.log(`🗺️ No nearby outbreaks - fitting bounds to wider area around user (zoom: ${maxZoom})`);
         }
         
+        // Invalidate map size before zoom to ensure it's properly rendered
+        map.invalidateSize();
+        
         // Always use fitBounds - this ensures one smooth zoom to the correct level
+        // Always animate for smooth zoom experience
         map.fitBounds(boundsPoints, { 
           padding: padding,
-          animate: attemptNumber > 0,
+          animate: true,
+          duration: 0.5,
           maxZoom 
         });
         
@@ -319,7 +331,7 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoo
           setTimeout(() => {
             if (map && map.getContainer()) {
               map.panBy([0, 80] as [number, number], { 
-                animate: attemptNumber > 0,
+                animate: true,
                 duration: 0.3 
               });
             }
@@ -330,7 +342,7 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoo
         // Fallback: use a zoom that shows user location with some context
         const fallbackZoom = 4; // Lower zoom to show wider area
         map.setView([lat, lng], fallbackZoom, { 
-          animate: attemptNumber > 0,
+          animate: true,
           duration: 0.5 
         });
         
@@ -339,7 +351,7 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoo
           setTimeout(() => {
             if (map && map.getContainer()) {
               map.panBy([0, 80] as [number, number], { 
-                animate: attemptNumber > 0,
+                animate: true,
                 duration: 0.3 
               });
             }
@@ -347,8 +359,10 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoo
         }
       }
       
-      // Verify the zoom worked
+      // Clear zooming flag after animation completes
       setTimeout(() => {
+        isZoomingRef.current = false;
+        
         const currentCenter = map.getCenter();
         const currentZoom = map.getZoom();
         const bounds = map.getBounds();
@@ -365,11 +379,11 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoo
           
           // More lenient threshold when fitting bounds - zoom can be lower
           const minZoomThreshold = 4;
-          const shouldRetry = (!userVisible || !outbreaksVisible || currentZoom < minZoomThreshold) && attemptNumber < 3;
+          const shouldRetry = (!userVisible || !outbreaksVisible || currentZoom < minZoomThreshold) && attemptNumber < 2;
           
           if (shouldRetry) {
             console.log(`⚠️ Zoom verification failed (user visible: ${userVisible}, outbreaks visible: ${outbreaksVisible}, zoom: ${currentZoom}), retrying (attempt ${attemptNumber + 1})`);
-            setTimeout(() => zoomToUserLocation(target, attemptNumber + 1), 300);
+            setTimeout(() => zoomToUserLocation(target, attemptNumber + 1), 500);
           } else if (userVisible && outbreaksVisible && currentZoom >= minZoomThreshold) {
             console.log('✅ Successfully zoomed to user location with nearby outbreaks in view!');
             userLocationZoomedRef.current = true;
@@ -381,21 +395,22 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoo
           const lngDiff = Math.abs(currentCenter.lng - lng);
           const distance = latDiff + lngDiff;
           
-          const shouldRetry = (!userVisible || currentZoom < minZoomThreshold || distance > 0.5) && attemptNumber < 3;
+          const shouldRetry = (!userVisible || currentZoom < minZoomThreshold || distance > 0.5) && attemptNumber < 2;
           
           if (shouldRetry) {
             console.log(`⚠️ Zoom verification failed (user visible: ${userVisible}, zoom: ${currentZoom}, distance: ${distance}), retrying (attempt ${attemptNumber + 1})`);
-            setTimeout(() => zoomToUserLocation(target, attemptNumber + 1), 300);
+            setTimeout(() => zoomToUserLocation(target, attemptNumber + 1), 500);
           } else if (userVisible && currentZoom >= minZoomThreshold) {
             console.log('✅ Successfully zoomed to user location!');
             userLocationZoomedRef.current = true;
           }
         }
-      }, 200); // Increased timeout to allow fitBounds to complete
+      }, 600); // Wait for animation to complete
       
       return true;
     } catch (e) {
       console.error('Error in zoomToUserLocation:', e);
+      isZoomingRef.current = false;
       return false;
     }
   }, [map, points, zoomLevel]);
@@ -429,43 +444,18 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoo
         hasFittedRef.current = true; // Mark as fitted to prevent initial fit from running
         zoomAttemptsRef.current = 0;
         
-        // Set up zoom attempts with proper cleanup
-        const timers: NodeJS.Timeout[] = [];
-        
-        // Immediate zoom attempt
-        const immediateTimer = setTimeout(() => {
+        // Set up zoom attempt with proper cleanup
+        // Use a single attempt with a small delay to ensure map is ready
+        const timer = setTimeout(() => {
           if (map && map.getContainer()) {
-            console.log('🚀 Immediate zoom attempt to user location');
+            console.log('🚀 Zooming to user location');
             zoomToUserLocation(zoomTarget, 0);
           }
-        }, 0);
-        timers.push(immediateTimer);
-        
-        // Backup zoom attempts
-        timers.push(setTimeout(() => {
-          if (map && map.getContainer()) {
-            console.log('🔄 Backup zoom 1: re-trying user location fit');
-            zoomToUserLocation(zoomTarget, 1);
-          }
-        }, 300));
-        
-        timers.push(setTimeout(() => {
-          if (map && map.getContainer()) {
-            console.log('🔄 Backup zoom 2: re-trying user location fit');
-            zoomToUserLocation(zoomTarget, 2);
-          }
-        }, 600));
-        
-        timers.push(setTimeout(() => {
-          if (map && map.getContainer()) {
-            console.log('🔄 Backup zoom 3: final user location fit attempt');
-            zoomToUserLocation(zoomTarget, 3);
-          }
-        }, 1000));
+        }, 50);
         
         // Return cleanup function
         return () => {
-          timers.forEach(timer => clearTimeout(timer));
+          clearTimeout(timer);
         };
       }
       
@@ -543,14 +533,16 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoo
             map.fitBounds(bounds as [number, number][], {
               padding: [80, 80],
               maxZoom: 8,
+              animate: true,
+              duration: 0.5,
             });
           } catch (e) {
             console.warn('fitBounds failed, using setView:', e);
-            map.setView(zoomTarget, 6, { animate: true });
+            map.setView(zoomTarget, 6, { animate: true, duration: 0.5 });
           }
         } else {
           console.log('No points found, zooming to country center at level 6');
-          map.setView(zoomTarget, 6, { animate: true });
+          map.setView(zoomTarget, 6, { animate: true, duration: 0.5 });
         }
         hasFittedRef.current = true;
       } else if (points.length !== lastPointsCountRef.current && points.length > 0) {
@@ -561,9 +553,11 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoo
           map.fitBounds(bounds as [number, number][], {
             padding: [80, 80],
             maxZoom: 8,
+            animate: true,
+            duration: 0.5,
           });
         } catch (e) {
-          map.setView(zoomTarget, 6, { animate: true });
+          map.setView(zoomTarget, 6, { animate: true, duration: 0.5 });
         }
       }
       return; // Don't proceed to initial fit logic
@@ -587,7 +581,7 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoo
       
       // Reset map to world view immediately
       console.log('Resetting map to world view (points:', points.length, ')');
-      map.setView([20, 0], 2, { animate: true });
+      map.setView([20, 0], 2, { animate: true, duration: 0.5 });
       
       // If we have points, also fit bounds to show all of them
       if (points.length > 0) {
@@ -599,6 +593,7 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoo
               padding: [50, 50],
               maxZoom: 4, // World view zoom level
               animate: true,
+              duration: 0.5,
             });
             hasFittedRef.current = true;
           } catch (e) {
@@ -622,7 +617,7 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoo
       
       // Reset to world view immediately
       console.log('Resetting map to world view (points:', points.length, ')');
-      map.setView([20, 0], 2, { animate: true });
+      map.setView([20, 0], 2, { animate: true, duration: 0.5 });
       
       // If we have points, also fit bounds to show all of them
       if (points.length > 0) {
@@ -634,6 +629,7 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoo
               padding: [50, 50],
               maxZoom: 4,
               animate: true,
+              duration: 0.5,
             });
             hasFittedRef.current = true;
           } catch (e) {
@@ -669,7 +665,7 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoo
     if (!zoomTarget && !wasUserLocation && !isUserLocation && (initialFit || !hasFittedRef.current)) {
     if (points.length === 0) {
         console.log('No points, setting default view (not user location)');
-          map.setView([20, 0], 2, { animate: true });
+          map.setView([20, 0], 2, { animate: true, duration: 0.5 });
           hasFittedRef.current = true;
       return;
     }
@@ -682,11 +678,12 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoo
           padding: [50, 50],
             maxZoom: points.length === 1 ? 10 : 4, // World view for multiple points
             animate: true,
+            duration: 0.5,
         });
         hasFittedRef.current = true;
       } catch (e) {
             console.warn('fitBounds failed, using default view:', e);
-            map.setView([20, 0], 2, { animate: true });
+            map.setView([20, 0], 2, { animate: true, duration: 0.5 });
             hasFittedRef.current = true;
       }
     }
@@ -709,13 +706,14 @@ const FitBounds = ({ points, initialFit, zoomTarget, isUserLocation = false, zoo
               padding: [50, 50],
               maxZoom: 4, // World view
               animate: true,
+              duration: 0.5,
             });
             hasFittedRef.current = true;
             lastPointsCountRef.current = points.length;
             return; // Don't proceed to other logic
           } catch (e) {
             console.warn('fitBounds failed after reset:', e);
-            map.setView([20, 0], 2, { animate: true });
+            map.setView([20, 0], 2, { animate: true, duration: 0.5 });
             hasFittedRef.current = true;
             lastPointsCountRef.current = points.length;
             return;
@@ -960,7 +958,7 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
   const [zoom, setZoom] = useState(2);
   const [isLegendOpen, setIsLegendOpen] = useState(true);
   const [isCategoryLegendOpen, setIsCategoryLegendOpen] = useState(false);
-  const [isMapControlsOpen, setIsMapControlsOpen] = useState(true);
+  const [isMapControlsOpen, setIsMapControlsOpen] = useState(false);
   const [mapType, setMapType] = useState<MapType>('imagery');
   const [shouldFitBounds, setShouldFitBounds] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
@@ -1312,16 +1310,75 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
     return color;
   };
 
-  // Get severity color based on outbreak count
-  // Low: < 10 (green), Medium: >= 10 and < 50 (yellow), High: >= 50 (red)
-  const getSeverityColor = (outbreakCount: number): string => {
-    if (outbreakCount >= 50) {
-      return "#ef4444"; // High severity - red
-    } else if (outbreakCount >= 10) {
-      return "#fbbf24"; // Medium severity - yellow
+  // Get severity color based on severity level (matching dashboard colors)
+  // CRITICAL: red, HIGH: orange, MEDIUM: yellow, LOW: green
+  const getSeverityColor = (severity: string | null | undefined): string => {
+    if (!severity) return "#4ade80"; // Default to LOW if no severity
+    
+    const severityUpper = severity.toUpperCase();
+    if (severityUpper === 'CRITICAL') {
+      return "#f87171"; // Red - matches dashboard
+    } else if (severityUpper === 'HIGH') {
+      return "#fb923c"; // Orange - matches dashboard
+    } else if (severityUpper === 'MEDIUM') {
+      return "#fbbf24"; // Yellow - matches dashboard
     } else {
-      return "#10b981"; // Low severity - green
+      return "#4ade80"; // Green - matches dashboard (LOW)
     }
+  };
+
+  // Helper function to get the highest severity from multiple outbreaks
+  const getHighestSeverity = (outbreaks: OutbreakSignal[]): string => {
+    if (outbreaks.length === 0) return 'LOW';
+    
+    const severityOrder = { 'CRITICAL': 4, 'HIGH': 3, 'MEDIUM': 2, 'LOW': 1 };
+    let highestSeverity = 'LOW';
+    let highestOrder = 1;
+    
+    outbreaks.forEach(outbreak => {
+      const severity = (outbreak.severity || 'LOW').toUpperCase();
+      const order = severityOrder[severity as keyof typeof severityOrder] || 1;
+      if (order > highestOrder) {
+        highestOrder = order;
+        highestSeverity = severity;
+      }
+    });
+    
+    return highestSeverity;
+  };
+
+  // Calculate severity based on outbreak count and individual severities
+  // This ensures grouped outbreaks show appropriate severity color
+  const calculateGroupSeverity = (outbreaks: OutbreakSignal[]): string => {
+    if (outbreaks.length === 0) return 'LOW';
+    
+    const count = outbreaks.length;
+    const highestIndividualSeverity = getHighestSeverity(outbreaks);
+    
+    // Count critical/high severity outbreaks
+    const criticalHighCount = outbreaks.filter(o => {
+      const severity = (o.severity || 'LOW').toUpperCase();
+      return severity === 'CRITICAL' || severity === 'HIGH';
+    }).length;
+    
+    const severityRatio = count > 0 ? criticalHighCount / count : 0;
+    
+    // Use count-based severity if it's higher than individual severity
+    // CRITICAL: > 20 outbreaks OR > 30% are critical/high
+    if (severityRatio > 0.3 || count > 20) {
+      return 'CRITICAL';
+    }
+    // HIGH: > 10 outbreaks OR > 15% are critical/high
+    if (severityRatio > 0.15 || count > 10) {
+      return 'HIGH';
+    }
+    // MEDIUM: > 2 outbreaks (i.e., 3 or more)
+    if (count > 2) {
+      return 'MEDIUM';
+    }
+    
+    // Otherwise use the highest individual severity, or default to LOW
+    return highestIndividualSeverity || 'LOW';
   };
   
   // Points are already filtered by the hook based on filters
@@ -1964,21 +2021,27 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
               <div className="flex flex-col gap-2">
                 <div className="flex items-center justify-between gap-2">
                   <span className="[font-family:'Roboto',Helvetica] font-medium text-[10px] text-white tracking-[-0.10px] leading-3">
-                    High Severity
+                    Critical
                   </span>
-                  <div className="w-3 h-3 rounded-full bg-red-600 flex-shrink-0"></div>
+                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: '#f87171' }}></div>
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <span className="[font-family:'Roboto',Helvetica] font-medium text-[10px] text-white tracking-[-0.10px] leading-3">
-                    Medium Severity
+                    High
                   </span>
-                  <div className="w-3 h-3 rounded-full bg-yellow-600 flex-shrink-0"></div>
+                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: '#fb923c' }}></div>
                 </div>
                 <div className="flex items-center justify-between gap-2">
                   <span className="[font-family:'Roboto',Helvetica] font-medium text-[10px] text-white tracking-[-0.10px] leading-3">
-                    Low Severity
+                    Medium
                   </span>
-                  <div className="w-3 h-3 rounded-full bg-green-600 flex-shrink-0"></div>
+                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: '#fbbf24' }}></div>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="[font-family:'Roboto',Helvetica] font-medium text-[10px] text-white tracking-[-0.10px] leading-3">
+                    Low
+                  </span>
+                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: '#4ade80' }}></div>
                 </div>
               </div>
             </div>
@@ -2109,8 +2172,8 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
               {/* Render single-point cells as colored markers */}
               {aggregated.filter(cell => cell.totalCount === 1).map((cell) => {
                 const outbreak = cell.points[0];
-                // Use severity color based on count (1 outbreak = low severity)
-                const color = getSeverityColor(cell.totalCount);
+                // Use severity color from the outbreak data
+                const color = getSeverityColor(outbreak.severity);
                 return (
                   <Marker
                     key={`single-${outbreak.id}`}
@@ -2301,7 +2364,7 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
                       <Marker
                         key={`outbreak-${outbreak.id}`}
                         position={outbreak.position}
-                        icon={createCustomIcon(getSeverityColor(1), isCityLevel ? 18 : 16)}
+                        icon={createCustomIcon(getSeverityColor(outbreak.severity), isCityLevel ? 18 : 16)}
                       >
                         <Tooltip 
                           permanent={false}
@@ -2343,12 +2406,14 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
                     const isCityLevel = outbreaks.some((o: any) => !!o.city); // At least one outbreak has a city
                     const uniqueDiseases = [...new Set(outbreaks.map((o: any) => o.disease))];
                     const uniqueCategories = [...new Set(outbreaks.map((o: any) => o.category))];
+                    // Calculate severity based on count and individual severities
+                    const groupSeverity = calculateGroupSeverity(outbreaks);
                     
                     markers.push(
                     <Marker
                         key={`group-${coordKey}`}
                         position={outbreaks[0].position}
-                        icon={createCustomIcon(getSeverityColor(totalCount), isCityLevel ? 20 : 18)}
+                        icon={createCustomIcon(getSeverityColor(groupSeverity), isCityLevel ? 20 : 18)}
                     >
                       <Tooltip 
                         permanent={false}

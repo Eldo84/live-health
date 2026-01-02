@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from './supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -41,7 +41,7 @@ export const useNotifications = () => {
   const [loading, setLoading] = useState(true);
 
   // Fetch notifications
-  const fetchNotifications = async () => {
+  const fetchNotifications = useCallback(async () => {
     if (!user) {
       setNotifications([]);
       setUnreadCount(0);
@@ -66,7 +66,7 @@ export const useNotifications = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
   // Mark notification as read
   const markAsRead = async (notificationId: string) => {
@@ -141,61 +141,166 @@ export const useNotifications = () => {
       return;
     }
 
+    let mounted = true;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
     // Fetch initial notifications
     fetchNotifications();
 
     // Subscribe to real-time updates
-    const channel = supabase
-      .channel(`user_notifications_${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          const newNotification = payload.new as Notification;
-          
-          // Add to notifications list
-          setNotifications(prev => [newNotification, ...prev]);
-          setUnreadCount(prev => prev + 1);
+    const setupSubscription = () => {
+      // Remove existing channel if any
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
 
-          // Show toast notification
-          toast({
-            title: newNotification.title,
-            description: newNotification.message,
-          });
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          const updatedNotification = payload.new as Notification;
-          setNotifications(prev => {
-            const next = prev.map(n =>
-              n.id === updatedNotification.id ? updatedNotification : n
-            );
-            // Recalculate unread count so the bell badge stays in sync
-            const nextUnread = next.filter(n => !n.read).length;
-            setUnreadCount(nextUnread);
-            return next;
-          });
-        }
-      )
-      .subscribe();
+      channel = supabase
+        .channel(`user_notifications_${user.id}`, {
+          config: {
+            broadcast: { self: true },
+            presence: { key: user.id }
+          }
+        })
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            if (!mounted) return;
+            
+            const newNotification = payload.new as Notification;
+            
+            console.log('🔔 New notification received:', newNotification);
+            
+            // Check if notification already exists (avoid duplicates)
+            setNotifications(prev => {
+              const exists = prev.some(n => n.id === newNotification.id);
+              if (exists) {
+                console.log('Notification already exists, skipping duplicate');
+                return prev;
+              }
+              
+              // Add to notifications list
+              const updated = [newNotification, ...prev];
+              
+              // Update unread count
+              const unreadCount = updated.filter(n => !n.read).length;
+              setUnreadCount(unreadCount);
+              
+              // Show toast notification
+              toast({
+                title: newNotification.title,
+                description: newNotification.message,
+              });
+              
+              return updated;
+            });
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            if (!mounted) return;
+            
+            const updatedNotification = payload.new as Notification;
+            console.log('🔔 Notification updated:', updatedNotification);
+            
+            setNotifications(prev => {
+              const next = prev.map(n =>
+                n.id === updatedNotification.id ? updatedNotification : n
+              );
+              // Recalculate unread count so the bell badge stays in sync
+              const nextUnread = next.filter(n => !n.read).length;
+              setUnreadCount(nextUnread);
+              return next;
+            });
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'DELETE',
+            schema: 'public',
+            table: 'notifications',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            if (!mounted) return;
+            
+            const deletedId = payload.old.id;
+            console.log('🔔 Notification deleted:', deletedId);
+            
+            setNotifications(prev => {
+              const filtered = prev.filter(n => n.id !== deletedId);
+              const nextUnread = filtered.filter(n => !n.read).length;
+              setUnreadCount(nextUnread);
+              return filtered;
+            });
+          }
+        )
+        .subscribe((status) => {
+          console.log('🔔 Subscription status:', status);
+          
+          if (status === 'SUBSCRIBED') {
+            console.log('✅ Successfully subscribed to notifications');
+          } else if (status === 'CHANNEL_ERROR') {
+            console.error('❌ Channel subscription error, retrying...');
+            // Retry subscription after a short delay
+            setTimeout(() => {
+              if (mounted && user) {
+                setupSubscription();
+              }
+            }, 1000);
+          } else if (status === 'TIMED_OUT') {
+            console.error('❌ Subscription timed out, retrying...');
+            // Retry subscription after a short delay
+            setTimeout(() => {
+              if (mounted && user) {
+                setupSubscription();
+              }
+            }, 2000);
+          } else if (status === 'CLOSED') {
+            console.warn('⚠️ Subscription closed, attempting to reconnect...');
+            // Attempt to reconnect
+            if (mounted && user) {
+              setTimeout(() => {
+                setupSubscription();
+              }, 3000);
+            }
+          }
+        });
+    };
+
+    // Initial subscription setup
+    setupSubscription();
+
+    // Fallback: Periodic polling every 30 seconds to ensure we don't miss notifications
+    // This is a safety net in case real-time subscription fails or is slow
+    const pollInterval = setInterval(() => {
+      if (mounted && user) {
+        fetchNotifications();
+      }
+    }, 30000); // Poll every 30 seconds
 
     return () => {
-      supabase.removeChannel(channel);
+      mounted = false;
+      clearInterval(pollInterval);
+      if (channel) {
+        console.log('🔔 Cleaning up notification subscription');
+        supabase.removeChannel(channel);
+      }
     };
-  }, [user]);
+  }, [user, toast, navigate, fetchNotifications]);
 
   return {
     notifications,

@@ -25,6 +25,7 @@ import {
   generateTimeSeriesData,
   getLatestDiseaseData,
   getLatestDiseaseDataByCountry,
+  normalizeCountryCode,
 } from '@/data/mockData';
 
 const Index = () => {
@@ -82,22 +83,72 @@ const Index = () => {
     if (!selectedDisease?.id) return undefined;
     
     const countryCode = selectedCountry !== 'all' ? selectedCountry : undefined;
-    const countryUpper = countryCode ? countryCode.toUpperCase() : null;
     
-    // First try to get data for the selected year
-    const yearData = diseaseData.filter(d => 
-      d.baseId === selectedDisease.id && 
-      d.year === selectedYear &&
-      (!countryUpper || d.location.toUpperCase() === countryUpper || 
-       (countryUpper === 'US' && d.location.toUpperCase() === 'USA'))
-    );
-    
-    if (yearData.length > 0) {
-      return yearData.sort((a, b) => b.year - a.year)[0];
+    if (countryCode) {
+      // Normalize the country code (e.g., CN -> CHN, US -> USA)
+      const normalizedCode = normalizeCountryCode(countryCode);
+      
+      // First try to get data for the selected year
+      const yearData = diseaseData.filter(d => 
+        d.baseId === selectedDisease.id && 
+        d.year === selectedYear &&
+        d.location.toUpperCase() === normalizedCode.toUpperCase()
+      );
+      
+      if (yearData.length > 0) {
+        return yearData.sort((a, b) => b.year - a.year)[0];
+      }
+      
+      // Fallback to latest data for the country
+      return getLatestDiseaseDataByCountry(selectedDisease.id, countryCode);
     }
     
-    // Fallback to latest data for the country
-    return getLatestDiseaseDataByCountry(selectedDisease.id, countryCode);
+    // Aggregate data from all countries for the selected year
+    const allCountriesData = diseaseData.filter(d => 
+      d.baseId === selectedDisease.id && 
+      d.year === selectedYear
+    );
+    
+    if (allCountriesData.length === 0) {
+      // Fallback to latest data from any country
+      return getLatestDiseaseData(selectedDisease.id);
+    }
+    
+    // Aggregate: sum prevalence, incidence, DALYs; average mortality rate
+    const aggregated = allCountriesData.reduce((acc, curr) => {
+      return {
+        ...acc,
+        prevalence: acc.prevalence + curr.prevalence,
+        incidence: acc.incidence + curr.incidence,
+        dalys: acc.dalys + curr.dalys,
+        mortalityRate: acc.mortalityRate + curr.mortalityRate,
+        female: acc.female + curr.female,
+        male: acc.male + curr.male,
+        allSexes: acc.allSexes + curr.allSexes,
+        ylds: acc.ylds + curr.ylds,
+        count: acc.count + 1,
+      };
+    }, {
+      ...allCountriesData[0],
+      prevalence: 0,
+      incidence: 0,
+      dalys: 0,
+      mortalityRate: 0,
+      female: 0,
+      male: 0,
+      allSexes: 0,
+      ylds: 0,
+      count: 0,
+    });
+    
+    // Average mortality rate
+    aggregated.mortalityRate = aggregated.count > 0 
+      ? aggregated.mortalityRate / aggregated.count 
+      : 0;
+    
+    // Remove count from result
+    const { count, ...result } = aggregated;
+    return result;
   }, [selectedDisease, selectedCountry, selectedYear]);
 
   const countryData = useMemo(() => {
@@ -116,7 +167,44 @@ const Index = () => {
 
   const timeSeriesData = useMemo(() => {
     if (!selectedDisease?.id) return [];
-    const data = generateTimeSeriesData(selectedDisease.id, selectedCountry !== 'all' ? selectedCountry : undefined);
+    
+    if (selectedCountry === 'all') {
+      // Aggregate time series data from all countries
+      const allData = diseaseData.filter(d => 
+        d.baseId === selectedDisease.id && 
+        d.year <= selectedYear
+      );
+      
+      // Group by year and aggregate
+      const yearMap = new Map<number, { prevalence: number; incidence: number; mortality: number; dalys: number; count: number }>();
+      
+      allData.forEach(d => {
+        const existing = yearMap.get(d.year) || { prevalence: 0, incidence: 0, mortality: 0, dalys: 0, count: 0 };
+        yearMap.set(d.year, {
+          prevalence: existing.prevalence + d.prevalence,
+          incidence: existing.incidence + d.incidence,
+          mortality: existing.mortality + d.mortalityRate,
+          dalys: existing.dalys + d.dalys,
+          count: existing.count + 1,
+        });
+      });
+      
+      // Convert to array and average mortality
+      const aggregated = Array.from(yearMap.entries())
+        .map(([year, data]) => ({
+          year,
+          prevalence: data.prevalence,
+          incidence: data.incidence,
+          mortality: data.count > 0 ? data.mortality / data.count : 0,
+          dalys: data.dalys,
+        }))
+        .sort((a, b) => a.year - b.year);
+      
+      return aggregated;
+    }
+    
+    // Single country - use existing logic
+    const data = generateTimeSeriesData(selectedDisease.id, selectedCountry);
     
     // Filter by selected year - show data up to and including the selected year
     const filteredByYear = data.filter(d => d.year <= selectedYear);
@@ -250,7 +338,7 @@ const Index = () => {
               <div className="glass rounded-lg p-6 text-center animate-fade-in">
                 <p className="text-sm sm:text-base text-muted-foreground">
                   No data available for <strong>{selectedCountry}</strong> for this condition.
-                  {selectedCountry === 'USA' && ' Please ensure usa.json is properly loaded.'}
+                  {(selectedCountry === 'USA' || selectedCountry === 'CHN') && ' Please ensure the data file is properly loaded.'}
                 </p>
                 <p className="text-xs text-muted-foreground mt-2">
                   Try selecting "All Countries" or choose a different country.
@@ -268,7 +356,7 @@ const Index = () => {
 
             {/* Trend & Country Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-              <TrendChart data={timeSeriesData} title="Time-Series Trend (2020-2023)" />
+              <TrendChart data={timeSeriesData} title="Time-Series Trend (2020-2024)" />
               <CountryComparisonChart data={countryData} title="Country Comparison" />
             </div>
 

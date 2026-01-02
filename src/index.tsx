@@ -9,6 +9,7 @@ import { MainPageLayout } from "./layouts/MainPageLayout";
 import { FullscreenProvider } from "./contexts/FullscreenContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
+import { SidebarProvider } from "./contexts/SidebarContext";
 import HomePage from "./screens/mainpage/pages/index";
 import Partnership from "./screens/mainpage/pages/Partnership";
 
@@ -39,7 +40,8 @@ createRoot(document.getElementById("app") as HTMLElement).render(
       <BrowserRouter>
         <LanguageProvider>
           <AuthProvider>
-            <FullscreenProvider>
+            <SidebarProvider>
+              <FullscreenProvider>
               <Routes>
               {/* Main landing pages - no AppLayout (header/sidebar) */}
               <Route path="/" element={<MainPageLayout />}>
@@ -96,6 +98,7 @@ createRoot(document.getElementById("app") as HTMLElement).render(
               </Route>
               </Routes>
             </FullscreenProvider>
+            </SidebarProvider>
           </AuthProvider>
         </LanguageProvider>
       </BrowserRouter>

@@ -1,4 +1,5 @@
 import usaFile from './usa.json';
+import chinaFileRaw from './china.json';
 
 export interface Disease {
   id: string;
@@ -66,15 +67,19 @@ type RawRecord = {
   prevalence?: number | string;
   incidence?: number | string;
   mortalityRate?: number | string;
+  mortality_rate?: number | string; // snake_case variant
   female?: number | string;
   male?: number | string;
   allSexes?: number | string;
+  all_sexes?: number | string; // snake_case variant
   ylds?: number | string;
   dalys?: number | string;
   year?: number | string;
   location?: string;
   dataSource?: string;
+  data_source?: string; // snake_case variant
   riskFactors?: string | string[];
+  risk_factors?: string | string[]; // snake_case variant
   equity?: string;
   interventions?: string;
 };
@@ -86,7 +91,45 @@ type CountryFile = {
   records: RawRecord[];
 };
 
-const rawCountryFiles: CountryFile[] = [usaFile as CountryFile];
+// Transform China data from array format to CountryFile format
+const transformChinaData = (): CountryFile => {
+  // china.json is an array of records, need to wrap it
+  const chinaRecords = Array.isArray(chinaFileRaw) ? chinaFileRaw : [];
+  
+  // Transform snake_case to camelCase and normalize structure
+  const transformedRecords: RawRecord[] = chinaRecords.map((record: any) => ({
+    condition: record.condition || '',
+    category: record.category || '',
+    prevalence: record.prevalence,
+    incidence: record.incidence,
+    mortalityRate: record.mortality_rate || record.mortalityRate,
+    female: record.female,
+    male: record.male,
+    allSexes: record.all_sexes || record.allSexes,
+    ylds: record.ylds,
+    dalys: record.dalys,
+    year: record.year,
+    location: record.location || 'China',
+    dataSource: record.data_source || record.dataSource,
+    riskFactors: record.risk_factors || record.riskFactors,
+    equity: record.equity,
+    interventions: record.interventions,
+  }));
+  
+  return {
+    country: 'CHN',
+    records: transformedRecords,
+    metadata: {
+      source: 'china.json',
+      transformed: true,
+    },
+  };
+};
+
+const rawCountryFiles: CountryFile[] = [
+  usaFile as CountryFile,
+  transformChinaData(),
+];
 
 const slugifyCondition = (value: string) =>
   value
@@ -95,7 +138,7 @@ const slugifyCondition = (value: string) =>
     .replace(/^-+|-+$/g, '');
 
 // Normalize country codes (US -> USA, etc.)
-const normalizeCountryCode = (code: string): string => {
+export const normalizeCountryCode = (code: string): string => {
   const upper = code.toUpperCase().trim();
   const countryMap: Record<string, string> = {
     'US': 'USA',
@@ -103,6 +146,10 @@ const normalizeCountryCode = (code: string): string => {
     'UNITED STATES OF AMERICA': 'USA',
     'U.S.': 'USA',
     'U.S.A.': 'USA',
+    'CN': 'CHN',  // ISO 3166-1 alpha-2 code
+    'CHINA': 'CHN',
+    'PRC': 'CHN',
+    'PEOPLE\'S REPUBLIC OF CHINA': 'CHN',
   };
   return countryMap[upper] || upper;
 };
@@ -142,7 +189,7 @@ const normalizedRecords: DiseaseData[] = rawCountryFiles.flatMap(file => {
     const condition = record.condition?.trim() || `condition-${idx}`;
     const baseId = slugifyCondition(condition);
     const year = parseInt(String(record.year ?? file.year ?? 0), 10) || 0;
-    const countryCode = (file.country || record.location || 'UNK').toUpperCase();
+    const countryCode = normalizeCountryCode(file.country || record.location || 'UNK');
     return {
       id: `${baseId}-${countryCode}-${year || idx}`,
       baseId,
@@ -150,16 +197,16 @@ const normalizedRecords: DiseaseData[] = rawCountryFiles.flatMap(file => {
       category,
       prevalence: parseNumber(record.prevalence),
       incidence: parseNumber(record.incidence),
-      mortalityRate: parseNumber(record.mortalityRate),
+      mortalityRate: parseNumber(record.mortalityRate || record.mortality_rate),
       female: parseNumber(record.female),
       male: parseNumber(record.male),
-      allSexes: parseNumber(record.allSexes),
+      allSexes: parseNumber(record.allSexes || record.all_sexes),
       ylds: parseNumber(record.ylds),
       dalys: parseNumber(record.dalys),
       year,
       location: countryCode,
-      dataSource: record.dataSource || '',
-      riskFactors: splitRiskFactors(record.riskFactors),
+      dataSource: (record.dataSource || record.data_source || '').toString(),
+      riskFactors: splitRiskFactors(record.riskFactors || record.risk_factors),
     };
   });
 });
@@ -195,8 +242,8 @@ if (process.env.NODE_ENV === 'development' && normalizedRecords.length > 0) {
   console.log('Sample disease:', diseases[0]);
   const countries = Array.from(new Set(normalizedRecords.map(r => r.location)));
   console.log('Available countries in data:', countries);
-  console.log('Data source: usa.json loaded:', rawCountryFiles.length > 0);
-  console.log('Country code mapping: US ->', normalizeCountryCode('US'), ', United States ->', normalizeCountryCode('United States'));
+  console.log('Data sources loaded:', rawCountryFiles.map(f => `${f.country} (${f.records?.length || 0} records)`));
+  console.log('Country code mapping: US ->', normalizeCountryCode('US'), ', United States ->', normalizeCountryCode('United States'), ', China ->', normalizeCountryCode('China'));
 }
 
 // Time series grouped by condition

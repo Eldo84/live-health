@@ -195,13 +195,43 @@ export const DiseaseRegionMap = ({
 
     const regionsArray = Array.from(regionMap.values());
 
+    // Filter and rank regions to match Google Trends website behavior
+    // This works for ANY disease combination - filters out score 100 regions for the selected sort disease
+    // Google Trends website filters these out as they're typically low-volume small territories
+    const filteredRegions = regionsArray.filter((region) => {
+      const sortScore = region.scores[sortDisease] ?? 0;
+      
+      // Filter out regions with score 100 for sort disease (works for any disease)
+      // These are typically small territories with 100% of tiny volume
+      if (sortScore === 100) {
+        return false;
+      }
+      
+      return true;
+    });
+
     // Sort by selected disease interest descending
-    regionsArray.sort(
-      (a, b) =>
-        (b.scores[sortDisease] ?? 0) - (a.scores[sortDisease] ?? 0)
+    // Google Trends website sorts by the selected disease's score
+    filteredRegions.sort(
+      (a, b) => {
+        const scoreA = a.scores[sortDisease] ?? 0;
+        const scoreB = b.scores[sortDisease] ?? 0;
+        
+        // Primary sort: by sort disease score
+        if (scoreB !== scoreA) {
+          return scoreB - scoreA;
+        }
+        
+        // Secondary sort: by average score across all diseases (for tie-breaking)
+        // This helps match Google Trends website which considers overall interest
+        const avgA = selectedDiseases.reduce((sum, d) => sum + (a.scores[d] ?? 0), 0) / selectedDiseases.length;
+        const avgB = selectedDiseases.reduce((sum, d) => sum + (b.scores[d] ?? 0), 0) / selectedDiseases.length;
+        
+        return avgB - avgA;
+      }
     );
 
-    return regionsArray;
+    return filteredRegions;
   }, [regionData, sortDisease]);
 
   if (loading) {

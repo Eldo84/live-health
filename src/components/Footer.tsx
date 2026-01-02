@@ -39,7 +39,7 @@ export const Footer = () => {
   };
 
   return (
-    <footer className="border-t border-border bg-muted/30 pt-32 pb-12 max-lg:pb-0 max-lg:pt-4 xl:pl-[160px]">
+    <footer className="border-t border-border bg-muted/30 pt-0 pb-4 max-lg:pb-0 max-lg:pt-2 xl:pl-[160px]">
       <div className="container-prose">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8 text-xs sm:text-sm">
           {/* Logo and Description */}

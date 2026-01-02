@@ -19,7 +19,7 @@
       "dalys": "~2,400",
       "year": "2020",
       "location": "USA",
-      "dataSource": "CDC Diabetes Atlas, IHME",
+      "dataSource": "CDC Diabertes Atlas, IHME",
       "riskFactors": "Obesity, physical inactivity, poor diet, genetics, hypertension, high cholesterol, age, ethnicity (e.g., African American, Hispanic)"
     },
     {

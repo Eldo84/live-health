@@ -6,6 +6,7 @@ import { PremiumAdsSection } from "../screens/HomePageMap/sections/PremiumAdsSec
 import { Footer } from "../components/Footer";
 import { useFullscreen } from "../contexts/FullscreenContext";
 import { FilterPanelProvider } from "../contexts/FilterPanelContext";
+import { useSidebar } from "../contexts/SidebarContext";
 import { Home, Map as MapIcon, BarChart3, Database, Newspaper } from "lucide-react";
 
 type MobileNavItem = {
@@ -58,6 +59,7 @@ const MOBILE_NAV_ITEMS: MobileNavItem[] = [
 
 export const AppLayout = (): JSX.Element => {
   const { isFullscreen } = useFullscreen();
+  const { sidebarWidth } = useSidebar();
   const navigate = useNavigate();
   const location = useLocation();
   const [isMobile, setIsMobile] = React.useState(false);
@@ -104,10 +106,13 @@ export const AppLayout = (): JSX.Element => {
         {!isFullscreen && <HeaderSection />}
       <div className={`flex ${isFullscreen ? 'flex-1 h-full overflow-hidden' : isMobile && isMapPage ? 'flex-1 h-full overflow-hidden' : 'flex-1'}`}>
         {/* Sidebar - hidden on mobile and tablets, shown only on large desktop screens */}
-        <div className="hidden xl:block fixed top-[56px] left-0 h-[calc(100vh-56px)] w-[160px] shrink-0 z-40">
+        <div className="hidden xl:block fixed top-[56px] left-0 h-[calc(100vh-56px)] shrink-0 z-40" style={{ width: `${sidebarWidth}px` }}>
           <SidebarMenuSection />
         </div>
-        <main className={`flex-1 relative w-full ${isFullscreen ? 'overflow-hidden h-full' : isMobile && isMapPage ? 'overflow-hidden h-full' : ''} xl:ml-[160px]`} style={{ paddingBottom: !isFullscreen && isMobile && shouldShowStickyAds ? `${MOBILE_BOTTOM_NAV_HEIGHT + 90}px` : !isFullscreen && isMobile && !isMapPage ? `${MOBILE_BOTTOM_NAV_HEIGHT}px` : isDashboard && !isMobile ? '130px' : '0' }}>
+        <main className={`flex-1 relative w-full ${isFullscreen ? 'overflow-hidden h-full' : isMobile && isMapPage ? 'overflow-hidden h-full' : ''}`} style={{ 
+          marginLeft: isMobile ? '0' : `${sidebarWidth}px`,
+          paddingBottom: !isFullscreen && isMobile && shouldShowStickyAds ? `${MOBILE_BOTTOM_NAV_HEIGHT + 90}px` : !isFullscreen && isMobile && !isMapPage ? `${MOBILE_BOTTOM_NAV_HEIGHT}px` : isDashboard && !isMobile ? '130px' : '0' 
+        }}>
           <Outlet />
         </main>
       </div>
@@ -132,8 +137,9 @@ export const AppLayout = (): JSX.Element => {
           {/* Desktop Ads - At Bottom */}
           {!isMobile && (
             <div
-              className="fixed left-0 right-0 xl:left-[160px] z-[1100] border-t border-[#1f3541] bg-[#2a4149] hidden xl:block"
+              className="fixed right-0 z-[1100] border-t border-[#1f3541] bg-[#2a4149] hidden xl:block"
               style={{
+                left: `${sidebarWidth}px`,
                 bottom: '0',
                 height: 'auto',
                 boxShadow: "0 -4px 12px rgba(0,0,0,0.2)",

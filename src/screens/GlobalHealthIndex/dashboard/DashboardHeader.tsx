@@ -14,7 +14,7 @@ interface DashboardHeaderProps {
   onMenuClick?: () => void;
 }
 
-const years = [2020, 2021, 2022, 2023];
+const years = [2020, 2021, 2022, 2023, 2024];
 const countries = [
   { value: 'all', label: 'All Countries' },
   { value: 'USA', label: 'United States' },

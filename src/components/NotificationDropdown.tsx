@@ -81,7 +81,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ onCl
         top: `${topOffset}px`,
         right: isNarrow ? '12px' : `${Math.max(position.right, 16)}px`,
         left: isNarrow ? '12px' : 'auto',
-        zIndex: 99999, // Above map layers
+        zIndex: 999999, // Very high z-index to ensure it's above all content
         maxHeight: `${dropdownMaxHeight}px`,
         width: isNarrow ? 'calc(100vw - 24px)' : '384px',
       }
@@ -90,7 +90,7 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({ onCl
         right: 0,
         top: '100%',
         marginTop: '8px',
-        zIndex: 99999,
+        zIndex: 999999,
       };
 
   const scrollMaxHeight = position

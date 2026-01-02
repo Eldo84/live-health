@@ -50,6 +50,7 @@ export const AddAlertDialog: React.FC<AddAlertDialogProps> = ({ open, onOpenChan
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [wasAutoApproved, setWasAutoApproved] = useState(false);
   const [diseases, setDiseases] = useState<Disease[]>([]);
   const [loadingDiseases, setLoadingDiseases] = useState(false);
 
@@ -172,7 +173,7 @@ export const AddAlertDialog: React.FC<AddAlertDialogProps> = ({ open, onOpenChan
       }
 
       // Save alert submission for admin review
-      const { error: submissionError } = await supabase
+      const { data: insertedSubmission, error: submissionError } = await supabase
         .from("user_alert_submissions")
         .insert({
           user_id: user.id,
@@ -189,18 +190,55 @@ export const AddAlertDialog: React.FC<AddAlertDialogProps> = ({ open, onOpenChan
           country_name: countryName,
           country_id: countryId,
           status: "pending_review",
-        });
+        })
+        .select()
+        .single();
 
       if (submissionError) {
         throw new Error("Failed to submit alert: " + submissionError.message);
       }
 
-      setSuccess(true);
-      setTimeout(() => {
-        onOpenChange(false);
-        form.reset();
-        setSuccess(false);
-      }, 2000);
+      // Check if submission was auto-approved (status might have changed by trigger)
+      const { data: checkSubmission } = await supabase
+        .from("user_alert_submissions")
+        .select("status, admin_notes")
+        .eq("id", insertedSubmission.id)
+        .single();
+
+      const isAutoApproved = checkSubmission?.status === "approved" && 
+                            checkSubmission?.admin_notes?.includes("Auto-approved");
+
+      // If auto-approved, process it immediately
+      if (isAutoApproved) {
+        setWasAutoApproved(true);
+        try {
+          // Call Edge Function to process auto-approved submission
+          const { error: processError } = await supabase.functions.invoke("process-auto-approved-alerts");
+          if (processError) {
+            console.error("Error processing auto-approved alert:", processError);
+            // Don't fail - the cron job will process it later
+          }
+        } catch (err) {
+          console.error("Error calling process function:", err);
+          // Don't fail - the cron job will process it later
+        }
+
+        setSuccess(true);
+        setTimeout(() => {
+          onOpenChange(false);
+          form.reset();
+          setSuccess(false);
+          setWasAutoApproved(false);
+        }, 4000);
+      } else {
+        setWasAutoApproved(false);
+        setSuccess(true);
+        setTimeout(() => {
+          onOpenChange(false);
+          form.reset();
+          setSuccess(false);
+        }, 2000);
+      }
     } catch (err: any) {
       setError(err.message || "An error occurred while submitting the alert");
     } finally {
@@ -412,7 +450,9 @@ export const AddAlertDialog: React.FC<AddAlertDialogProps> = ({ open, onOpenChan
             {success && (
               <div className="flex items-center justify-center p-3 bg-green-900/30 border border-green-500/50 rounded-lg">
                 <div className="text-xs text-green-300 [font-family:'Roboto',Helvetica]">
-                  Alert submitted successfully! It has been sent for admin review and will appear on the map once approved.
+                  {wasAutoApproved 
+                    ? "🎉 Alert auto-approved! Your report matches another submission for the same outbreak and location. It has been automatically approved and will appear on the map shortly."
+                    : "Alert submitted successfully! It has been sent for admin review and will appear on the map once approved. If another matching report is submitted, it will be automatically approved."}
                 </div>
               </div>
             )}

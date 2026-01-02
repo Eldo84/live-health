@@ -8,10 +8,11 @@ import {
 } from "../../../../components/ui/collapsible";
 import { ChevronLeft, ChevronRight, Home } from "lucide-react";
 import { useLanguage } from "../../../../contexts/LanguageContext";
+import { useSidebar } from "../../../../contexts/SidebarContext";
 
 export const SidebarMenuSection = (): JSX.Element => {
   const [isDashboardOpen, setIsDashboardOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const { isCollapsed, setIsCollapsed } = useSidebar();
   const navigate = useNavigate();
   const location = useLocation();
   const { t } = useLanguage();
@@ -54,7 +55,7 @@ export const SidebarMenuSection = (): JSX.Element => {
   ];
 
   return (
-    <nav className={`flex flex-col items-center gap-[22px] pt-4 pb-6 px-0 bg-[#2a4149] border-r [border-right-style:solid] border-[#eaebf024] transition-all duration-300 ${isCollapsed ? 'w-[70px]' : 'w-[160px]'}`}>
+    <nav className={`flex flex-col items-center gap-[22px] pt-4 pb-6 px-0 bg-[#2a4149] border-r [border-right-style:solid] border-[#eaebf024] transition-all duration-300 ${isCollapsed ? 'w-[70px]' : 'w-[160px]'}`} style={{ width: isCollapsed ? '70px' : '160px' }}>
       {/* Toggle Button */}
       <div className="w-full flex justify-end px-2 mb-2">
         <Button

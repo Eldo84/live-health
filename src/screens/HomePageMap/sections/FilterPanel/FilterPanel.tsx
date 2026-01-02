@@ -73,7 +73,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
         isFullscreen ? "opacity-0 pointer-events-none" : "opacity-100"
       }`}
       style={{
-        top: "100px",
+        top: "79px", // Adjusted to be below title/filters section with spacing
         left: "90px",
         width: "320px",
       }}
