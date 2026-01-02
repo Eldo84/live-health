@@ -51,3 +51,4 @@ CREATE INDEX IF NOT EXISTS idx_health_statistics_location_name ON health_statist
 
 
 
+
