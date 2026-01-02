@@ -107,7 +107,7 @@ export const AppLayout = (): JSX.Element => {
       <div className={`flex ${isFullscreen ? 'flex-1 h-full overflow-hidden' : isMobile && isMapPage ? 'flex-1 h-full overflow-hidden' : 'flex-1'}`}>
         {/* Sidebar - hidden on mobile and tablets, shown only on large desktop screens */}
         <div className="hidden xl:block fixed top-[56px] left-0 h-[calc(100vh-56px)] shrink-0 z-40" style={{ width: `${sidebarWidth}px` }}>
-          <SidebarMenuSection />
+          <SidebarMenuSection/>
         </div>
         <main className={`flex-1 relative w-full ${isFullscreen ? 'overflow-hidden h-full' : isMobile && isMapPage ? 'overflow-hidden h-full' : ''}`} style={{ 
           marginLeft: isMobile ? '0' : `${sidebarWidth}px`,
