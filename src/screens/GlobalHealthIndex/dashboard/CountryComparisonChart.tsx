@@ -45,28 +45,28 @@ export const CountryComparisonChart = ({ data, title }: CountryComparisonChartPr
     const item = payload[0].payload as CountryData;
 
     return (
-      <div className="glass rounded-lg p-2 sm:p-3 shadow-xl border border-border/50">
-        <p className="text-xs sm:text-sm font-medium mb-1 sm:mb-2">{item.country}</p>
+      <div className="bg-background/95 backdrop-blur-none rounded-lg p-2 sm:p-3 shadow-2xl border-2 border-primary/30">
+        <p className="text-xs sm:text-sm font-bold text-foreground mb-1 sm:mb-2">{item.country}</p>
         <div className="space-y-0.5 sm:space-y-1 text-[10px] sm:text-xs">
           <div className="flex justify-between gap-3 sm:gap-4">
-            <span className="text-muted-foreground">Region</span>
-            <span className="font-medium">{item.region}</span>
+            <span className="text-foreground/80 font-medium">Region</span>
+            <span className="font-bold text-foreground">{item.region}</span>
           </div>
           <div className="flex justify-between gap-3 sm:gap-4">
-            <span className="text-muted-foreground">Prevalence</span>
-            <span className="font-mono">{item.prevalence.toLocaleString()}</span>
+            <span className="text-foreground/80 font-medium">Prevalence</span>
+            <span className="font-mono font-bold text-foreground">{item.prevalence.toLocaleString()}</span>
           </div>
           <div className="flex justify-between gap-3 sm:gap-4">
-            <span className="text-muted-foreground">Incidence</span>
-            <span className="font-mono">{item.incidence.toLocaleString()}</span>
+            <span className="text-foreground/80 font-medium">Incidence</span>
+            <span className="font-mono font-bold text-foreground">{item.incidence.toLocaleString()}</span>
           </div>
           <div className="flex justify-between gap-3 sm:gap-4">
-            <span className="text-muted-foreground">Mortality</span>
-            <span className="font-mono">{item.mortality}%</span>
+            <span className="text-foreground/80 font-medium">Mortality</span>
+            <span className="font-mono font-bold text-foreground">{item.mortality}%</span>
           </div>
           <div className="flex justify-between gap-3 sm:gap-4">
-            <span className="text-muted-foreground">DALYs</span>
-            <span className="font-mono">{item.dalys.toLocaleString()}</span>
+            <span className="text-foreground/80 font-medium">DALYs</span>
+            <span className="font-mono font-bold text-foreground">{item.dalys.toLocaleString()}</span>
           </div>
         </div>
       </div>

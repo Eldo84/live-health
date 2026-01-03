@@ -86,16 +86,16 @@ export const PrevalenceHistogram = ({ title, selectedCategory }: PrevalenceHisto
     const item = payload[0].payload as BinRange;
 
     return (
-      <div className="glass rounded-lg p-2 sm:p-3 shadow-xl border border-border/50 max-w-[200px] sm:max-w-xs">
-        <p className="text-[10px] sm:text-sm font-medium mb-1 sm:mb-2">Range: {item.range}</p>
-        <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 sm:mb-2">{item.count} conditions</p>
+      <div className="bg-background/95 backdrop-blur-none rounded-lg p-2 sm:p-3 shadow-2xl border-2 border-primary/30 max-w-[200px] sm:max-w-xs">
+        <p className="text-[10px] sm:text-sm font-bold text-foreground mb-1 sm:mb-2">Range: {item.range}</p>
+        <p className="text-[10px] sm:text-xs text-foreground/90 font-medium mb-1 sm:mb-2">{item.count} conditions</p>
         {item.conditions.length > 0 && (
           <div className="space-y-0.5 max-h-24 sm:max-h-32 overflow-y-auto">
             {item.conditions.slice(0, 4).map((c, i) => (
-              <p key={i} className="text-[10px] sm:text-xs text-muted-foreground truncate">• {c}</p>
+              <p key={i} className="text-[10px] sm:text-xs text-foreground/80 truncate">• {c}</p>
             ))}
             {item.conditions.length > 4 && (
-              <p className="text-[10px] sm:text-xs text-muted-foreground">...+{item.conditions.length - 4} more</p>
+              <p className="text-[10px] sm:text-xs text-foreground/80">...+{item.conditions.length - 4} more</p>
             )}
           </div>
         )}

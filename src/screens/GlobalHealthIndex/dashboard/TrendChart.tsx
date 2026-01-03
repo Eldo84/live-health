@@ -40,8 +40,8 @@ export const TrendChart = ({ data, title }: TrendChartProps) => {
     if (!active || !payload) return null;
 
     return (
-      <div className="glass rounded-lg p-2 sm:p-3 shadow-xl border border-border/50">
-        <p className="text-xs sm:text-sm font-medium mb-1 sm:mb-2">{label}</p>
+      <div className="bg-background/95 backdrop-blur-none rounded-lg p-2 sm:p-3 shadow-2xl border-2 border-primary/30">
+        <p className="text-xs sm:text-sm font-bold text-foreground mb-1 sm:mb-2">{label}</p>
         <div className="space-y-0.5 sm:space-y-1">
           {payload.map((entry: any) => (
             <div key={entry.dataKey} className="flex items-center justify-between gap-3 sm:gap-4 text-[10px] sm:text-xs">
@@ -50,9 +50,9 @@ export const TrendChart = ({ data, title }: TrendChartProps) => {
                   className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full"
                   style={{ backgroundColor: entry.color }}
                 />
-                <span className="text-muted-foreground capitalize">{entry.dataKey}</span>
+                <span className="text-foreground/90 capitalize font-medium">{entry.dataKey}</span>
               </div>
-              <span className="font-mono font-medium">{entry.value.toLocaleString()}</span>
+              <span className="font-mono font-bold text-foreground">{entry.value.toLocaleString()}</span>
             </div>
           ))}
         </div>

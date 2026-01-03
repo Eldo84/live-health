@@ -473,7 +473,7 @@ export const HomePageMap = (): JSX.Element => {
   }, [filters.category, nearbyCategories, nearMeCategory]);
 
   // Tooltip handlers
-  const handleMouseEnter = (categoryName: string, event: React.MouseEvent<HTMLDivElement>) => {
+  const handleMouseEnter = (categoryName: string, event: React.MouseEvent<HTMLElement>) => {
     setHoveredCategory(categoryName);
     const rect = event.currentTarget.getBoundingClientRect();
     setHoveredCategoryPosition({
@@ -534,9 +534,9 @@ export const HomePageMap = (): JSX.Element => {
   const MAP_LEFT_OFFSET = 90;
   const HEADER_HEIGHT = isTablet && isSmallHeight ? 70 : isTablet ? 74 : 79;
   
-  // Right sidebar dimensions - simplified for better laptop visibility
+  // Right sidebar dimensions - increased width to give more space to sponsored and news sections
   const RIGHT_SIDEBAR_WIDTH = !isMapFullscreen && !isMobile
-    ? (isTablet ? 320 : 280) // Reduced width for better fit
+    ? (isTablet ? 450 : 400) // Increased width for sponsored and news sections
     : 0;
   
   const SIDEBAR_RIGHT_PADDING = !isMapFullscreen && !isMobile
@@ -615,7 +615,7 @@ export const HomePageMap = (): JSX.Element => {
 
   return (
     <div className={`bg-[#2a4149] relative ${isMapFullscreen ? 'fixed inset-0 w-full h-full overflow-hidden z-[2000]' : isMobile ? 'fixed inset-0 w-full h-full overflow-hidden' : 'min-h-screen'}`}>
-      <div className={`relative w-full ${isMobile ? 'h-full' : ''} ${isMobile ? '' : 'lg:min-w-[1280px]'}`} style={{ minHeight: isMobile ? '100%' : 'calc(100vh + 320px)', paddingBottom: isMobile ? '0' : '320px' }}>
+      <div className={`relative w-full ${isMobile ? 'h-full' : ''} ${isMobile ? '' : 'xl:min-w-[1280px]'}`} style={{ minHeight: isMobile ? '100%' : 'calc(100vh + 320px)', paddingBottom: isMobile ? '0' : '320px' }}>
         {/* Location Notification */}
         {showLocationNotification && location && (
           <div className={`absolute ${isMobile ? 'top-16' : 'top-20'} left-1/2 transform -translate-x-1/2 z-[10002] bg-[#67DBE2] text-[#2a4149] px-3 py-2 ${isMobile ? 'text-xs' : 'px-4 py-3'} rounded-lg shadow-lg flex items-center gap-2 ${isMobile ? 'max-w-[90vw]' : ''} animate-in fade-in slide-in-from-top-2 duration-300`}>

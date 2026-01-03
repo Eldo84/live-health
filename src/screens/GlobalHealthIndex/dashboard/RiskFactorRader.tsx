@@ -55,9 +55,9 @@ export const RiskFactorRadar = ({ title, diseaseId }: RiskFactorRadarProps) => {
     const item = payload[0].payload;
 
     return (
-      <div className="glass rounded-lg p-2 shadow-xl border border-border/50 text-[10px] sm:text-xs">
-        <p className="font-medium">{item.factor}</p>
-        <p className="text-muted-foreground">Count: {item.count}</p>
+      <div className="bg-background/95 backdrop-blur-none rounded-lg p-2 shadow-2xl border-2 border-primary/30 text-[10px] sm:text-xs">
+        <p className="font-bold text-foreground">{item.factor}</p>
+        <p className="text-foreground/90 font-medium">Count: {item.count}</p>
       </div>
     );
   };

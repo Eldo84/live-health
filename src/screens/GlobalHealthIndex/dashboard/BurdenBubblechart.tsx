@@ -56,21 +56,21 @@ export const BurdenBubbleChart = ({ title, selectedCategory }: BurdenBubbleChart
     const item = payload[0].payload;
 
     return (
-      <div className="glass rounded-lg p-2 sm:p-3 shadow-xl border border-border/50 max-w-[180px] sm:max-w-xs">
-        <p className="text-[10px] sm:text-sm font-medium mb-1 sm:mb-2 line-clamp-2">{item.name}</p>
-        <p className="text-[10px] sm:text-xs text-muted-foreground mb-1 sm:mb-2 truncate">{item.category}</p>
+      <div className="bg-background/95 backdrop-blur-none rounded-lg p-2 sm:p-3 shadow-2xl border-2 border-primary/30 max-w-[180px] sm:max-w-xs">
+        <p className="text-[10px] sm:text-sm font-bold text-foreground mb-1 sm:mb-2 line-clamp-2">{item.name}</p>
+        <p className="text-[10px] sm:text-xs text-foreground/80 font-medium mb-1 sm:mb-2 truncate">{item.category}</p>
         <div className="space-y-0.5 sm:space-y-1 text-[10px] sm:text-xs">
           <div className="flex justify-between gap-2 sm:gap-4">
-            <span className="text-muted-foreground">Prevalence</span>
-            <span className="font-mono">{item.prevalence.toLocaleString()}</span>
+            <span className="text-foreground/80 font-medium">Prevalence</span>
+            <span className="font-mono font-bold text-foreground">{item.prevalence.toLocaleString()}</span>
           </div>
           <div className="flex justify-between gap-2 sm:gap-4">
-            <span className="text-muted-foreground">Mortality</span>
-            <span className="font-mono">{item.mortality}%</span>
+            <span className="text-foreground/80 font-medium">Mortality</span>
+            <span className="font-mono font-bold text-foreground">{item.mortality}%</span>
           </div>
           <div className="flex justify-between gap-2 sm:gap-4">
-            <span className="text-muted-foreground">DALYs</span>
-            <span className="font-mono">{item.dalys.toLocaleString()}</span>
+            <span className="text-foreground/80 font-medium">DALYs</span>
+            <span className="font-mono font-bold text-foreground">{item.dalys.toLocaleString()}</span>
           </div>
         </div>
       </div>

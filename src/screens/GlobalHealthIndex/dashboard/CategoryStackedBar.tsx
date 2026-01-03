@@ -21,11 +21,11 @@ export const CategoryStackedBar = ({ title }: CategoryStackedBarProps) => {
     if (!active || !payload) return null;
     const data = payload[0]?.payload;
     return (
-      <div className="glass rounded-lg p-2 sm:p-3 shadow-xl border border-border/50 max-w-[180px]">
-        <p className="text-[10px] sm:text-sm font-medium mb-1 line-clamp-2">{data?.fullCategory}</p>
+      <div className="bg-background/95 backdrop-blur-none rounded-lg p-2 sm:p-3 shadow-2xl border-2 border-primary/30 max-w-[180px]">
+        <p className="text-[10px] sm:text-sm font-bold text-foreground mb-1 line-clamp-2">{data?.fullCategory}</p>
         <div className="space-y-0.5 text-[10px] sm:text-xs">
-          <div className="flex justify-between gap-2"><span className="text-muted-foreground">Prevalence</span><span className="font-mono">{(data?.prevalence * 1000).toLocaleString()}</span></div>
-          <div className="flex justify-between gap-2"><span className="text-muted-foreground">DALYs</span><span className="font-mono">{(data?.dalys * 100).toLocaleString()}</span></div>
+          <div className="flex justify-between gap-2"><span className="text-foreground/80 font-medium">Prevalence</span><span className="font-mono font-bold text-foreground">{(data?.prevalence * 1000).toLocaleString()}</span></div>
+          <div className="flex justify-between gap-2"><span className="text-foreground/80 font-medium">DALYs</span><span className="font-mono font-bold text-foreground">{(data?.dalys * 100).toLocaleString()}</span></div>
         </div>
       </div>
     );

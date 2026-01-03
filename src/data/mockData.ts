@@ -1,5 +1,7 @@
 import usaFile from './usa.json';
 import chinaFileRaw from './china.json';
+import indiaFile from './india.json';
+import brazilFile from './brazil.json';
 
 export interface Disease {
   id: string;
@@ -129,6 +131,8 @@ const transformChinaData = (): CountryFile => {
 const rawCountryFiles: CountryFile[] = [
   usaFile as CountryFile,
   transformChinaData(),
+  indiaFile as CountryFile,
+  brazilFile as CountryFile,
 ];
 
 const slugifyCondition = (value: string) =>
@@ -150,6 +154,12 @@ export const normalizeCountryCode = (code: string): string => {
     'CHINA': 'CHN',
     'PRC': 'CHN',
     'PEOPLE\'S REPUBLIC OF CHINA': 'CHN',
+    'IN': 'IND',  // ISO 3166-1 alpha-2 code
+    'INDIA': 'IND',
+    'REPUBLIC OF INDIA': 'IND',
+    'BR': 'BRA',  // ISO 3166-1 alpha-2 code
+    'BRAZIL': 'BRA',
+    'FEDERATIVE REPUBLIC OF BRAZIL': 'BRA',
   };
   return countryMap[upper] || upper;
 };
@@ -226,7 +236,23 @@ export const categories: string[] = Array.from(
   new Set(normalizedRecords.map(r => r.category)),
 ).sort();
 
-export const diseases: Disease[] = Array.from(latestByBaseId.values()).map(d => ({
+// Build diseases array from all unique conditions, not just latestByBaseId
+// This ensures all diseases appear in the sidebar, even if they don't have year > 0
+const uniqueConditions = new Map<string, DiseaseData>();
+normalizedRecords.forEach(rec => {
+  // Use the latest record for each baseId (preferring records with year > 0)
+  const existing = uniqueConditions.get(rec.baseId);
+  if (!existing) {
+    uniqueConditions.set(rec.baseId, rec);
+  } else {
+    // Prefer records with valid year, or more recent year
+    if ((rec.year > 0 && existing.year <= 0) || (rec.year > existing.year && rec.year > 0)) {
+      uniqueConditions.set(rec.baseId, rec);
+    }
+  }
+});
+
+export const diseases: Disease[] = Array.from(uniqueConditions.values()).map(d => ({
   id: d.baseId,
   name: d.condition,
   category: d.category,

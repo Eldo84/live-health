@@ -11,7 +11,7 @@ export const GenderDistribution = ({ title, malePercentage = 48, femalePercentag
   const CustomTooltip = ({ active, payload }: any) => {
     if (!active || !payload?.[0]) return null;
     const item = payload[0].payload;
-    return (<div className="glass rounded-lg p-2 shadow-xl border border-border/50 text-[10px] sm:text-xs"><div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} /><span>{item.name}: {item.value}%</span></div></div>);
+    return (<div className="bg-background/95 backdrop-blur-none rounded-lg p-2 shadow-2xl border-2 border-primary/30 text-[10px] sm:text-xs"><div className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: item.color }} /><span className="font-bold text-foreground">{item.name}: {item.value}%</span></div></div>);
   };
 
   return (

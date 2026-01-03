@@ -105,8 +105,8 @@ export const AppLayout = (): JSX.Element => {
       <div className={`bg-[#2a4149] w-full flex flex-col overflow-x-hidden ${isFullscreen ? 'h-screen overflow-hidden' : isMobile && isMapPage ? 'h-screen overflow-hidden pt-[56px]' : 'min-h-screen pt-[56px]'} lg:min-w-[1280px]`}>
         {!isFullscreen && <HeaderSection />}
       <div className={`flex ${isFullscreen ? 'flex-1 h-full overflow-hidden' : isMobile && isMapPage ? 'flex-1 h-full overflow-hidden' : 'flex-1'}`}>
-        {/* Sidebar - hidden on mobile and tablets, shown only on large desktop screens */}
-        <div className="hidden xl:block fixed top-[56px] left-0 h-[calc(100vh-56px)] shrink-0 z-40" style={{ width: `${sidebarWidth}px` }}>
+        {/* Sidebar - hidden on mobile and tablets, shown on large screens (lg and above) */}
+        <div className="hidden lg:block fixed top-[56px] left-0 h-[calc(100vh-56px)] shrink-0 z-40" style={{ width: `${sidebarWidth}px` }}>
           <SidebarMenuSection/>
         </div>
         <main className={`flex-1 relative w-full ${isFullscreen ? 'overflow-hidden h-full' : isMobile && isMapPage ? 'overflow-hidden h-full' : ''}`} style={{ 

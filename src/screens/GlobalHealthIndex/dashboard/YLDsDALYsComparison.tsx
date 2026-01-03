@@ -1,25 +1,26 @@
 import { useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { diseaseData } from '@/data/mockData';
-import { filterByCategory } from '../utils/filterHelpers';
+import { filterByCategory, deduplicateAndAggregate } from '../utils/filterHelpers';
 
 interface YLDsDALYsComparisonProps { title: string; selectedCategory?: string; }
 
 export const YLDsDALYsComparison = ({ title, selectedCategory }: YLDsDALYsComparisonProps) => {
   const chartData = useMemo(() => {
     const filteredData = filterByCategory(diseaseData, selectedCategory);
-    return filteredData.filter(d => d.ylds > 0 || d.dalys > 0).sort((a, b) => b.dalys - a.dalys).slice(0, 12).map(d => ({ name: d.condition.length > 10 ? d.condition.slice(0, 8) + '...' : d.condition, fullName: d.condition, YLDs: d.ylds, DALYs: d.dalys, YLLs: d.dalys - d.ylds }));
+    const deduplicated = deduplicateAndAggregate(filteredData);
+    return deduplicated.filter(d => d.ylds > 0 || d.dalys > 0).sort((a, b) => b.dalys - a.dalys).slice(0, 12).map(d => ({ name: d.condition.length > 10 ? d.condition.slice(0, 8) + '...' : d.condition, fullName: d.condition, YLDs: d.ylds, DALYs: d.dalys, YLLs: d.dalys - d.ylds }));
   }, [selectedCategory]);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (!active || !payload?.[0]) return null;
     const item = payload[0].payload;
     return (
-      <div className="glass rounded-lg p-2 sm:p-3 shadow-xl border border-border/50 max-w-[180px]">
-        <p className="text-[10px] sm:text-sm font-medium mb-1 line-clamp-2">{item.fullName}</p>
+      <div className="bg-background/95 backdrop-blur-none rounded-lg p-2 sm:p-3 shadow-2xl border-2 border-primary/30 max-w-[180px]">
+        <p className="text-[10px] sm:text-sm font-bold text-foreground mb-1 line-clamp-2">{item.fullName}</p>
         <div className="space-y-0.5 text-[10px] sm:text-xs">
-          <div className="flex justify-between gap-2"><span>YLDs</span><span className="font-mono">{item.YLDs.toLocaleString()}</span></div>
-          <div className="flex justify-between gap-2"><span>YLLs</span><span className="font-mono">{item.YLLs.toLocaleString()}</span></div>
+          <div className="flex justify-between gap-2"><span className="text-foreground/80 font-medium">YLDs</span><span className="font-mono font-bold text-foreground">{item.YLDs.toLocaleString()}</span></div>
+          <div className="flex justify-between gap-2"><span className="text-foreground/80 font-medium">YLLs</span><span className="font-mono font-bold text-foreground">{item.YLLs.toLocaleString()}</span></div>
         </div>
       </div>
     );

@@ -11,7 +11,7 @@ import {
 } from 'recharts';
 import { diseaseData } from '@/data/mockData';
 import { cn } from '@/lib/utils';
-import { filterByCategory } from '../utils/filterHelpers';
+import { filterByCategory, deduplicateAndAggregate } from '../utils/filterHelpers';
 
 interface TopConditionsChartProps {
   title: string;
@@ -31,8 +31,9 @@ export const TopConditionsChart = ({ title, selectedCategory }: TopConditionsCha
 
   const chartData = useMemo(() => {
     const filteredData = filterByCategory(diseaseData, selectedCategory);
+    const deduplicated = deduplicateAndAggregate(filteredData);
 
-    return filteredData
+    return deduplicated
       .filter(d => d[metric] > 0)
       .sort((a, b) => b[metric] - a[metric])
       .slice(0, 10)
@@ -60,11 +61,11 @@ export const TopConditionsChart = ({ title, selectedCategory }: TopConditionsCha
     const item = payload[0].payload;
 
     return (
-      <div className="glass rounded-lg p-2 sm:p-3 shadow-xl border border-border/50 max-w-[200px]">
-        <p className="text-[10px] sm:text-sm font-medium mb-1 sm:mb-2 line-clamp-2">{item.fullName}</p>
+      <div className="bg-background/95 backdrop-blur-none rounded-lg p-2 sm:p-3 shadow-2xl border-2 border-primary/30 max-w-[200px]">
+        <p className="text-[10px] sm:text-sm font-bold text-foreground mb-1 sm:mb-2 line-clamp-2">{item.fullName}</p>
         <div className="space-y-0.5 sm:space-y-1 text-[10px] sm:text-xs">
-          <div className="flex justify-between gap-2"><span className="text-muted-foreground">Prevalence</span><span className="font-mono">{item.prevalence.toLocaleString()}</span></div>
-          <div className="flex justify-between gap-2"><span className="text-muted-foreground">DALYs</span><span className="font-mono">{item.dalys.toLocaleString()}</span></div>
+          <div className="flex justify-between gap-2"><span className="text-foreground/80 font-medium">Prevalence</span><span className="font-mono font-bold text-foreground">{item.prevalence.toLocaleString()}</span></div>
+          <div className="flex justify-between gap-2"><span className="text-foreground/80 font-medium">DALYs</span><span className="font-mono font-bold text-foreground">{item.dalys.toLocaleString()}</span></div>
         </div>
       </div>
     );

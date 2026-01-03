@@ -1,8 +1,9 @@
-import { useState } from 'react';
-import { Search, ChevronRight, AlertTriangle, Shield, Lightbulb } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { Search, ChevronRight, ChevronDown, AlertTriangle, Shield, Lightbulb } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 import { Disease, riskFactors, interventions } from '@/data/mockData';
 
@@ -22,6 +23,52 @@ export const DiseaseSidebar = ({
   isMobile = false,
 }: DiseaseSidebarProps) => {
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Get all unique categories from diseases to initialize expanded state
+  const allCategories = useMemo(() => {
+    const categories = new Set<string>();
+    diseases.forEach(disease => {
+      categories.add(disease.category);
+    });
+    return Array.from(categories);
+  }, [diseases]);
+
+  // Initialize all categories as collapsed by default
+  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
+    new Set() // Start with empty set - all categories collapsed
+  );
+
+  // Update expanded categories when categories change (e.g., filter changes)
+  useEffect(() => {
+    const filteredDiseases = diseases.filter((disease) => {
+      const matchesSearch = disease.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        disease.category.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategory = selectedCategory === 'all' || disease.category === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+
+    const newCategories = new Set<string>();
+    filteredDiseases.forEach(disease => {
+      newCategories.add(disease.category);
+    });
+
+    // Keep existing expanded state for categories that still exist
+    setExpandedCategories(prev => {
+      const next = new Set<string>();
+      prev.forEach(cat => {
+        if (newCategories.has(cat)) {
+          next.add(cat);
+        }
+      });
+      
+      // When a specific category is selected (not 'all'), automatically expand it
+      if (selectedCategory !== 'all' && newCategories.has(selectedCategory)) {
+        next.add(selectedCategory);
+      }
+      
+      return next;
+    });
+  }, [diseases, searchQuery, selectedCategory]);
 
   const filteredDiseases = diseases.filter((disease) => {
     const matchesSearch = disease.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -37,6 +84,18 @@ export const DiseaseSidebar = ({
     acc[disease.category].push(disease);
     return acc;
   }, {} as Record<string, Disease[]>);
+
+  const toggleCategory = (category: string) => {
+    setExpandedCategories(prev => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
+  };
 
   const getRiskFactorsForDisease = (diseaseId: string) => {
     return riskFactors[diseaseId] || riskFactors.default;
@@ -78,31 +137,58 @@ export const DiseaseSidebar = ({
       {/* Disease List */}
       <ScrollArea className="flex-1">
         <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
-          {Object.entries(groupedDiseases).map(([category, categoryDiseases]) => (
-            <div key={category} className="space-y-1.5 sm:space-y-2">
-              <h3 className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase tracking-wider px-2">
-                {category}
-              </h3>
-              <div className="space-y-0.5 sm:space-y-1">
-                {categoryDiseases.map((disease) => (
-                  <button
-                    key={disease.id}
-                    onClick={() => onSelectDisease(disease)}
-                    className={cn(
-                      'w-full flex items-center justify-between px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm transition-all duration-200',
-                      'hover:bg-secondary/80 active:scale-[0.98]',
-                      selectedDisease?.id === disease.id
-                        ? 'bg-primary/10 text-primary border-l-2 border-primary'
-                        : 'text-foreground/80'
-                    )}
-                  >
-                    <span className="truncate text-left">{disease.name}</span>
-                    <ChevronRight className="h-3.5 sm:h-4 w-3.5 sm:w-4 text-muted-foreground flex-shrink-0" />
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
+          {Object.entries(groupedDiseases).map(([category, categoryDiseases]) => {
+            const isExpanded = expandedCategories.has(category);
+            const hasChildren = categoryDiseases.length > 0;
+            
+            return (
+              <Collapsible
+                key={category}
+                open={isExpanded}
+                onOpenChange={() => toggleCategory(category)}
+                className="space-y-1.5 sm:space-y-2"
+              >
+                <CollapsibleTrigger
+                  className={cn(
+                    'w-full flex items-center justify-between px-3 py-2.5 sm:py-3 rounded-md transition-all duration-200',
+                    'bg-secondary/30 border border-border/50 hover:bg-secondary/60 active:scale-[0.98]',
+                    hasChildren ? 'cursor-pointer' : 'cursor-default'
+                  )}
+                  disabled={!hasChildren}
+                >
+                  <h3 className="text-xs sm:text-sm font-bold text-foreground uppercase tracking-wider text-left">
+                    {category}
+                  </h3>
+                  {hasChildren && (
+                    <ChevronDown
+                      className={cn(
+                        'h-4 sm:h-5 w-4 sm:w-5 text-foreground/70 flex-shrink-0 transition-transform duration-200',
+                        isExpanded ? 'transform rotate-180' : ''
+                      )}
+                    />
+                  )}
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-0.5 sm:space-y-1">
+                  {categoryDiseases.map((disease) => (
+                    <button
+                      key={disease.id}
+                      onClick={() => onSelectDisease(disease)}
+                      className={cn(
+                        'w-full flex items-center justify-between px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-md text-xs sm:text-sm transition-all duration-200',
+                        'hover:bg-secondary/80 active:scale-[0.98]',
+                        selectedDisease?.id === disease.id
+                          ? 'bg-primary/10 text-primary border-l-2 border-primary'
+                          : 'text-foreground/80'
+                      )}
+                    >
+                      <span className="truncate text-left">{disease.name}</span>
+                      <ChevronRight className="h-3.5 sm:h-4 w-3.5 sm:w-4 text-muted-foreground flex-shrink-0" />
+                    </button>
+                  ))}
+                </CollapsibleContent>
+              </Collapsible>
+            );
+          })}
         </div>
       </ScrollArea>
 
