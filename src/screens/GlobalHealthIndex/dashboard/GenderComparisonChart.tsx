@@ -1,19 +1,45 @@
 import { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { diseaseData } from '@/data/mockData';
+import { diseaseData, normalizeCountryCode } from '@/data/mockData';
 import { filterByCategory, deduplicateAndAggregate } from '../utils/filterHelpers';
 
-interface GenderComparisonChartProps { title: string; selectedCategory?: string; }
+interface GenderComparisonChartProps { 
+  title: string; 
+  selectedCategory?: string;
+  selectedYear?: number;
+  selectedCountry?: string;
+  selectedDiseaseId?: string;
+}
 
-export const GenderComparisonChart = ({ title, selectedCategory }: GenderComparisonChartProps) => {
+export const GenderComparisonChart = ({ title, selectedCategory, selectedYear, selectedCountry, selectedDiseaseId }: GenderComparisonChartProps) => {
   const chartData = useMemo(() => {
-    const filteredData = filterByCategory(diseaseData, selectedCategory);
+    let filteredData = diseaseData;
+    
+    // Filter by disease if provided (highest priority - bypass category filter)
+    if (selectedDiseaseId) {
+      filteredData = filteredData.filter(d => d.baseId === selectedDiseaseId);
+    } else {
+      // Only apply category filter if no disease is selected
+      filteredData = filterByCategory(filteredData, selectedCategory);
+    }
+    
+    // Filter by year if provided
+    if (selectedYear) {
+      filteredData = filteredData.filter(d => d.year === selectedYear);
+    }
+    
+    // Filter by country if provided
+    if (selectedCountry && selectedCountry !== 'all') {
+      const normalizedCode = normalizeCountryCode(selectedCountry);
+      filteredData = filteredData.filter(d => d.location.toUpperCase() === normalizedCode.toUpperCase());
+    }
+    
     const deduplicated = deduplicateAndAggregate(filteredData);
     return deduplicated.filter(d => d.female > 0 || d.male > 0).sort((a, b) => (b.female + b.male) - (a.female + a.male)).slice(0, 10).map(d => {
       const total = d.female + d.male;
       return { name: d.condition.length > 12 ? d.condition.slice(0, 9) + '...' : d.condition, fullName: d.condition, female: d.female, male: d.male, femalePercent: total > 0 ? Math.round((d.female / total) * 100) : 0, malePercent: total > 0 ? Math.round((d.male / total) * 100) : 0, };
     });
-  }, [selectedCategory]);
+  }, [selectedCategory, selectedYear, selectedCountry, selectedDiseaseId]);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (!active || !payload?.[0]) return null;

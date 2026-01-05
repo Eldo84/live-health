@@ -128,11 +128,11 @@ export const Footer = () => {
                 {t("footer.contactDescription")}
               </p>
               <a 
-                href="mailto:contact@outbreaknow.org" 
+                href="mailto:contact@theghqa.org" 
                 className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors text-xs sm:text-sm break-all"
               >
                 <Mail className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
-                <span className="break-all">contact@outbreaknow.org</span>
+                <span className="break-all">contact@theghqa.org</span>
               </a>
             </div>
             <div className="pt-2">

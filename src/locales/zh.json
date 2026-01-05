@@ -327,6 +327,64 @@
     "chinese": "中文"
   },
   "landing": {
+    "tabs": {
+      "outbreakNow": "OutbreakNow",
+      "about": "关于我们",
+      "partner": "成为合作伙伴",
+      "advertise": "投放广告",
+      "donate": "捐赠",
+      "viewMap": "查看地图"
+    },
+    "hero": {
+      "title": "OutbreakNow – 全球健康监测的未来",
+      "subtitle": "实时疫情情报，保护社区，拯救生命，赋能全球决策者。",
+      "ctaViewMap": "查看实时疫情地图"
+    },
+    "features": {
+      "title": "为什么选择OutbreakNow？",
+      "subtitle": "先进技术与全球健康专业知识相结合，提供无与伦比的疫情情报。",
+      "trustedData": {
+        "title": "可信数据源",
+        "body": "来自世界卫生组织、美国疾病控制与预防中心以及全球200多个卫生机构的验证信息。"
+      },
+      "predictiveAnalytics": {
+        "title": "预测分析",
+        "body": "AI驱动的预测可在威胁升级之前识别新兴威胁。"
+      },
+      "fastUpdates": {
+        "title": "极速更新",
+        "body": "实时数据处理确保您始终领先一步。"
+      },
+      "earlyWarning": {
+        "title": "早期预警系统",
+        "body": "获取您所在地区或全球疾病暴发的即时警报。"
+      },
+      "visualizations": {
+        "title": "交互式可视化",
+        "body": "动态地图和图表使复杂数据易于理解。"
+      },
+      "community": {
+        "title": "社区驱动",
+        "body": "加入数千名保护全球社区的健康专业人士。"
+      }
+    },
+    "impact": {
+      "title": "产生全球影响",
+      "subtitle": "我们的平台受到全球健康专业人士、政府和组织的信赖。",
+      "countries": "覆盖国家",
+      "users": "活跃用户",
+      "monitoring": "实时监控",
+      "uptime": "运行时间可靠性"
+    },
+    "cta": {
+      "title": "准备好领先健康威胁了吗？",
+      "subtitle": "加入全球社区，通过实时疫情情报保护公共卫生。",
+      "exploreMap": "探索地图",
+      "partnerWithUs": "与我们合作"
+    },
+    "partners": {
+      "title": "自豪地获得以下机构支持"
+    },
     "partner": {
       "title": "与我们携手，共同塑造疫情应对的未来",
       "body": "我们正在积极寻求合作伙伴、协作者和赞助方，以扩展 OutbreakNow 的全球覆盖范围，增强预测模型，并让拯救生命的信息更易获取。无论您是公共卫生机构、科研机构、技术提供方还是非政府组织，您的支持都可以帮助我们保护数以百万计的人口。",
@@ -370,6 +428,188 @@
       "formMessageLabel": "合作意向",
       "formMessagePlaceholder": "请介绍一下您的机构，以及您希望如何与我们开展合作……",
       "formSubmit": "提交合作意向"
+    }
+  },
+  "advertise": {
+    "hero": {
+      "title": "在OutbreakNow投放广告",
+      "body": "触达数千名医疗健康专业人士、政策制定者、研究人员和全球健康爱好者。在我们的平台上推广您的产品、服务或倡议，对全球健康监测产生有意义的影响。"
+    },
+    "why": {
+      "title": "为什么选择OutbreakNow？",
+      "targetedTitle": "精准受众",
+      "targetedBody": "连接超过50,000名活跃用户，包括公共卫生官员、流行病学家、医疗提供者和决策者。",
+      "globalTitle": "全球覆盖",
+      "globalBody": "您的信息将触达全球200多个国家和地区的专业人士。",
+      "engagementTitle": "高参与度",
+      "engagementBody": "我们的平台每天都有用户积极参与，主动寻求疫情情报和健康解决方案。",
+      "trustedTitle": "值得信赖的平台",
+      "trustedBody": "将您的品牌与全球信赖的实时疫情情报可信来源相关联。"
+    },
+    "audience": {
+      "title": "我们的受众",
+      "segmentPublicHealth": "公共卫生官员",
+      "segmentProviders": "医疗提供者",
+      "segmentResearchers": "研究人员和学者",
+      "segmentPolicy": "政策制定者和非政府组织"
+    },
+    "opportunities": {
+      "title": "广告机会",
+      "mapTitle": "地图赞助区域",
+      "mapBody": "在我们交互式疫情地图的赞助区域进行优质投放——这是OutbreakNow访问量最高的页面。",
+      "homepageTitle": "首页横幅",
+      "homepageBody": "在我们首页进行高可见度横幅投放，在访问者首次访问我们的平台时即可触达。",
+      "newsletterTitle": "新闻通讯赞助",
+      "newsletterBody": "通过专门的新闻通讯功能和我们在每周疫情情报更新中的提及，触达我们活跃的订阅用户群。"
+    },
+    "plans": {
+      "title": "广告计划",
+      "notice": "所有计划均包含详细分析和专属支持。您只需在申请获批后付款！",
+      "mostPopularBadge": "最受欢迎",
+      "basic": {
+        "name": "基础计划",
+        "price": "$30/月",
+        "duration": "30天",
+        "feature1": "地图赞助区域投放",
+        "feature2": "30天展示时长",
+        "feature3": "基础分析（浏览量和点击量）",
+        "feature4": "标准展示优先级"
+      },
+      "professional": {
+        "name": "专业计划",
+        "price": "$75/月",
+        "duration": "60天",
+        "feature1": "地图+首页横幅投放",
+        "feature2": "60天展示时长",
+        "feature3": "包含参与度指标的高级分析",
+        "feature4": "带徽章的特选投放",
+        "feature5": "新闻通讯提及",
+        "feature6": "社交媒体推广"
+      },
+      "enterprise": {
+        "name": "企业计划",
+        "price": "$150/月",
+        "duration": "90天",
+        "feature1": "所有平台（地图、首页、新闻通讯）",
+        "feature2": "90天展示时长",
+        "feature3": "可导出的自定义分析",
+        "feature4": "置顶位置",
+        "feature5": "自定义内容创作",
+        "feature6": "专属客户经理",
+        "feature7": "优先支持"
+      }
+    },
+    "form": {
+      "title": "立即开始投放广告",
+      "subtitle": "请填写下面的表单。我们的团队将在24-48小时内审核您的申请并与您联系。您只需在获批后付款！",
+      "cardTitle": "广告申请",
+      "cardDescription": "请告诉我们您的组织和广告目标",
+      "loginRequiredTitle": "需要登录",
+      "loginRequiredBody": "您必须登录才能提交广告申请。这有助于我们跟踪您的提交并发送实时更新。",
+      "loginButton": "登录以继续",
+      "companyNameLabel": "公司名称 *",
+      "companyNamePlaceholder": "您的公司名称",
+      "contactNameLabel": "联系人 *",
+      "contactNamePlaceholder": "全名",
+      "emailLabel": "电子邮件地址 *",
+      "emailPlaceholder": "contact@company.com",
+      "phoneLabel": "电话号码",
+      "phonePlaceholder": "+1 (555) 000-0000",
+      "websiteLabel": "网站URL",
+      "websitePlaceholder": "https://yourcompany.com",
+      "descriptionLabel": "广告目标和描述",
+      "descriptionPlaceholder": "请告诉我们您的产品/服务，以及您希望通过在OutbreakNow上投放广告实现什么...",
+      "adContentTitle": "广告内容（可选）",
+      "adContentBody": "您可以在现在或获批后提供广告内容。如果需要，我们的团队可以帮助您创建广告。",
+      "adTitleLabel": "广告标题",
+      "adTitlePlaceholder": "您的广告标题",
+      "adImageLabel": "广告媒体（可选）",
+      "adImageHelp": "上传您的广告媒体：图片（JPG、PNG、WebP - 最大10MB）、GIF（最大10MB）、动画（最大10MB）或短视频（MP4、WebM、MOV - 最大15MB，建议60秒以下）。这将显示在地图上。",
+      "imageUrlLabel": "或输入媒体URL：",
+      "mediaTypeVideo": "视频",
+      "mediaTypeGif": "GIF",
+      "mediaTypeAnimation": "动画",
+      "mediaTypeImage": "图片",
+      "reviewTitle": "审核并提交申请",
+      "previewTitle": "查看广告预览",
+      "previewDescription": "这就是您的广告在平台上向用户显示的样子。请仔细查看，如有需要请在提交前进行编辑。",
+      "backToEdit": "返回编辑",
+      "howAdWillLook": "您的广告外观",
+      "adDetails": "广告详情",
+      "adDetailsCompany": "公司：",
+      "adDetailsPlan": "计划：",
+      "adDetailsTitle": "标题：",
+      "adDetailsLocation": "位置：",
+      "adDetailsClickUrl": "点击URL：",
+      "notProvided": "未提供",
+      "editAd": "编辑广告",
+      "confirmSubmit": "确认并提交",
+      "submitting": "提交中...",
+      "clickUrlLabel": "点击跳转URL",
+      "clickUrlPlaceholder": "https://yourcompany.com/landing-page",
+      "locationLabel": "显示位置文本",
+      "locationPlaceholder": "全球（或特定地区）",
+      "planLabel": "选择广告计划 *",
+      "selectedPlanPrefix": "已选择：",
+      "selectedIndicator": "已选择",
+      "documentLabel": "上传广告文档",
+      "documentHelp": "接受的格式：PDF、DOC、DOCX、JPG、PNG（最大10MB）",
+      "selectedFile": "已选择：{{name}}",
+      "submitLogin": "登录以提交",
+      "submit": "提交广告申请",
+      "submitDisclaimer": "提交即表示您同意我们的服务条款。您只需在申请获批后付款。"
+    },
+    "errors": {
+      "fileTooLargeTitle": "文件过大",
+      "fileTooLargeDesc": "请选择小于{{maxSize}}MB的文件。对于视频，请保持简短（建议30秒以下）。",
+      "invalidFileTypeTitle": "无效的文件类型",
+      "invalidFileTypeDesc": "请选择图片（JPG、PNG、WebP）、GIF或短视频（MP4、WebM、MOV）。",
+      "videoTooLongTitle": "视频过长",
+      "videoTooLongDesc": "为获得最佳性能，请将视频保持在60秒以下。",
+      "uploadPermissionDeniedTitle": "上传权限被拒绝",
+      "uploadPermissionDeniedDesc": "媒体上传失败 - 访问被拒绝。您的申请仍将提交，但不包含媒体。",
+      "uploadFailedTitle": "上传失败",
+      "uploadFailedDesc": "媒体上传失败：{{error}}。您的申请仍将提交。",
+      "uploadErrorTitle": "上传错误",
+      "uploadErrorDesc": "上传过程中发生意外错误。您的申请仍将提交。",
+      "uploadSuccessfulTitle": "上传成功",
+      "uploadSuccessfulDesc": "媒体已上传，但使用备用存储桶。为获得最佳效果，请在Supabase中创建「sponsored-videos」存储桶。",
+      "imageTooLargeTitle": "图片过大",
+      "imageTooLargeDesc": "请选择小于5MB的图片。",
+      "loginRequiredTitle": "需要登录",
+      "loginRequiredDesc": "请登录以提交广告申请。",
+      "limitReachedTitle": "已达到提交限制",
+      "limitReachedDescFallback": "您已达到提交限制。请稍后再试。",
+      "missingInfoTitle": "信息缺失",
+      "missingInfoDesc": "请填写所有必填字段。",
+      "invalidEmailTitle": "无效的电子邮件",
+      "invalidEmailDesc": "请输入有效的电子邮件地址。",
+      "submitFailedTitle": "提交失败",
+      "submitFailedDesc": "提交申请时出错。请重试。"
+    },
+    "note": {
+      "title": "注意",
+      "documentSkipped": "文档上传已跳过 - 存储未配置或访问被拒绝。您的申请仍将提交。",
+      "imageStorageSkipped": "图片上传已跳过 - 存储未配置。您的申请仍将提交。",
+      "imageAccessSkipped": "图片上传已跳过 - 访问被拒绝。您的申请仍将提交。"
+    },
+    "success": {
+      "title": "申请已提交！🎉",
+      "desc": "您的申请审核后，您将收到通知。请查看通知铃以获取更新！",
+      "titleShort": "申请已成功提交！",
+      "longDesc": "感谢您对在OutbreakNow投放广告的兴趣。我们已收到您的申请，将在24-48小时内进行审核。审核完成后，您将在应用中收到实时通知。",
+      "nextStepsTitle": "接下来会发生什么？",
+      "step1Title": "申请审核：",
+      "step1Body": " 我们的团队将在24-48小时内审核您的提交。请定期查看您的电子邮件。",
+      "step2Title": "付款链接：",
+      "step2Body": " 如果获批，您将收到带有付款链接的通知。请查看标题中的通知铃。",
+      "step3Title": "完成付款：",
+      "step3Body": " 点击您电子邮件中的付款链接，完成安全付款流程以激活您的广告。",
+      "step4Title": "您的广告上线：",
+      "step4Body": " 付款确认后，您的广告将被激活并显示在OutbreakNow上！",
+      "importantNote": "重要提示：您将在应用中收到实时通知。请查看标题中的通知铃以获取更新。您也可以在仪表板中跟踪您的提交。",
+      "referenceId": "参考ID：{{id}}",
+      "submitAnother": "提交另一个申请"
     }
   }
 }

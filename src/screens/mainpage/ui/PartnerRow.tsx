@@ -11,8 +11,8 @@ const partners: Partner[] = [
   {
     name: "GHQA (Global Health and Quality Alliance)",
     url: "https://www.theghqa.org",
-    logoSrc: "/ghqboards.png",
-    alt: "GHQA Boards logo – Global Health and Quality Alliance",
+    logoSrc: "/ghqa.png",
+    alt: "GHQA logo – Global Health and Quality Alliance",
   },
   {
     name: "American Board of Comprehensive Clinical Medicine",
@@ -33,10 +33,10 @@ const partners: Partner[] = [
     alt: "EldoNova+ logo – Innovations in Health Technology",
   },
   {
-    name: "EldoHealth+ (Bringing a Plus)",
+    name: "American Board of Digital Medicine",
     url: "https://www.theabdm.org",
     logoSrc: "/eldoHealth.png",
-    alt: "EldoHealth+ / American Board of Digital Medicine seal",
+    alt: "American Board of Digital Medicine logo",
   },
 ];
 

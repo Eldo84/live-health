@@ -9,13 +9,16 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
-import { diseaseData } from '@/data/mockData';
+import { diseaseData, DiseaseData, normalizeCountryCode } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 import { filterByCategory, deduplicateAndAggregate } from '../utils/filterHelpers';
 
 interface TopConditionsChartProps {
   title: string;
   selectedCategory?: string;
+  selectedYear?: number;
+  selectedCountry?: string;
+  selectedDiseaseId?: string;
 }
 
 type MetricKey = 'prevalence' | 'dalys' | 'incidence' | 'mortalityRate';
@@ -26,14 +29,78 @@ const barColors = [
   'hsl(170, 70%, 45%)', 'hsl(45, 93%, 47%)',
 ];
 
-export const TopConditionsChart = ({ title, selectedCategory }: TopConditionsChartProps) => {
+export const TopConditionsChart = ({ title, selectedCategory, selectedYear, selectedCountry, selectedDiseaseId }: TopConditionsChartProps) => {
   const [metric, setMetric] = useState<MetricKey>('dalys');
 
   const chartData = useMemo(() => {
-    const filteredData = filterByCategory(diseaseData, selectedCategory);
-    const deduplicated = deduplicateAndAggregate(filteredData);
+    let filteredData = diseaseData;
+    
+    // Filter by disease if provided (highest priority - bypass category filter)
+    if (selectedDiseaseId) {
+      filteredData = filteredData.filter(d => d.baseId === selectedDiseaseId);
+    } else {
+      // Only apply category filter if no disease is selected
+      filteredData = filterByCategory(filteredData, selectedCategory);
+    }
+    
+    // Filter by year if provided
+    if (selectedYear) {
+      filteredData = filteredData.filter(d => d.year === selectedYear);
+    }
+    
+    // Filter by country if provided
+    if (selectedCountry && selectedCountry !== 'all') {
+      const normalizedCode = normalizeCountryCode(selectedCountry);
+      filteredData = filteredData.filter(d => d.location.toUpperCase() === normalizedCode.toUpperCase());
+    }
+    
+    // Group by baseId only (not location/year) to get unique conditions
+    // Aggregate across all countries and years for each disease
+    const groupedByBaseId = new Map<string, DiseaseData[]>();
+    
+    filteredData.forEach(d => {
+      const existing = groupedByBaseId.get(d.baseId) || [];
+      existing.push(d);
+      groupedByBaseId.set(d.baseId, existing);
+    });
+    
+    // Aggregate each disease across all countries and years
+    const uniqueConditions = Array.from(groupedByBaseId.values()).map(group => {
+      if (group.length === 1) {
+        return group[0];
+      }
+      
+      // Aggregate: average rates, sum counts
+      const first = group[0];
+      const aggregated = group.slice(1).reduce((acc, curr) => {
+        return {
+          ...acc,
+          prevalence: acc.prevalence + curr.prevalence, // Sum for averaging
+          incidence: acc.incidence + curr.incidence, // Sum for averaging
+          mortalityRate: acc.mortalityRate + curr.mortalityRate, // Sum for averaging
+          dalys: acc.dalys + curr.dalys, // Sum (correct)
+          ylds: acc.ylds + curr.ylds, // Sum (correct)
+          female: acc.female + curr.female, // Sum (correct)
+          male: acc.male + curr.male, // Sum (correct)
+          allSexes: acc.allSexes + curr.allSexes, // Sum (correct)
+          count: acc.count + 1,
+        };
+      }, {
+        ...first,
+        count: 1,
+      } as DiseaseData & { count: number });
+      
+      // Average rate-based metrics
+      const { count, ...result } = {
+        ...aggregated,
+        prevalence: aggregated.count > 0 ? aggregated.prevalence / aggregated.count : 0,
+        incidence: aggregated.count > 0 ? aggregated.incidence / aggregated.count : 0,
+        mortalityRate: aggregated.count > 0 ? aggregated.mortalityRate / aggregated.count : 0,
+      };
+      return result as DiseaseData;
+    });
 
-    return deduplicated
+    return uniqueConditions
       .filter(d => d[metric] > 0)
       .sort((a, b) => b[metric] - a[metric])
       .slice(0, 10)
@@ -47,7 +114,7 @@ export const TopConditionsChart = ({ title, selectedCategory }: TopConditionsCha
         mortality: d.mortalityRate,
         dalys: d.dalys,
       }));
-  }, [selectedCategory, metric]);
+  }, [selectedCategory, selectedYear, selectedCountry, selectedDiseaseId, metric]);
 
   const metrics = [
     { key: 'dalys', label: 'DALYs' },

@@ -327,6 +327,64 @@
     "chinese": "Chinês"
   },
   "landing": {
+    "tabs": {
+      "outbreakNow": "OutbreakNow",
+      "about": "Sobre Nós",
+      "partner": "Torne-se um Parceiro",
+      "advertise": "Anuncie Conosco",
+      "donate": "Doar",
+      "viewMap": "Ver Mapa"
+    },
+    "hero": {
+      "title": "OutbreakNow – O Futuro da Vigilância Global da Saúde",
+      "subtitle": "Inteligência de surtos em tempo real para proteger comunidades, salvar vidas e capacitar tomadores de decisão em todo o mundo.",
+      "ctaViewMap": "Ver Mapa de Surtos ao Vivo"
+    },
+    "features": {
+      "title": "Por que Escolher OutbreakNow?",
+      "subtitle": "Tecnologia avançada encontra expertise em saúde global para fornecer inteligência de surtos incomparável.",
+      "trustedData": {
+        "title": "Fontes de Dados Confiáveis",
+        "body": "Informações verificadas da OMS, CDC e mais de 200 agências de saúde em todo o mundo."
+      },
+      "predictiveAnalytics": {
+        "title": "Análise Preditiva",
+        "body": "Previsões alimentadas por IA identificam ameaças emergentes antes que se agravem."
+      },
+      "fastUpdates": {
+        "title": "Atualizações Ultra Rápidas",
+        "body": "Processamento de dados em tempo real garante que você esteja sempre à frente."
+      },
+      "earlyWarning": {
+        "title": "Sistema de Alerta Precoce",
+        "body": "Receba alertas instantâneos para surtos de doenças em sua região ou em todo o mundo."
+      },
+      "visualizations": {
+        "title": "Visualizações Interativas",
+        "body": "Mapas e gráficos dinâmicos tornam dados complexos fáceis de entender."
+      },
+      "community": {
+        "title": "Impulsionado pela Comunidade",
+        "body": "Junte-se a milhares de profissionais de saúde protegendo comunidades globalmente."
+      }
+    },
+    "impact": {
+      "title": "Fazendo um Impacto Global",
+      "subtitle": "Nossa plataforma é confiada por profissionais de saúde, governos e organizações em todo o mundo.",
+      "countries": "Países Cobertos",
+      "users": "Usuários Ativos",
+      "monitoring": "Monitoramento em Tempo Real",
+      "uptime": "Confiabilidade de Uptime"
+    },
+    "cta": {
+      "title": "Pronto para Ficar à Frente das Ameaças à Saúde?",
+      "subtitle": "Junte-se à comunidade global protegendo a saúde pública com inteligência de surtos em tempo real.",
+      "exploreMap": "Explorar o Mapa",
+      "partnerWithUs": "Fazer Parceria Conosco"
+    },
+    "partners": {
+      "title": "Orgulhosamente apoiado por"
+    },
     "partner": {
       "title": "Junte-se a nós para moldar o futuro da resposta a surtos",
       "body": "Estamos buscando ativamente parceiros, colaboradores e patrocinadores para expandir a cobertura global do OutbreakNow, aprimorar modelos preditivos e tornar informações que salvam vidas mais acessíveis. Seja você uma agência de saúde pública, instituição de pesquisa, provedor de tecnologia ou ONG, a sua contribuição pode nos ajudar a proteger milhões.",
@@ -370,6 +428,188 @@
       "formMessageLabel": "Consulta de parceria",
       "formMessagePlaceholder": "Conte-nos sobre sua organização e como você gostaria de colaborar...",
       "formSubmit": "Enviar consulta de parceria"
+    }
+  },
+  "advertise": {
+    "hero": {
+      "title": "Anuncie com OutbreakNow",
+      "body": "Alcance milhares de profissionais de saúde, formuladores de políticas, pesquisadores e entusiastas da saúde global. Anuncie seus produtos, serviços ou iniciativas em nossa plataforma e cause um impacto significativo na vigilância da saúde global."
+    },
+    "why": {
+      "title": "Por que anunciar com OutbreakNow?",
+      "targetedTitle": "Audiência Segmentada",
+      "targetedBody": "Conecte-se com mais de 50.000 usuários ativos, incluindo funcionários de saúde pública, epidemiologistas, provedores de saúde e tomadores de decisão.",
+      "globalTitle": "Alcance Global",
+      "globalBody": "Sua mensagem alcança profissionais em mais de 200 países e territórios em todo o mundo.",
+      "engagementTitle": "Alto Engajamento",
+      "engagementBody": "Nossa plataforma vê engajamento diário de usuários que buscam ativamente informações sobre surtos e soluções de saúde.",
+      "trustedTitle": "Plataforma Confiável",
+      "trustedBody": "Associe sua marca a uma fonte confiável de informações sobre surtos em tempo real, confiável globalmente."
+    },
+    "audience": {
+      "title": "Nossa Audiência",
+      "segmentPublicHealth": "Funcionários de Saúde Pública",
+      "segmentProviders": "Provedores de Saúde",
+      "segmentResearchers": "Pesquisadores e Acadêmicos",
+      "segmentPolicy": "Formuladores de Políticas e ONGs"
+    },
+    "opportunities": {
+      "title": "Oportunidades de Publicidade",
+      "mapTitle": "Seção Patrocinada do Mapa",
+      "mapBody": "Posicionamento premium na seção patrocinada do nosso mapa interativo de surtos - a página mais visitada do OutbreakNow.",
+      "homepageTitle": "Banner da Página Inicial",
+      "homepageBody": "Posicionamento de banner de alta visibilidade em nossa página inicial, alcançando visitantes assim que chegam à nossa plataforma.",
+      "newsletterTitle": "Patrocínios de Newsletter",
+      "newsletterBody": "Alcance nossa base de assinantes engajada através de recursos dedicados de newsletter e menções em nossas atualizações semanais de informações sobre surtos."
+    },
+    "plans": {
+      "title": "Planos de Publicidade",
+      "notice": "Todos os planos incluem análises detalhadas e suporte dedicado. Você paga apenas após a aprovação da sua solicitação.",
+      "mostPopularBadge": "MAIS POPULAR",
+      "basic": {
+        "name": "Plano Básico",
+        "price": "$30/mês",
+        "duration": "30 dias",
+        "feature1": "Posicionamento na seção patrocinada do mapa",
+        "feature2": "Duração de exibição de 30 dias",
+        "feature3": "Análises básicas (visualizações e cliques)",
+        "feature4": "Prioridade de exibição padrão"
+      },
+      "professional": {
+        "name": "Plano Profissional",
+        "price": "$75/mês",
+        "duration": "60 dias",
+        "feature1": "Posicionamento no mapa + banner da página inicial",
+        "feature2": "Duração de exibição de 60 dias",
+        "feature3": "Análises avançadas com métricas de engajamento",
+        "feature4": "Posicionamento em destaque com badge",
+        "feature5": "Menções na newsletter",
+        "feature6": "Promoção em redes sociais"
+      },
+      "enterprise": {
+        "name": "Plano Empresarial",
+        "price": "$150/mês",
+        "duration": "90 dias",
+        "feature1": "Todas as plataformas (Mapa, Página Inicial, Newsletter)",
+        "feature2": "Duração de exibição de 90 dias",
+        "feature3": "Análises personalizadas com exportação",
+        "feature4": "Fixado na posição superior",
+        "feature5": "Criação de conteúdo personalizado",
+        "feature6": "Gerente de conta dedicado",
+        "feature7": "Suporte prioritário"
+      }
+    },
+    "form": {
+      "title": "Comece a Anunciar Hoje",
+      "subtitle": "Preencha o formulário abaixo. Nossa equipe revisará sua solicitação e entrará em contato em 24-48 horas. Você paga apenas após a aprovação!",
+      "cardTitle": "Solicitação de Publicidade",
+      "cardDescription": "Conte-nos sobre sua organização e objetivos de publicidade",
+      "loginRequiredTitle": "Login Necessário",
+      "loginRequiredBody": "Você deve fazer login para enviar uma solicitação de publicidade. Isso nos ajuda a rastrear suas solicitações e enviar atualizações em tempo real.",
+      "loginButton": "Fazer Login para Continuar",
+      "companyNameLabel": "Nome da Empresa *",
+      "companyNamePlaceholder": "Nome da Sua Empresa",
+      "contactNameLabel": "Pessoa de Contato *",
+      "contactNamePlaceholder": "Nome Completo",
+      "emailLabel": "Endereço de E-mail *",
+      "emailPlaceholder": "contact@company.com",
+      "phoneLabel": "Número de Telefone",
+      "phonePlaceholder": "+1 (555) 000-0000",
+      "websiteLabel": "URL do Site",
+      "websitePlaceholder": "https://yourcompany.com",
+      "descriptionLabel": "Objetivos e Descrição da Publicidade",
+      "descriptionPlaceholder": "Conte-nos sobre seus produtos/serviços e o que você espera alcançar através da publicidade no OutbreakNow...",
+      "adContentTitle": "Conteúdo do Anúncio (Opcional)",
+      "adContentBody": "Você pode fornecer o conteúdo do anúncio agora ou após a aprovação. Nossa equipe pode ajudar a criar seu anúncio, se necessário.",
+      "adTitleLabel": "Título do Anúncio",
+      "adTitlePlaceholder": "Título do seu anúncio",
+      "adImageLabel": "Mídia do Anúncio (Opcional)",
+      "adImageHelp": "Faça upload da mídia do anúncio: Imagens (JPG, PNG, WebP - Máx. 10MB), GIFs (Máx. 10MB), Animações (Máx. 10MB) ou vídeos curtos (MP4, WebM, MOV - Máx. 15MB, recomendado menos de 60 segundos). Isso será exibido no mapa.",
+      "imageUrlLabel": "Ou insira a URL da mídia:",
+      "mediaTypeVideo": "Vídeo",
+      "mediaTypeGif": "GIF",
+      "mediaTypeAnimation": "Animação",
+      "mediaTypeImage": "Imagem",
+      "reviewTitle": "Revisar e Enviar Solicitação",
+      "previewTitle": "Revisar Prévia do Anúncio",
+      "previewDescription": "É assim que seu anúncio aparecerá para os usuários na plataforma. Revise cuidadosamente e edite se necessário antes de enviar.",
+      "backToEdit": "Voltar para Editar",
+      "howAdWillLook": "Como Seu Anúncio Ficará",
+      "adDetails": "Detalhes do Anúncio",
+      "adDetailsCompany": "Empresa:",
+      "adDetailsPlan": "Plano:",
+      "adDetailsTitle": "Título:",
+      "adDetailsLocation": "Localização:",
+      "adDetailsClickUrl": "URL de Clique:",
+      "notProvided": "Não fornecido",
+      "editAd": "Editar Anúncio",
+      "confirmSubmit": "Confirmar e Enviar",
+      "submitting": "Enviando...",
+      "clickUrlLabel": "URL de Clique",
+      "clickUrlPlaceholder": "https://yourcompany.com/landing-page",
+      "locationLabel": "Texto de Localização de Exibição",
+      "locationPlaceholder": "Global (ou região específica)",
+      "planLabel": "Selecione o Plano de Publicidade *",
+      "selectedPlanPrefix": "Selecionado:",
+      "selectedIndicator": "Selecionado",
+      "documentLabel": "Carregar Documento de Publicidade",
+      "documentHelp": "Formatos aceitos: PDF, DOC, DOCX, JPG, PNG (Máx. 10MB)",
+      "selectedFile": "Selecionado: {{name}}",
+      "submitLogin": "Fazer Login para Enviar",
+      "submit": "Enviar Solicitação de Publicidade",
+      "submitDisclaimer": "Ao enviar, você concorda com nossos termos de serviço. Você será cobrado apenas após a aprovação da sua solicitação."
+    },
+    "errors": {
+      "fileTooLargeTitle": "Arquivo muito grande",
+      "fileTooLargeDesc": "Por favor, selecione um arquivo menor que {{maxSize}}MB. Para vídeos, mantenha-os curtos (recomendado menos de 30 segundos).",
+      "invalidFileTypeTitle": "Tipo de arquivo inválido",
+      "invalidFileTypeDesc": "Por favor, selecione uma imagem (JPG, PNG, WebP), GIF ou vídeo curto (MP4, WebM, MOV).",
+      "videoTooLongTitle": "Vídeo muito longo",
+      "videoTooLongDesc": "Por favor, mantenha os vídeos com menos de 60 segundos para um desempenho ideal.",
+      "uploadPermissionDeniedTitle": "Permissão de Upload Negada",
+      "uploadPermissionDeniedDesc": "Falha no upload de mídia - acesso negado. Sua solicitação ainda será enviada, mas sem mídia.",
+      "uploadFailedTitle": "Upload Falhou",
+      "uploadFailedDesc": "Falha no upload de mídia: {{error}}. Sua solicitação ainda será enviada.",
+      "uploadErrorTitle": "Erro de Upload",
+      "uploadErrorDesc": "Ocorreu um erro inesperado durante o upload. Sua solicitação ainda será enviada.",
+      "uploadSuccessfulTitle": "Upload Bem-sucedido",
+      "uploadSuccessfulDesc": "Mídia carregada, mas usando bucket de fallback. Para melhores resultados, crie um bucket 'sponsored-videos' no Supabase.",
+      "imageTooLargeTitle": "Imagem muito grande",
+      "imageTooLargeDesc": "Por favor, selecione uma imagem menor que 5MB.",
+      "loginRequiredTitle": "Login Necessário",
+      "loginRequiredDesc": "Por favor, faça login para enviar uma solicitação de publicidade.",
+      "limitReachedTitle": "Limite de Envio Atingido",
+      "limitReachedDescFallback": "Você atingiu seu limite de envio. Por favor, tente novamente mais tarde.",
+      "missingInfoTitle": "Informações Faltando",
+      "missingInfoDesc": "Por favor, preencha todos os campos obrigatórios.",
+      "invalidEmailTitle": "E-mail Inválido",
+      "invalidEmailDesc": "Por favor, insira um endereço de e-mail válido.",
+      "submitFailedTitle": "Envio Falhou",
+      "submitFailedDesc": "Houve um erro ao enviar sua solicitação. Por favor, tente novamente."
+    },
+    "note": {
+      "title": "Nota",
+      "documentSkipped": "Upload de documento ignorado - armazenamento não configurado ou acesso negado. Sua solicitação ainda será enviada.",
+      "imageStorageSkipped": "Upload de imagem ignorado - armazenamento não configurado. Sua solicitação ainda será enviada.",
+      "imageAccessSkipped": "Upload de imagem ignorado - acesso negado. Sua solicitação ainda será enviada."
+    },
+    "success": {
+      "title": "Solicitação Enviada! 🎉",
+      "desc": "Você receberá uma notificação quando sua solicitação for revisada. Verifique o sino de notificações para atualizações!",
+      "titleShort": "Solicitação Enviada com Sucesso!",
+      "longDesc": "Obrigado pelo seu interesse em anunciar com OutbreakNow. Recebemos sua solicitação e a revisaremos em 24-48 horas. Você receberá uma notificação em tempo real no aplicativo assim que nossa revisão for concluída.",
+      "nextStepsTitle": "O que acontece a seguir?",
+      "step1Title": "Revisão da Solicitação:",
+      "step1Body": " Nossa equipe revisará sua solicitação em 24-48 horas. Por favor, verifique seu e-mail regularmente.",
+      "step2Title": "Link de Pagamento:",
+      "step2Body": " Se aprovado, você receberá uma notificação com um link de pagamento. Verifique o sino de notificações no cabeçalho.",
+      "step3Title": "Completar Pagamento:",
+      "step3Body": " Clique no link de pagamento em seu e-mail e complete o processo de pagamento seguro para ativar seu anúncio.",
+      "step4Title": "Seu Anúncio Entra no Ar:",
+      "step4Body": " Assim que o pagamento for confirmado, seu anúncio será ativado e exibido no OutbreakNow!",
+      "importantNote": "Importante: Você receberá notificações em tempo real no aplicativo. Verifique o sino de notificações no cabeçalho para atualizações. Você também pode rastrear sua solicitação em seu painel.",
+      "referenceId": "ID de Referência: {{id}}",
+      "submitAnother": "Enviar Outra Solicitação"
     }
   }
 }

@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Menu, X } from 'lucide-react';
+import { useState, useMemo, useCallback } from 'react';
+import { Menu, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { DashboardHeader } from '@/screens/GlobalHealthIndex/dashboard/DashboardHeader';
@@ -27,22 +27,50 @@ import {
   getLatestDiseaseDataByCountry,
   normalizeCountryCode,
 } from '@/data/mockData';
-import { deduplicateAndAggregate } from './utils/filterHelpers';
+import { deduplicateAndAggregate, filterByCategory } from './utils/filterHelpers';
+import { cn } from '@/lib/utils';
 
 const Index = () => {
-  const [selectedYear, setSelectedYear] = useState(2023);
+  const [selectedYear, setSelectedYear] = useState(2024);
   const [selectedCountry, setSelectedCountry] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedDisease, setSelectedDisease] = useState<Disease | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const handleReset = () => {
-    setSelectedYear(2023);
+    setSelectedYear(2024);
     setSelectedCountry('all');
     setSelectedCategory('all');
     setSelectedDisease(null);
     setSidebarOpen(false);
   };
+
+  // Handle category change - clear disease if it doesn't match the new category
+  const handleCategoryChange = useCallback((newCategory: string) => {
+    setSelectedCategory(newCategory);
+    
+    // If a disease is selected and the new category is not 'all', check if it matches
+    if (selectedDisease && newCategory !== 'all') {
+      const categoryLower = newCategory.toLowerCase().trim();
+      const diseaseCategoryLower = selectedDisease.category?.toLowerCase().trim() || '';
+      
+      // Check if disease matches the new category
+      const matches = 
+        diseaseCategoryLower === categoryLower ||
+        diseaseCategoryLower.includes(categoryLower) ||
+        categoryLower.includes(diseaseCategoryLower) ||
+        categoryLower.split(/\s+/).some(word => diseaseCategoryLower.includes(word));
+      
+      // Clear disease if it doesn't match the new category
+      if (!matches) {
+        setSelectedDisease(null);
+      }
+    } else if (newCategory === 'all') {
+      // When switching to 'all', keep the disease selected (it will show anyway)
+      // No need to clear it
+    }
+  }, [selectedDisease]);
 
   // Check if selected disease matches the category filter
   const diseaseMatchesCategory = useMemo(() => {
@@ -84,6 +112,18 @@ const Index = () => {
   const currentDiseaseData = useMemo(() => {
     if (!selectedDisease?.id) return undefined;
     
+    // Debug logging
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[currentDiseaseData] Looking for disease:', {
+        selectedDiseaseId: selectedDisease.id,
+        selectedDiseaseName: selectedDisease.name,
+        selectedYear,
+        selectedCountry,
+        totalDiseaseDataRecords: diseaseData.length,
+        matchingBaseIds: Array.from(new Set(diseaseData.map(d => d.baseId))).slice(0, 10),
+      });
+    }
+    
     const countryCode = selectedCountry !== 'all' ? selectedCountry : undefined;
     
     if (countryCode) {
@@ -97,12 +137,24 @@ const Index = () => {
         d.location.toUpperCase() === normalizedCode.toUpperCase()
       );
       
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[currentDiseaseData] Filtered by country and year:', {
+          normalizedCode,
+          yearDataCount: yearData.length,
+          yearData: yearData.slice(0, 2),
+        });
+      }
+      
       if (yearData.length > 0) {
         return yearData.sort((a, b) => b.year - a.year)[0];
       }
       
       // Fallback to latest data for the country
-      return getLatestDiseaseDataByCountry(selectedDisease.id, countryCode);
+      const latestData = getLatestDiseaseDataByCountry(selectedDisease.id, countryCode);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[currentDiseaseData] Latest data for country:', latestData);
+      }
+      return latestData;
     }
     
     // Aggregate data from all countries for the selected year
@@ -111,9 +163,20 @@ const Index = () => {
       d.year === selectedYear
     );
     
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[currentDiseaseData] All countries data:', {
+        allCountriesDataCount: allCountriesData.length,
+        allCountriesData: allCountriesData.slice(0, 2),
+      });
+    }
+    
     if (allCountriesData.length === 0) {
       // Fallback to latest data from any country
-      return getLatestDiseaseData(selectedDisease.id);
+      const latestAnyCountry = getLatestDiseaseData(selectedDisease.id);
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[currentDiseaseData] Latest data from any country:', latestAnyCountry);
+      }
+      return latestAnyCountry;
     }
     
     // Aggregate correctly: average rates, sum counts
@@ -184,12 +247,15 @@ const Index = () => {
     return filtered;
   }, [selectedCountry, selectedYear]);
 
-  // Aggregate all diseases data when "All Categories" is selected
+  // Aggregate diseases data - for "All Categories" or specific category
   const aggregateAllDiseasesData = useMemo(() => {
-    if (selectedCategory !== 'all') return null;
+    // Use pre-filtered data (already filtered by country and year)
+    let filtered = preFilteredData;
     
-    // Use pre-filtered data
-    const filtered = preFilteredData;
+    // If a specific category is selected, filter by category
+    if (selectedCategory !== 'all') {
+      filtered = filterByCategory(filtered, selectedCategory);
+    }
     
     if (filtered.length === 0) return null;
     
@@ -198,14 +264,16 @@ const Index = () => {
     
     if (deduplicated.length === 0) return null;
     
-    // Aggregate correctly: average rates, sum counts
+    // Aggregate correctly: sum prevalence/incidence (total burden), average mortality rate, sum counts
     const first = deduplicated[0];
-    type AggregatedType = typeof first & { count: number };
+    type AggregatedType = typeof first & { count: number; totalMortality: number };
     const aggregated = deduplicated.slice(1).reduce((acc: AggregatedType, curr) => {
-      // Sum rates (will average later)
+      // Sum prevalence and incidence (total cases across all diseases in category)
       acc.prevalence += curr.prevalence;
       acc.incidence += curr.incidence;
-      acc.mortalityRate += curr.mortalityRate;
+      
+      // Sum mortality rates for averaging later (weighted average would be better, but simple average for now)
+      acc.totalMortality += curr.mortalityRate;
       
       // Sum counts (these are correct to sum)
       acc.dalys += curr.dalys;
@@ -219,18 +287,17 @@ const Index = () => {
     }, {
       ...first,
       count: 1,
+      totalMortality: first.mortalityRate,
     } as AggregatedType);
     
-    // Average rate-based metrics
-    const averaged = {
+    // Average mortality rate only (prevalence and incidence are summed totals)
+    const result = {
       ...aggregated,
-      prevalence: aggregated.count > 0 ? aggregated.prevalence / aggregated.count : 0,
-      incidence: aggregated.count > 0 ? aggregated.incidence / aggregated.count : 0,
-      mortalityRate: aggregated.count > 0 ? aggregated.mortalityRate / aggregated.count : 0,
+      mortalityRate: aggregated.count > 0 ? aggregated.totalMortality / aggregated.count : 0,
     };
     
-    const { count, ...result } = averaged;
-    return result;
+    const { count, totalMortality, ...finalResult } = result;
+    return finalResult;
   }, [selectedCategory, preFilteredData]);
 
   // Pre-filter time series data by country for performance
@@ -249,39 +316,42 @@ const Index = () => {
     return filtered;
   }, [selectedCountry, selectedYear]);
 
-  // Aggregate time series for all diseases when "All Categories" is selected
+  // Aggregate time series for all diseases - for "All Categories" or specific category
   const aggregateTimeSeriesData = useMemo(() => {
-    if (selectedCategory !== 'all') return [];
+    // Use pre-filtered data (already filtered by country)
+    let filtered = preFilteredTimeSeriesData;
     
-    // Use pre-filtered data
-    const filtered = preFilteredTimeSeriesData;
+    // If a specific category is selected, filter by category
+    if (selectedCategory !== 'all') {
+      filtered = filterByCategory(filtered, selectedCategory);
+    }
     
     if (filtered.length === 0) return [];
     
     // Deduplicate
     const deduplicated = deduplicateAndAggregate(filtered);
     
-    // Group by year and aggregate correctly: average rates, sum counts
+    // Group by year and aggregate correctly: sum prevalence/incidence, average mortality, sum counts
     const yearMap = new Map<number, { prevalence: number; incidence: number; mortality: number; dalys: number; count: number }>();
     
     deduplicated.forEach(d => {
       const existing = yearMap.get(d.year) || { prevalence: 0, incidence: 0, mortality: 0, dalys: 0, count: 0 };
       yearMap.set(d.year, {
-        prevalence: existing.prevalence + d.prevalence, // Sum for averaging
-        incidence: existing.incidence + d.incidence, // Sum for averaging
-        mortality: existing.mortality + d.mortalityRate, // Sum for averaging
+        prevalence: existing.prevalence + d.prevalence, // Sum (total cases)
+        incidence: existing.incidence + d.incidence, // Sum (total new cases)
+        mortality: existing.mortality + d.mortalityRate, // Sum for averaging later
         dalys: existing.dalys + d.dalys, // Sum (correct)
         count: existing.count + 1,
       });
     });
     
-    // Convert to array: average rates, keep summed counts
+    // Convert to array: sum prevalence/incidence, average mortality, keep summed counts
     return Array.from(yearMap.entries())
       .map(([year, data]) => ({
         year,
-        prevalence: data.count > 0 ? data.prevalence / data.count : 0, // Average
-        incidence: data.count > 0 ? data.incidence / data.count : 0, // Average
-        mortality: data.count > 0 ? data.mortality / data.count : 0, // Average
+        prevalence: data.prevalence, // Sum (total cases)
+        incidence: data.incidence, // Sum (total new cases)
+        mortality: data.count > 0 ? data.mortality / data.count : 0, // Average mortality rate
         dalys: data.dalys, // Sum (correct)
       }))
       .sort((a, b) => a.year - b.year);
@@ -363,65 +433,74 @@ const Index = () => {
   }, [selectedDisease, selectedYear, selectedCountry, selectedCategory, preFilteredData]);
 
   const timeSeriesData = useMemo(() => {
-    // When "All Categories" is selected, use aggregate time series across all diseases
-    if (selectedCategory === 'all') {
-      return aggregateTimeSeriesData;
-    }
-    
-    if (!selectedDisease?.id) return [];
-    
-    if (selectedCountry === 'all') {
-      // Aggregate time series data from all countries
-      const allData = diseaseData.filter(d => 
-        d.baseId === selectedDisease.id && 
-        d.year <= selectedYear
-      );
-      
-      // Group by year and aggregate correctly: average rates, sum counts
-      const yearMap = new Map<number, { prevalence: number; incidence: number; mortality: number; dalys: number; count: number }>();
-      
-      allData.forEach(d => {
-        const existing = yearMap.get(d.year) || { prevalence: 0, incidence: 0, mortality: 0, dalys: 0, count: 0 };
-        yearMap.set(d.year, {
-          prevalence: existing.prevalence + d.prevalence, // Sum for averaging
-          incidence: existing.incidence + d.incidence, // Sum for averaging
-          mortality: existing.mortality + d.mortalityRate, // Sum for averaging
-          dalys: existing.dalys + d.dalys, // Sum (correct)
-          count: existing.count + 1,
+    // PRIORITY 1: If a disease is selected, always use disease-specific time series (regardless of category filter)
+    if (selectedDisease?.id) {
+      if (selectedCountry === 'all') {
+        // Aggregate time series data from all countries for this specific disease
+        const allData = diseaseData.filter(d => 
+          d.baseId === selectedDisease.id && 
+          d.year <= selectedYear
+        );
+        
+        if (process.env.NODE_ENV === 'development') {
+          console.log('[timeSeriesData] Disease-specific data for all countries:', {
+            diseaseId: selectedDisease.id,
+            diseaseName: selectedDisease.name,
+            allDataCount: allData.length,
+            sampleData: allData.slice(0, 2),
+          });
+        }
+        
+        // Group by year and aggregate correctly: average rates, sum counts
+        const yearMap = new Map<number, { prevalence: number; incidence: number; mortality: number; dalys: number; count: number }>();
+        
+        allData.forEach(d => {
+          const existing = yearMap.get(d.year) || { prevalence: 0, incidence: 0, mortality: 0, dalys: 0, count: 0 };
+          yearMap.set(d.year, {
+            prevalence: existing.prevalence + d.prevalence, // Sum for averaging
+            incidence: existing.incidence + d.incidence, // Sum for averaging
+            mortality: existing.mortality + d.mortalityRate, // Sum for averaging
+            dalys: existing.dalys + d.dalys, // Sum (correct)
+            count: existing.count + 1,
+          });
         });
-      });
+        
+        // Convert to array: average rates, keep summed counts
+        const aggregated = Array.from(yearMap.entries())
+          .map(([year, data]) => ({
+            year,
+            prevalence: data.count > 0 ? data.prevalence / data.count : 0, // Average
+            incidence: data.count > 0 ? data.incidence / data.count : 0, // Average
+            mortality: data.count > 0 ? data.mortality / data.count : 0, // Average
+            dalys: data.dalys, // Sum (correct)
+          }))
+          .sort((a, b) => a.year - b.year);
+        
+        return aggregated;
+      }
       
-      // Convert to array: average rates, keep summed counts
-      const aggregated = Array.from(yearMap.entries())
-        .map(([year, data]) => ({
-          year,
-          prevalence: data.count > 0 ? data.prevalence / data.count : 0, // Average
-          incidence: data.count > 0 ? data.incidence / data.count : 0, // Average
-          mortality: data.count > 0 ? data.mortality / data.count : 0, // Average
-          dalys: data.dalys, // Sum (correct)
-        }))
-        .sort((a, b) => a.year - b.year);
+      // Single country - use existing logic
+      const data = generateTimeSeriesData(selectedDisease.id, selectedCountry);
       
-      return aggregated;
+      // Filter by selected year - show data up to and including the selected year
+      const filteredByYear = data.filter(d => d.year <= selectedYear);
+      
+      // If no time series, create one from current disease data
+      if (filteredByYear.length === 0 && currentDiseaseData) {
+        return [{
+          year: currentDiseaseData.year,
+          prevalence: currentDiseaseData.prevalence,
+          incidence: currentDiseaseData.incidence,
+          mortality: currentDiseaseData.mortalityRate,
+          dalys: currentDiseaseData.dalys,
+        }];
+      }
+      return filteredByYear;
     }
     
-    // Single country - use existing logic
-    const data = generateTimeSeriesData(selectedDisease.id, selectedCountry);
-    
-    // Filter by selected year - show data up to and including the selected year
-    const filteredByYear = data.filter(d => d.year <= selectedYear);
-    
-    // If no time series, create one from current disease data
-    if (filteredByYear.length === 0 && currentDiseaseData) {
-      return [{
-        year: currentDiseaseData.year,
-        prevalence: currentDiseaseData.prevalence,
-        incidence: currentDiseaseData.incidence,
-        mortality: currentDiseaseData.mortalityRate,
-        dalys: currentDiseaseData.dalys,
-      }];
-    }
-    return filteredByYear;
+    // PRIORITY 2: When no disease is selected, use aggregate time series based on category filter
+    // This works for both "All Categories" and specific category selections
+    return aggregateTimeSeriesData;
   }, [selectedDisease, currentDiseaseData, selectedCountry, selectedYear, selectedCategory, aggregateTimeSeriesData]);
 
   // Helper function to round values appropriately
@@ -432,87 +511,96 @@ const Index = () => {
   };
 
   const metrics = useMemo(() => {
-    // When "All Categories" is selected, use aggregate data
-    if (selectedCategory === 'all') {
-      // Use aggregate time series if available
-      if (aggregateTimeSeriesData.length > 0) {
-        const yearData = aggregateTimeSeriesData.find(d => d.year === selectedYear);
-        const latestData = yearData || aggregateTimeSeriesData[aggregateTimeSeriesData.length - 1];
-        
-        const previousYear = selectedYear - 1;
-        const previousYearData = aggregateTimeSeriesData.find(d => d.year === previousYear);
-        const previousData = previousYearData || (aggregateTimeSeriesData.length > 1 ? aggregateTimeSeriesData[aggregateTimeSeriesData.length - 2] : latestData);
-
-        const calcTrend = (current: number, previous: number) => {
-          if (!previous || previous === 0) return 0;
-          return Math.round(((current - previous) / previous) * 100 * 10) / 10;
-        };
-
-        const sparklineData = aggregateTimeSeriesData.filter(d => d.year <= selectedYear);
-
+    // PRIORITY 1: If a disease is selected, always use disease-specific data (regardless of category filter)
+    if (selectedDisease?.id) {
+      // If no time series but we have current disease data, use that
+      if (!timeSeriesData.length && currentDiseaseData) {
         return {
-          prevalence: { value: roundValue(latestData.prevalence, 1), trend: calcTrend(latestData.prevalence, previousData.prevalence), sparkline: sparklineData.map((d) => d.prevalence) },
-          incidence: { value: roundValue(latestData.incidence, 1), trend: calcTrend(latestData.incidence, previousData.incidence), sparkline: sparklineData.map((d) => d.incidence) },
-          mortality: { value: roundValue(latestData.mortality, 4), trend: calcTrend(latestData.mortality, previousData.mortality), sparkline: sparklineData.map((d) => d.mortality) },
-          dalys: { value: roundValue(latestData.dalys, 1), trend: calcTrend(latestData.dalys, previousData.dalys), sparkline: sparklineData.map((d) => d.dalys) },
+          prevalence: { value: roundValue(currentDiseaseData.prevalence, 1), trend: 0, sparkline: [currentDiseaseData.prevalence] },
+          incidence: { value: roundValue(currentDiseaseData.incidence, 1), trend: 0, sparkline: [currentDiseaseData.incidence] },
+          mortality: { value: roundValue(currentDiseaseData.mortalityRate, 4), trend: 0, sparkline: [currentDiseaseData.mortalityRate] },
+          dalys: { value: roundValue(currentDiseaseData.dalys, 1), trend: 0, sparkline: [currentDiseaseData.dalys] },
         };
       }
       
-      // Fallback to aggregate snapshot data
-      if (aggregateAllDiseasesData) {
+      if (!timeSeriesData.length) {
         return {
-          prevalence: { value: roundValue(aggregateAllDiseasesData.prevalence, 1), trend: 0, sparkline: [aggregateAllDiseasesData.prevalence] },
-          incidence: { value: roundValue(aggregateAllDiseasesData.incidence, 1), trend: 0, sparkline: [aggregateAllDiseasesData.incidence] },
-          mortality: { value: roundValue(aggregateAllDiseasesData.mortalityRate, 4), trend: 0, sparkline: [aggregateAllDiseasesData.mortalityRate] },
-          dalys: { value: roundValue(aggregateAllDiseasesData.dalys, 1), trend: 0, sparkline: [aggregateAllDiseasesData.dalys] },
+          prevalence: { value: 0, trend: 0, sparkline: [] },
+          incidence: { value: 0, trend: 0, sparkline: [] },
+          mortality: { value: 0, trend: 0, sparkline: [] },
+          dalys: { value: 0, trend: 0, sparkline: [] },
         };
       }
-    }
-    
-    // For specific category, use disease-specific data
-    // If no time series but we have current disease data, use that
-    if (!timeSeriesData.length && currentDiseaseData) {
+
+      // Find data for the selected year, or use the closest available year
+      const yearData = timeSeriesData.find(d => d.year === selectedYear);
+      const latestData = yearData || timeSeriesData[timeSeriesData.length - 1];
+      
+      // Find previous year data for trend calculation
+      const previousYear = selectedYear - 1;
+      const previousYearData = timeSeriesData.find(d => d.year === previousYear);
+      const previousData = previousYearData || (timeSeriesData.length > 1 ? timeSeriesData[timeSeriesData.length - 2] : latestData);
+
+      const calcTrend = (current: number, previous: number) => {
+        if (!previous || previous === 0) return 0;
+        return Math.round(((current - previous) / previous) * 100 * 10) / 10;
+      };
+
+      // Sparkline should show all data up to selected year
+      const sparklineData = timeSeriesData.filter(d => d.year <= selectedYear);
+
       return {
-        prevalence: { value: roundValue(currentDiseaseData.prevalence, 1), trend: 0, sparkline: [currentDiseaseData.prevalence] },
-        incidence: { value: roundValue(currentDiseaseData.incidence, 1), trend: 0, sparkline: [currentDiseaseData.incidence] },
-        mortality: { value: roundValue(currentDiseaseData.mortalityRate, 4), trend: 0, sparkline: [currentDiseaseData.mortalityRate] },
-        dalys: { value: roundValue(currentDiseaseData.dalys, 1), trend: 0, sparkline: [currentDiseaseData.dalys] },
+        prevalence: { value: roundValue(latestData.prevalence, 1), trend: calcTrend(latestData.prevalence, previousData.prevalence), sparkline: sparklineData.map((d) => d.prevalence) },
+        incidence: { value: roundValue(latestData.incidence, 1), trend: calcTrend(latestData.incidence, previousData.incidence), sparkline: sparklineData.map((d) => d.incidence) },
+        mortality: { value: roundValue(latestData.mortality, 4), trend: calcTrend(latestData.mortality, previousData.mortality), sparkline: sparklineData.map((d) => d.mortality) },
+        dalys: { value: roundValue(latestData.dalys, 1), trend: calcTrend(latestData.dalys, previousData.dalys), sparkline: sparklineData.map((d) => d.dalys) },
       };
     }
     
-    if (!timeSeriesData.length) {
+    // PRIORITY 2: When no disease is selected, use aggregate data based on category filter
+    // This works for both "All Categories" and specific category selections
+    // Use aggregate time series if available
+    if (aggregateTimeSeriesData.length > 0) {
+      const yearData = aggregateTimeSeriesData.find(d => d.year === selectedYear);
+      const latestData = yearData || aggregateTimeSeriesData[aggregateTimeSeriesData.length - 1];
+      
+      const previousYear = selectedYear - 1;
+      const previousYearData = aggregateTimeSeriesData.find(d => d.year === previousYear);
+      const previousData = previousYearData || (aggregateTimeSeriesData.length > 1 ? aggregateTimeSeriesData[aggregateTimeSeriesData.length - 2] : latestData);
+
+      const calcTrend = (current: number, previous: number) => {
+        if (!previous || previous === 0) return 0;
+        return Math.round(((current - previous) / previous) * 100 * 10) / 10;
+      };
+
+      const sparklineData = aggregateTimeSeriesData.filter(d => d.year <= selectedYear);
+
       return {
-        prevalence: { value: 0, trend: 0, sparkline: [] },
-        incidence: { value: 0, trend: 0, sparkline: [] },
-        mortality: { value: 0, trend: 0, sparkline: [] },
-        dalys: { value: 0, trend: 0, sparkline: [] },
+        prevalence: { value: roundValue(latestData.prevalence, 1), trend: calcTrend(latestData.prevalence, previousData.prevalence), sparkline: sparklineData.map((d) => d.prevalence) },
+        incidence: { value: roundValue(latestData.incidence, 1), trend: calcTrend(latestData.incidence, previousData.incidence), sparkline: sparklineData.map((d) => d.incidence) },
+        mortality: { value: roundValue(latestData.mortality, 4), trend: calcTrend(latestData.mortality, previousData.mortality), sparkline: sparklineData.map((d) => d.mortality) },
+        dalys: { value: roundValue(latestData.dalys, 1), trend: calcTrend(latestData.dalys, previousData.dalys), sparkline: sparklineData.map((d) => d.dalys) },
       };
     }
-
-    // Find data for the selected year, or use the closest available year
-    const yearData = timeSeriesData.find(d => d.year === selectedYear);
-    const latestData = yearData || timeSeriesData[timeSeriesData.length - 1];
     
-    // Find previous year data for trend calculation
-    const previousYear = selectedYear - 1;
-    const previousYearData = timeSeriesData.find(d => d.year === previousYear);
-    const previousData = previousYearData || (timeSeriesData.length > 1 ? timeSeriesData[timeSeriesData.length - 2] : latestData);
-
-    const calcTrend = (current: number, previous: number) => {
-      if (!previous || previous === 0) return 0;
-      return Math.round(((current - previous) / previous) * 100 * 10) / 10;
-    };
-
-    // Sparkline should show all data up to selected year
-    const sparklineData = timeSeriesData.filter(d => d.year <= selectedYear);
-
+    // Fallback to aggregate snapshot data
+    if (aggregateAllDiseasesData) {
+      return {
+        prevalence: { value: roundValue(aggregateAllDiseasesData.prevalence, 1), trend: 0, sparkline: [aggregateAllDiseasesData.prevalence] },
+        incidence: { value: roundValue(aggregateAllDiseasesData.incidence, 1), trend: 0, sparkline: [aggregateAllDiseasesData.incidence] },
+        mortality: { value: roundValue(aggregateAllDiseasesData.mortalityRate, 4), trend: 0, sparkline: [aggregateAllDiseasesData.mortalityRate] },
+        dalys: { value: roundValue(aggregateAllDiseasesData.dalys, 1), trend: 0, sparkline: [aggregateAllDiseasesData.dalys] },
+      };
+    }
+    
+    // Fallback: no data available
     return {
-      prevalence: { value: roundValue(latestData.prevalence, 1), trend: calcTrend(latestData.prevalence, previousData.prevalence), sparkline: sparklineData.map((d) => d.prevalence) },
-      incidence: { value: roundValue(latestData.incidence, 1), trend: calcTrend(latestData.incidence, previousData.incidence), sparkline: sparklineData.map((d) => d.incidence) },
-      mortality: { value: roundValue(latestData.mortality, 4), trend: calcTrend(latestData.mortality, previousData.mortality), sparkline: sparklineData.map((d) => d.mortality) },
-      dalys: { value: roundValue(latestData.dalys, 1), trend: calcTrend(latestData.dalys, previousData.dalys), sparkline: sparklineData.map((d) => d.dalys) },
+      prevalence: { value: 0, trend: 0, sparkline: [] },
+      incidence: { value: 0, trend: 0, sparkline: [] },
+      mortality: { value: 0, trend: 0, sparkline: [] },
+      dalys: { value: 0, trend: 0, sparkline: [] },
     };
-  }, [timeSeriesData, currentDiseaseData, selectedYear, selectedCategory, aggregateAllDiseasesData, aggregateTimeSeriesData]);
+  }, [timeSeriesData, currentDiseaseData, selectedYear, selectedCategory, selectedDisease, aggregateAllDiseasesData, aggregateTimeSeriesData]);
 
   const genderData = useMemo(() => {
     if (!currentDiseaseData) return { male: 50, female: 50 };
@@ -529,6 +617,10 @@ const Index = () => {
     setSidebarOpen(false);
   };
 
+  const handleSidebarToggle = useCallback(() => {
+    setSidebarCollapsed(prev => !prev);
+  }, []);
+
   return (
     <div className="min-h-screen bg-background bg-grid-pattern bg-grid">
       <DashboardHeader
@@ -537,21 +629,45 @@ const Index = () => {
         selectedCountry={selectedCountry}
         onCountryChange={setSelectedCountry}
         selectedCategory={selectedCategory}
-        onCategoryChange={setSelectedCategory}
+        onCategoryChange={handleCategoryChange}
         onReset={handleReset}
         onMenuClick={() => setSidebarOpen(true)}
       />
 
-      <div className="flex flex-col lg:flex-row lg:items-start gap-4 sm:gap-6 min-h-0">
+      <div className="flex flex-col lg:flex-row lg:items-start gap-4 sm:gap-6 min-h-0 relative">
         {/* Desktop Sidebar */}
-        <div className="hidden lg:block">
-          <DiseaseSidebar
-            diseases={diseases}
-            selectedDisease={selectedDisease}
-            onSelectDisease={handleDiseaseSelect}
-            selectedCategory={selectedCategory}
-          />
+        <div className={cn(
+          "hidden lg:block transition-all duration-200 ease-in-out",
+          sidebarCollapsed ? "w-0 overflow-hidden" : "w-72 xl:w-80"
+        )}>
+          {!sidebarCollapsed && (
+            <DiseaseSidebar
+              diseases={diseases}
+              selectedDisease={selectedDisease}
+              onSelectDisease={handleDiseaseSelect}
+              selectedCategory={selectedCategory}
+              collapsed={false}
+            />
+          )}
         </div>
+        
+        {/* Collapse Toggle Button - Fixed position */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "hidden lg:flex absolute left-0 top-20 z-20 h-8 w-8 rounded-r-full border border-l-0 border-border bg-background shadow-md hover:bg-secondary transition-all duration-200",
+            sidebarCollapsed ? "translate-x-0" : "translate-x-[18rem] xl:translate-x-[20rem]"
+          )}
+          onClick={handleSidebarToggle}
+          aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {sidebarCollapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
+          )}
+        </Button>
 
         {/* Mobile Sidebar Sheet */}
         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
@@ -609,28 +725,64 @@ const Index = () => {
 
             {/* Histogram, Bubble & Radar */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              <PrevalenceHistogram title="Distribution Histogram" selectedCategory={selectedCategory} />
-              <BurdenBubbleChart title="Disease Burden Analysis" selectedCategory={selectedCategory} />
+              <PrevalenceHistogram 
+                title="Distribution Histogram" 
+                selectedCategory={selectedCategory}
+                selectedYear={selectedYear}
+                selectedCountry={selectedCountry}
+                selectedDiseaseId={selectedDisease?.id}
+              />
+              <BurdenBubbleChart 
+                title="Disease Burden Analysis" 
+                selectedCategory={selectedCategory}
+                selectedYear={selectedYear}
+                selectedCountry={selectedCountry}
+                selectedDiseaseId={selectedDisease?.id}
+              />
               <RiskFactorRadar title="Top Risk Factors" diseaseId={selectedDisease?.id} />
             </div>
 
             {/* Top Conditions & Category Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-              <TopConditionsChart title="Top 10 Conditions by Burden" selectedCategory={selectedCategory} />
+              <TopConditionsChart 
+                title="Top 10 Conditions by Burden" 
+                selectedCategory={selectedCategory}
+                selectedYear={selectedYear}
+                selectedCountry={selectedCountry}
+                selectedDiseaseId={selectedDisease?.id}
+              />
               <CategoryStackedBar title="Category Burden Comparison" />
             </div>
 
             {/* Gender Charts */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              <GenderComparisonChart title="Gender Distribution by Condition" selectedCategory={selectedCategory} />
-              <YLDsDALYsComparison title="YLDs vs YLLs (Disability vs Life Lost)" selectedCategory={selectedCategory} />
+              <GenderComparisonChart 
+                title="Gender Distribution by Condition" 
+                selectedCategory={selectedCategory}
+                selectedYear={selectedYear}
+                selectedCountry={selectedCountry}
+                selectedDiseaseId={selectedDisease?.id}
+              />
+              <YLDsDALYsComparison 
+                title="YLDs vs YLLs (Disability vs Life Lost)" 
+                selectedCategory={selectedCategory}
+                selectedYear={selectedYear}
+                selectedCountry={selectedCountry}
+                selectedDiseaseId={selectedDisease?.id}
+              />
               <GenderDistribution title="Selected Disease Gender Split" malePercentage={genderData.male} femalePercentage={genderData.female} />
             </div>
 
             {/* World Map & Info */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
               <div className="lg:col-span-2">
-                <WorldMap title="Global Disease Distribution" selectedCountry={selectedCountry !== 'all' ? selectedCountry : undefined} onCountryClick={(code) => setSelectedCountry(code)} />
+                <WorldMap 
+                  title="Global Disease Distribution" 
+                  selectedCountry={selectedCountry !== 'all' ? selectedCountry : undefined} 
+                  onCountryClick={(code) => setSelectedCountry(code)}
+                  selectedYear={selectedYear}
+                  selectedCategory={selectedCategory}
+                />
               </div>
               <div className="glass rounded-lg p-3 sm:p-4">
                 <h3 className="text-xs sm:text-sm font-medium mb-3">Data Source</h3>
@@ -673,6 +825,14 @@ const Index = () => {
             </div>
 
             <DataTable data={countryData} title="Detailed Country Data" />
+
+            {/* Disclaimer */}
+            <div className="glass rounded-lg p-4 sm:p-6 border border-border/50 bg-muted/30">
+              <h3 className="text-xs sm:text-sm font-semibold mb-2 sm:mb-3 text-foreground">Disclaimer</h3>
+              <p className="text-[10px] sm:text-xs text-muted-foreground leading-relaxed">
+                The data presented here is compiled from publicly available sources and is intended for informational and reference purposes only. It may contain estimates and projections. For the most accurate and up-to-date official statistics, users should refer directly to the published data from the national health authorities of each respective country.
+              </p>
+            </div>
           </div>
         </main>
       </div>

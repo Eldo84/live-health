@@ -1,16 +1,42 @@
 import { useMemo } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { diseaseData } from '@/data/mockData';
+import { diseaseData, normalizeCountryCode } from '@/data/mockData';
 import { filterByCategory, deduplicateAndAggregate } from '../utils/filterHelpers';
 
-interface YLDsDALYsComparisonProps { title: string; selectedCategory?: string; }
+interface YLDsDALYsComparisonProps { 
+  title: string; 
+  selectedCategory?: string;
+  selectedYear?: number;
+  selectedCountry?: string;
+  selectedDiseaseId?: string;
+}
 
-export const YLDsDALYsComparison = ({ title, selectedCategory }: YLDsDALYsComparisonProps) => {
+export const YLDsDALYsComparison = ({ title, selectedCategory, selectedYear, selectedCountry, selectedDiseaseId }: YLDsDALYsComparisonProps) => {
   const chartData = useMemo(() => {
-    const filteredData = filterByCategory(diseaseData, selectedCategory);
+    let filteredData = diseaseData;
+    
+    // Filter by disease if provided (highest priority - bypass category filter)
+    if (selectedDiseaseId) {
+      filteredData = filteredData.filter(d => d.baseId === selectedDiseaseId);
+    } else {
+      // Only apply category filter if no disease is selected
+      filteredData = filterByCategory(filteredData, selectedCategory);
+    }
+    
+    // Filter by year if provided
+    if (selectedYear) {
+      filteredData = filteredData.filter(d => d.year === selectedYear);
+    }
+    
+    // Filter by country if provided
+    if (selectedCountry && selectedCountry !== 'all') {
+      const normalizedCode = normalizeCountryCode(selectedCountry);
+      filteredData = filteredData.filter(d => d.location.toUpperCase() === normalizedCode.toUpperCase());
+    }
+    
     const deduplicated = deduplicateAndAggregate(filteredData);
     return deduplicated.filter(d => d.ylds > 0 || d.dalys > 0).sort((a, b) => b.dalys - a.dalys).slice(0, 12).map(d => ({ name: d.condition.length > 10 ? d.condition.slice(0, 8) + '...' : d.condition, fullName: d.condition, YLDs: d.ylds, DALYs: d.dalys, YLLs: d.dalys - d.ylds }));
-  }, [selectedCategory]);
+  }, [selectedCategory, selectedYear, selectedCountry, selectedDiseaseId]);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (!active || !payload?.[0]) return null;

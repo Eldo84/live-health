@@ -327,6 +327,64 @@
     "chinese": "中国語"
   },
   "landing": {
+    "tabs": {
+      "outbreakNow": "OutbreakNow",
+      "about": "私たちについて",
+      "partner": "パートナーになる",
+      "advertise": "広告を出稿",
+      "donate": "寄付",
+      "viewMap": "マップを表示"
+    },
+    "hero": {
+      "title": "OutbreakNow – グローバルヘルス監視の未来",
+      "subtitle": "リアルタイムのアウトブレイク情報により、コミュニティを保護し、命を救い、世界中の意思決定者を支援します。",
+      "ctaViewMap": "ライブアウトブレイクマップを表示"
+    },
+    "features": {
+      "title": "なぜOutbreakNowを選ぶのか？",
+      "subtitle": "先進技術とグローバルヘルスの専門知識が融合し、比類のないアウトブレイク情報を提供します。",
+      "trustedData": {
+        "title": "信頼できるデータソース",
+        "body": "WHO、CDC、および世界中の200以上の保健機関からの検証済み情報。"
+      },
+      "predictiveAnalytics": {
+        "title": "予測分析",
+        "body": "AI駆動の予測により、エスカレートする前に新興の脅威を特定します。"
+      },
+      "fastUpdates": {
+        "title": "超高速更新",
+        "body": "リアルタイムのデータ処理により、常に先を行くことができます。"
+      },
+      "earlyWarning": {
+        "title": "早期警戒システム",
+        "body": "地域または世界中の疾病アウトブレイクの即座のアラートを受信します。"
+      },
+      "visualizations": {
+        "title": "インタラクティブな可視化",
+        "body": "動的なマップとチャートにより、複雑なデータを簡単に理解できます。"
+      },
+      "community": {
+        "title": "コミュニティ主導",
+        "body": "世界中のコミュニティを保護する何千人もの医療専門家に参加してください。"
+      }
+    },
+    "impact": {
+      "title": "グローバルな影響を与える",
+      "subtitle": "当社のプラットフォームは、世界中の医療専門家、政府、組織から信頼されています。",
+      "countries": "対象国",
+      "users": "アクティブユーザー",
+      "monitoring": "リアルタイム監視",
+      "uptime": "稼働時間の信頼性"
+    },
+    "cta": {
+      "title": "健康の脅威に先んじる準備はできていますか？",
+      "subtitle": "リアルタイムのアウトブレイク情報で公衆衛生を保護するグローバルコミュニティに参加してください。",
+      "exploreMap": "マップを探索",
+      "partnerWithUs": "私たちとパートナーになる"
+    },
+    "partners": {
+      "title": "誇りを持ってサポートされています"
+    },
     "partner": {
       "title": "アウトブレイク対応の未来を共に築きましょう",
       "body": "OutbreakNow のグローバルなカバレッジを拡大し、予測モデルを強化し、命を救う情報へのアクセスを向上させるために、私たちは積極的にパートナー、協力機関、スポンサーを募集しています。公衆衛生機関、研究機関、テクノロジープロバイダー、または NGO など、どのような組織であっても、皆さまの協力が何百万人もの人々を守る力になります。",
@@ -370,6 +428,188 @@
       "formMessageLabel": "パートナーシップのご相談",
       "formMessagePlaceholder": "所属組織について、またどのような形で協力したいかお聞かせください...",
       "formSubmit": "パートナーシップ相談を送信"
+    }
+  },
+  "advertise": {
+    "hero": {
+      "title": "OutbreakNowで広告を出稿",
+      "body": "何千人もの医療専門家、政策立案者、研究者、グローバルヘルス愛好者にリーチできます。当社のプラットフォームで製品、サービス、またはイニシアチブを宣伝し、グローバルヘルス監視に有意義な影響を与えてください。"
+    },
+    "why": {
+      "title": "なぜOutbreakNowで広告を出すのか？",
+      "targetedTitle": "ターゲットオーディエンス",
+      "targetedBody": "公衆衛生担当者、疫学者、医療提供者、意思決定者を含む50,000人以上のアクティブユーザーとつながります。",
+      "globalTitle": "グローバルリーチ",
+      "globalBody": "あなたのメッセージは、世界中の200以上の国と地域の専門家に届きます。",
+      "engagementTitle": "高いエンゲージメント",
+      "engagementBody": "当社のプラットフォームは、アウトブレイク情報とヘルスソリューションを積極的に探しているユーザーからの毎日のエンゲージメントを見ています。",
+      "trustedTitle": "信頼できるプラットフォーム",
+      "trustedBody": "世界中で信頼されているリアルタイムのアウトブレイク情報の信頼できるソースとブランドを関連付けます。"
+    },
+    "audience": {
+      "title": "私たちのオーディエンス",
+      "segmentPublicHealth": "公衆衛生担当者",
+      "segmentProviders": "医療提供者",
+      "segmentResearchers": "研究者と学者",
+      "segmentPolicy": "政策立案者とNGO"
+    },
+    "opportunities": {
+      "title": "広告機会",
+      "mapTitle": "マップスポンサーセクション",
+      "mapBody": "OutbreakNowで最も訪問されるページである、インタラクティブなアウトブレイクマップのスポンサーセクションでのプレミアム配置。",
+      "homepageTitle": "ホームページバナー",
+      "homepageBody": "訪問者がプラットフォームに最初に到着したときに届く、ホームページでの高視認性バナー配置。",
+      "newsletterTitle": "ニュースレタースポンサーシップ",
+      "newsletterBody": "専用のニュースレター機能と、週次アウトブレイク情報更新での言及を通じて、エンゲージされた購読者ベースにリーチします。"
+    },
+    "plans": {
+      "title": "広告プラン",
+      "notice": "すべてのプランには詳細な分析と専用サポートが含まれます。申請が承認された後にのみお支払いいただきます。",
+      "mostPopularBadge": "最も人気",
+      "basic": {
+        "name": "ベーシックプラン",
+        "price": "$30/月",
+        "duration": "30日",
+        "feature1": "マップスポンサーセクション配置",
+        "feature2": "30日間の表示期間",
+        "feature3": "基本分析（閲覧数とクリック数）",
+        "feature4": "標準表示優先度"
+      },
+      "professional": {
+        "name": "プロフェッショナルプラン",
+        "price": "$75/月",
+        "duration": "60日",
+        "feature1": "マップ+ホームページバナー配置",
+        "feature2": "60日間の表示期間",
+        "feature3": "エンゲージメント指標を含む高度な分析",
+        "feature4": "バッジ付き特集配置",
+        "feature5": "ニュースレターでの言及",
+        "feature6": "ソーシャルメディアプロモーション"
+      },
+      "enterprise": {
+        "name": "エンタープライズプラン",
+        "price": "$150/月",
+        "duration": "90日",
+        "feature1": "すべてのプラットフォーム（マップ、ホームページ、ニュースレター）",
+        "feature2": "90日間の表示期間",
+        "feature3": "エクスポート機能付きカスタム分析",
+        "feature4": "トップ位置に固定",
+        "feature5": "カスタムコンテンツ作成",
+        "feature6": "専任アカウントマネージャー",
+        "feature7": "優先サポート"
+      }
+    },
+    "form": {
+      "title": "今日から広告を始めましょう",
+      "subtitle": "以下のフォームに記入してください。当社のチームが申請を確認し、24〜48時間以内にご連絡いたします。承認後にのみお支払いいただきます！",
+      "cardTitle": "広告申請",
+      "cardDescription": "組織と広告目標についてお聞かせください",
+      "loginRequiredTitle": "ログインが必要",
+      "loginRequiredBody": "広告申請を送信するにはログインする必要があります。これにより、申請を追跡し、リアルタイムの更新を送信できます。",
+      "loginButton": "続行するにはログイン",
+      "companyNameLabel": "会社名 *",
+      "companyNamePlaceholder": "会社名",
+      "contactNameLabel": "連絡先 *",
+      "contactNamePlaceholder": "氏名",
+      "emailLabel": "メールアドレス *",
+      "emailPlaceholder": "contact@company.com",
+      "phoneLabel": "電話番号",
+      "phonePlaceholder": "+1 (555) 000-0000",
+      "websiteLabel": "ウェブサイトURL",
+      "websitePlaceholder": "https://yourcompany.com",
+      "descriptionLabel": "広告目標と説明",
+      "descriptionPlaceholder": "製品/サービスについて、OutbreakNowでの広告を通じて達成したいことをお聞かせください...",
+      "adContentTitle": "広告コンテンツ（オプション）",
+      "adContentBody": "承認前または承認後に広告コンテンツを提供できます。必要に応じて、当社のチームが広告の作成をお手伝いします。",
+      "adTitleLabel": "広告タイトル",
+      "adTitlePlaceholder": "広告の見出し",
+      "adImageLabel": "広告メディア（オプション）",
+      "adImageHelp": "広告メディアをアップロード：画像（JPG、PNG、WebP - 最大10MB）、GIF（最大10MB）、アニメーション（最大10MB）、または短い動画（MP4、WebM、MOV - 最大15MB、60秒以下推奨）。これはマップに表示されます。",
+      "imageUrlLabel": "またはメディアURLを入力：",
+      "mediaTypeVideo": "動画",
+      "mediaTypeGif": "GIF",
+      "mediaTypeAnimation": "アニメーション",
+      "mediaTypeImage": "画像",
+      "reviewTitle": "申請を確認して送信",
+      "previewTitle": "広告プレビューを確認",
+      "previewDescription": "これがプラットフォームでユーザーに表示される広告の見え方です。送信前に注意深く確認し、必要に応じて編集してください。",
+      "backToEdit": "編集に戻る",
+      "howAdWillLook": "広告の見え方",
+      "adDetails": "広告詳細",
+      "adDetailsCompany": "会社：",
+      "adDetailsPlan": "プラン：",
+      "adDetailsTitle": "タイトル：",
+      "adDetailsLocation": "場所：",
+      "adDetailsClickUrl": "クリックURL：",
+      "notProvided": "未提供",
+      "editAd": "広告を編集",
+      "confirmSubmit": "確認して送信",
+      "submitting": "送信中...",
+      "clickUrlLabel": "クリックスルーURL",
+      "clickUrlPlaceholder": "https://yourcompany.com/landing-page",
+      "locationLabel": "表示場所テキスト",
+      "locationPlaceholder": "グローバル（または特定の地域）",
+      "planLabel": "広告プランを選択 *",
+      "selectedPlanPrefix": "選択済み：",
+      "selectedIndicator": "選択済み",
+      "documentLabel": "広告ドキュメントをアップロード",
+      "documentHelp": "受け入れられる形式：PDF、DOC、DOCX、JPG、PNG（最大10MB）",
+      "selectedFile": "選択済み：{{name}}",
+      "submitLogin": "送信するにはログイン",
+      "submit": "広告申請を送信",
+      "submitDisclaimer": "送信することで、利用規約に同意したことになります。申請が承認された後にのみ課金されます。"
+    },
+    "errors": {
+      "fileTooLargeTitle": "ファイルが大きすぎます",
+      "fileTooLargeDesc": "{{maxSize}}MB未満のファイルを選択してください。動画の場合は短くしてください（30秒以下推奨）。",
+      "invalidFileTypeTitle": "無効なファイルタイプ",
+      "invalidFileTypeDesc": "画像（JPG、PNG、WebP）、GIF、または短い動画（MP4、WebM、MOV）を選択してください。",
+      "videoTooLongTitle": "動画が長すぎます",
+      "videoTooLongDesc": "最適なパフォーマンスのために、動画は60秒以下にしてください。",
+      "uploadPermissionDeniedTitle": "アップロード権限が拒否されました",
+      "uploadPermissionDeniedDesc": "メディアのアップロードに失敗しました - アクセスが拒否されました。申請は引き続き送信されますが、メディアなしで送信されます。",
+      "uploadFailedTitle": "アップロードに失敗しました",
+      "uploadFailedDesc": "メディアのアップロードに失敗しました：{{error}}。申請は引き続き送信されます。",
+      "uploadErrorTitle": "アップロードエラー",
+      "uploadErrorDesc": "アップロード中に予期しないエラーが発生しました。申請は引き続き送信されます。",
+      "uploadSuccessfulTitle": "アップロード成功",
+      "uploadSuccessfulDesc": "メディアがアップロードされましたが、フォールバックバケットを使用しています。最良の結果を得るには、Supabaseに「sponsored-videos」バケットを作成してください。",
+      "imageTooLargeTitle": "画像が大きすぎます",
+      "imageTooLargeDesc": "5MB未満の画像を選択してください。",
+      "loginRequiredTitle": "ログインが必要",
+      "loginRequiredDesc": "広告申請を送信するにはログインしてください。",
+      "limitReachedTitle": "送信制限に達しました",
+      "limitReachedDescFallback": "送信制限に達しました。後でもう一度お試しください。",
+      "missingInfoTitle": "情報が不足しています",
+      "missingInfoDesc": "すべての必須フィールドに入力してください。",
+      "invalidEmailTitle": "無効なメールアドレス",
+      "invalidEmailDesc": "有効なメールアドレスを入力してください。",
+      "submitFailedTitle": "送信に失敗しました",
+      "submitFailedDesc": "申請の送信中にエラーが発生しました。もう一度お試しください。"
+    },
+    "note": {
+      "title": "注意",
+      "documentSkipped": "ドキュメントのアップロードがスキップされました - ストレージが設定されていないか、アクセスが拒否されました。申請は引き続き送信されます。",
+      "imageStorageSkipped": "画像のアップロードがスキップされました - ストレージが設定されていません。申請は引き続き送信されます。",
+      "imageAccessSkipped": "画像のアップロードがスキップされました - アクセスが拒否されました。申請は引き続き送信されます。"
+    },
+    "success": {
+      "title": "申請が送信されました！🎉",
+      "desc": "申請が確認されると通知が届きます。更新については通知ベルを確認してください！",
+      "titleShort": "申請が正常に送信されました！",
+      "longDesc": "OutbreakNowでの広告へのご関心をお寄せいただき、ありがとうございます。申請を受け取り、24〜48時間以内に確認いたします。確認が完了すると、アプリでリアルタイムの通知が届きます。",
+      "nextStepsTitle": "次のステップは？",
+      "step1Title": "申請確認：",
+      "step1Body": " 当社のチームが24〜48時間以内に申請を確認します。定期的にメールを確認してください。",
+      "step2Title": "支払いリンク：",
+      "step2Body": " 承認された場合、支払いリンク付きの通知が届きます。ヘッダーの通知ベルを確認してください。",
+      "step3Title": "支払いを完了：",
+      "step3Body": " メールの支払いリンクをクリックし、安全な支払いプロセスを完了して広告を有効化してください。",
+      "step4Title": "広告が公開されます：",
+      "step4Body": " 支払いが確認されると、広告が有効化され、OutbreakNowに表示されます！",
+      "importantNote": "重要：アプリでリアルタイムの通知が届きます。更新についてはヘッダーの通知ベルを確認してください。ダッシュボードで申請を追跡することもできます。",
+      "referenceId": "参照ID：{{id}}",
+      "submitAnother": "別の申請を送信"
     }
   }
 }

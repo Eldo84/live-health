@@ -2,6 +2,87 @@ import usaFile from './usa.json';
 import chinaFileRaw from './china.json';
 import indiaFile from './india.json';
 import brazilFile from './brazil.json';
+import germanyFile from './germany.json';
+import unitedKingdomFile from './united_kingdom.json';
+import japanFile from './japan.json';
+import nigeriaFile from './nigeria.json';
+import southAfricaFile from './south_africa.json';
+import australiaFile from './australia.json';
+import { normalizeDiseaseName } from './diseaseNameNormalizer';
+
+/**
+ * Normalizes category names to canonical form to prevent duplicates and fix malformed categories
+ */
+function normalizeCategoryName(category: string): string {
+  if (!category || typeof category !== 'string') return 'Uncategorized';
+  
+  let normalized = category.trim();
+  
+  // Fix malformed categories with unmatched parentheses
+  // "Anemia (Cardiovascular and Metabolic Disorders" -> "Cardiovascular and Metabolic Disorders"
+  if (normalized.includes('(') && !normalized.includes(')')) {
+    // Extract the part after the opening parenthesis
+    const match = normalized.match(/\((.+)$/);
+    if (match) {
+      normalized = match[1].trim();
+    } else {
+      // Remove the opening parenthesis if no match
+      normalized = normalized.replace(/\(/g, '').trim();
+    }
+  }
+  
+  // Fix merge errors: "SchistosomiaCardiovascular and Metabolic Disorders" -> "Cardiovascular and Metabolic Disorders"
+  if (normalized.includes('SchistosomiaCardiovascular')) {
+    normalized = normalized.replace(/SchistosomiaCardiovascular/g, '').trim();
+    if (normalized.startsWith('and')) {
+      normalized = normalized.substring(3).trim();
+    }
+    normalized = 'Cardiovascular and Metabolic Disorders';
+  }
+  
+  // Normalize variants with parenthetical content
+  // "Cancers (2023 Projections)" -> "Cancers"
+  // "Neglected Tropical Diseases (All Non-Endemic)" -> "Neglected Tropical Diseases"
+  // "Neglected Tropical Diseases (All non-endemic)" -> "Neglected Tropical Diseases"
+  normalized = normalized.replace(/\s*\([^)]*\)\s*/g, '').trim();
+  
+  // Map specific subcategories to main categories
+  const categoryMappings: Record<string, string> = {
+    'Thyroid Disorders': 'Endocrine and Hematologic Disorders',
+  };
+  
+  if (categoryMappings[normalized]) {
+    normalized = categoryMappings[normalized];
+  }
+  
+  // Normalize capitalization for known categories
+  const standardCategories = [
+    'Cardiovascular and Metabolic Disorders',
+    'Cancers',
+    'Endocrine and Hematologic Disorders',
+    'Environmental & Occupational Health',
+    'High-Burden Infectious Diseases',
+    'Injuries & Trauma',
+    'Maternal, Neonatal, and Child Health',
+    'Mental and Behavioral Disorders',
+    'Musculoskeletal Disorders',
+    'Neglected Tropical Diseases',
+    'Neurological Disorders',
+    'Respiratory Diseases',
+    'Sensory Disorders',
+    'Violence & Self-Harm',
+  ];
+  
+  // Case-insensitive match for standard categories
+  const lowerNormalized = normalized.toLowerCase();
+  for (const standard of standardCategories) {
+    if (lowerNormalized === standard.toLowerCase()) {
+      return standard;
+    }
+  }
+  
+  return normalized || 'Uncategorized';
+}
 
 export interface Disease {
   id: string;
@@ -133,6 +214,12 @@ const rawCountryFiles: CountryFile[] = [
   transformChinaData(),
   indiaFile as CountryFile,
   brazilFile as CountryFile,
+  germanyFile as CountryFile,
+  unitedKingdomFile as CountryFile,
+  japanFile as CountryFile,
+  nigeriaFile as CountryFile,
+  southAfricaFile as CountryFile,
+  australiaFile as CountryFile,
 ];
 
 const slugifyCondition = (value: string) =>
@@ -160,6 +247,28 @@ export const normalizeCountryCode = (code: string): string => {
     'BR': 'BRA',  // ISO 3166-1 alpha-2 code
     'BRAZIL': 'BRA',
     'FEDERATIVE REPUBLIC OF BRAZIL': 'BRA',
+    'DE': 'DEU',  // ISO 3166-1 alpha-2 code
+    'GERMANY': 'DEU',
+    'FEDERAL REPUBLIC OF GERMANY': 'DEU',
+    'GB': 'GBR',  // ISO 3166-1 alpha-2 code
+    'UK': 'GBR',
+    'UNITED KINGDOM': 'GBR',
+    'GREAT BRITAIN': 'GBR',
+    'ENGLAND': 'GBR',
+    'SCOTLAND': 'GBR',
+    'WALES': 'GBR',
+    'NORTHERN IRELAND': 'GBR',
+    'JP': 'JPN',  // ISO 3166-1 alpha-2 code
+    'JAPAN': 'JPN',
+    'NG': 'NGA',  // ISO 3166-1 alpha-2 code
+    'NIGERIA': 'NGA',
+    'FEDERAL REPUBLIC OF NIGERIA': 'NGA',
+    'ZA': 'ZAF',  // ISO 3166-1 alpha-2 code
+    'SOUTH AFRICA': 'ZAF',
+    'REPUBLIC OF SOUTH AFRICA': 'ZAF',
+    'AU': 'AUS',  // ISO 3166-1 alpha-2 code
+    'AUSTRALIA': 'AUS',
+    'COMMONWEALTH OF AUSTRALIA': 'AUS',
   };
   return countryMap[upper] || upper;
 };
@@ -195,8 +304,12 @@ const splitRiskFactors = (value: unknown): string[] => {
 
 const normalizedRecords: DiseaseData[] = rawCountryFiles.flatMap(file => {
   return (file.records || []).map((record, idx) => {
-    const category = record.category?.trim() || 'Uncategorized';
-    const condition = record.condition?.trim() || `condition-${idx}`;
+    const rawCategory = record.category?.trim() || 'Uncategorized';
+    // Normalize category name to canonical form to prevent duplicates
+    const category = normalizeCategoryName(rawCategory);
+    const rawCondition = record.condition?.trim() || `condition-${idx}`;
+    // Normalize disease name to canonical form to prevent duplicates
+    const condition = normalizeDiseaseName(rawCondition);
     const baseId = slugifyCondition(condition);
     const year = parseInt(String(record.year ?? file.year ?? 0), 10) || 0;
     const countryCode = normalizeCountryCode(file.country || record.location || 'UNK');
@@ -270,6 +383,36 @@ if (process.env.NODE_ENV === 'development' && normalizedRecords.length > 0) {
   console.log('Available countries in data:', countries);
   console.log('Data sources loaded:', rawCountryFiles.map(f => `${f.country} (${f.records?.length || 0} records)`));
   console.log('Country code mapping: US ->', normalizeCountryCode('US'), ', United States ->', normalizeCountryCode('United States'), ', China ->', normalizeCountryCode('China'));
+  
+  // Check for duplicate conditions (same baseId but different condition names)
+  const baseIdToConditions = new Map<string, Set<string>>();
+  normalizedRecords.forEach(rec => {
+    if (!baseIdToConditions.has(rec.baseId)) {
+      baseIdToConditions.set(rec.baseId, new Set());
+    }
+    baseIdToConditions.get(rec.baseId)!.add(rec.condition);
+  });
+  const duplicates = Array.from(baseIdToConditions.entries())
+    .filter(([_, conditions]) => conditions.size > 1)
+    .slice(0, 10);
+  if (duplicates.length > 0) {
+    console.warn('Found baseIds with multiple condition names (should not happen after normalization):', duplicates);
+  }
+  
+  // Check for duplicate condition names with different baseIds (normalization issue)
+  const conditionToBaseIds = new Map<string, Set<string>>();
+  normalizedRecords.forEach(rec => {
+    if (!conditionToBaseIds.has(rec.condition)) {
+      conditionToBaseIds.set(rec.condition, new Set());
+    }
+    conditionToBaseIds.get(rec.condition)!.add(rec.baseId);
+  });
+  const sameNameDifferentIds = Array.from(conditionToBaseIds.entries())
+    .filter(([_, baseIds]) => baseIds.size > 1)
+    .slice(0, 10);
+  if (sameNameDifferentIds.length > 0) {
+    console.warn('Found same condition name with different baseIds:', sameNameDifferentIds);
+  }
 }
 
 // Time series grouped by condition

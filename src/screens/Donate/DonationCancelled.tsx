@@ -59,7 +59,7 @@ export const DonationCancelled: React.FC = () => {
             </Button>
 
             <Button asChild variant="ghost" className="w-full">
-              <a href="mailto:support@outbreaknow.org">
+              <a href="mailto:contact@theghqa.org">
                 Contact Support
               </a>
             </Button>

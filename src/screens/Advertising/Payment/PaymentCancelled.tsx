@@ -61,7 +61,7 @@ export const PaymentCancelled: React.FC = () => {
             </Button>
 
             <Button asChild variant="ghost" className="w-full">
-              <a href="mailto:support@outbreaknow.org">
+              <a href="mailto:contact@theghqa.org">
                 <HelpCircle className="w-4 h-4 mr-2" />
                 Contact Support
               </a>

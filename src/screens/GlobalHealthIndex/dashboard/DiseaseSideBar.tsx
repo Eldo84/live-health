@@ -13,6 +13,7 @@ interface DiseaseSidebarProps {
   onSelectDisease: (disease: Disease) => void;
   selectedCategory: string;
   isMobile?: boolean;
+  collapsed?: boolean;
 }
 
 export const DiseaseSidebar = ({
@@ -21,6 +22,7 @@ export const DiseaseSidebar = ({
   onSelectDisease,
   selectedCategory,
   isMobile = false,
+  collapsed = false,
 }: DiseaseSidebarProps) => {
   const [searchQuery, setSearchQuery] = useState('');
   
@@ -114,9 +116,14 @@ export const DiseaseSidebar = ({
     }
   };
 
+  // Early return if collapsed to avoid unnecessary rendering
+  if (collapsed && !isMobile) {
+    return null;
+  }
+
   return (
     <aside className={cn(
-      "flex-shrink-0 flex flex-col h-full",
+      "flex-shrink-0 flex flex-col h-full overflow-hidden",
       isMobile 
         ? "w-full bg-background" 
         : "w-72 xl:w-80 glass border-r border-border/50"
@@ -136,7 +143,7 @@ export const DiseaseSidebar = ({
 
       {/* Disease List */}
       <ScrollArea className="flex-1">
-        <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
+            <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
           {Object.entries(groupedDiseases).map(([category, categoryDiseases]) => {
             const isExpanded = expandedCategories.has(category);
             const hasChildren = categoryDiseases.length > 0;

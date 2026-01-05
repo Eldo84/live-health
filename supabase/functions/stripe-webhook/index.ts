@@ -718,7 +718,7 @@ async function sendDonationReceiptEmail({
           <p>With gratitude,<br><strong>The OutbreakNow Team</strong></p>
           <p style="margin-top: 20px;">
             <a href="https://outbreaknow.org">Visit OutbreakNow</a> | 
-            <a href="mailto:support@outbreaknow.org">Contact Support</a>
+            <a href="mailto:contact@theghqa.org">Contact Support</a>
           </p>
           <p style="margin-top: 10px; font-size: 12px; color: #999999;">
             This is an automated receipt. Please do not reply to this email.

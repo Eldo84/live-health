@@ -9,13 +9,16 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
-import { diseaseData } from '@/data/mockData';
+import { diseaseData, normalizeCountryCode } from '@/data/mockData';
 import { cn } from '@/lib/utils';
 import { filterByCategory } from '../utils/filterHelpers';
 
 interface PrevalenceHistogramProps {
   title: string;
   selectedCategory?: string;
+  selectedYear?: number;
+  selectedCountry?: string;
+  selectedDiseaseId?: string;
 }
 
 type BinRange = {
@@ -44,11 +47,30 @@ const formatValue = (val: number) => {
   return val.toFixed(0);
 };
 
-export const PrevalenceHistogram = ({ title, selectedCategory }: PrevalenceHistogramProps) => {
+export const PrevalenceHistogram = ({ title, selectedCategory, selectedYear, selectedCountry, selectedDiseaseId }: PrevalenceHistogramProps) => {
   const [metric, setMetric] = useState<'prevalence' | 'dalys' | 'incidence'>('prevalence');
 
   const histogramData = useMemo(() => {
-    const filteredData = filterByCategory(diseaseData, selectedCategory);
+    let filteredData = diseaseData;
+    
+    // Filter by disease if provided (highest priority - bypass category filter)
+    if (selectedDiseaseId) {
+      filteredData = filteredData.filter(d => d.baseId === selectedDiseaseId);
+    } else {
+      // Only apply category filter if no disease is selected
+      filteredData = filterByCategory(filteredData, selectedCategory);
+    }
+    
+    // Filter by year if provided
+    if (selectedYear) {
+      filteredData = filteredData.filter(d => d.year === selectedYear);
+    }
+    
+    // Filter by country if provided
+    if (selectedCountry && selectedCountry !== 'all') {
+      const normalizedCode = normalizeCountryCode(selectedCountry);
+      filteredData = filteredData.filter(d => d.location.toUpperCase() === normalizedCode.toUpperCase());
+    }
 
     const values = filteredData.map(d => d[metric]).filter(v => v > 0);
     
@@ -79,7 +101,7 @@ export const PrevalenceHistogram = ({ title, selectedCategory }: PrevalenceHisto
     }
 
     return bins;
-  }, [selectedCategory, metric]);
+  }, [selectedCategory, selectedYear, selectedCountry, selectedDiseaseId, metric]);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (!active || !payload?.[0]) return null;

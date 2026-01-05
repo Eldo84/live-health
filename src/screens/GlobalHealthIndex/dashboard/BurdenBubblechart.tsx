@@ -10,12 +10,15 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
-import { diseaseData } from '@/data/mockData';
+import { diseaseData, normalizeCountryCode } from '@/data/mockData';
 import { filterByCategory } from '../utils/filterHelpers';
 
 interface BurdenBubbleChartProps {
   title: string;
   selectedCategory?: string;
+  selectedYear?: number;
+  selectedCountry?: string;
+  selectedDiseaseId?: string;
 }
 
 const categoryColors: Record<string, string> = {
@@ -34,9 +37,28 @@ const categoryColors: Record<string, string> = {
   'Sensory Disorders': 'hsl(220, 70%, 50%)',
 };
 
-export const BurdenBubbleChart = ({ title, selectedCategory }: BurdenBubbleChartProps) => {
+export const BurdenBubbleChart = ({ title, selectedCategory, selectedYear, selectedCountry, selectedDiseaseId }: BurdenBubbleChartProps) => {
   const chartData = useMemo(() => {
-    const filteredData = filterByCategory(diseaseData, selectedCategory);
+    let filteredData = diseaseData;
+    
+    // Filter by disease if provided (highest priority - bypass category filter)
+    if (selectedDiseaseId) {
+      filteredData = filteredData.filter(d => d.baseId === selectedDiseaseId);
+    } else {
+      // Only apply category filter if no disease is selected
+      filteredData = filterByCategory(filteredData, selectedCategory);
+    }
+    
+    // Filter by year if provided
+    if (selectedYear) {
+      filteredData = filteredData.filter(d => d.year === selectedYear);
+    }
+    
+    // Filter by country if provided
+    if (selectedCountry && selectedCountry !== 'all') {
+      const normalizedCode = normalizeCountryCode(selectedCountry);
+      filteredData = filteredData.filter(d => d.location.toUpperCase() === normalizedCode.toUpperCase());
+    }
 
     return filteredData
       .filter(d => d.prevalence > 0 && d.dalys > 0)
@@ -49,7 +71,7 @@ export const BurdenBubbleChart = ({ title, selectedCategory }: BurdenBubbleChart
         incidence: d.incidence,
         color: categoryColors[d.category] || 'hsl(var(--primary))',
       }));
-  }, [selectedCategory]);
+  }, [selectedCategory, selectedYear, selectedCountry, selectedDiseaseId]);
 
   const CustomTooltip = ({ active, payload }: any) => {
     if (!active || !payload?.[0]) return null;
