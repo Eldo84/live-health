@@ -1,109 +1,94 @@
 """
-Google Trends Data Collector (Grouped Version)
-===============================================
-Fetches Google Trends data in groups of 5 diseases to ensure correct
-relative normalization (matching Google Trends UI comparisons).
-Collects both time-series data (interest_over_time) and region popularity
-data (interest_by_region). Upserts into Supabase with conflict handling.
+Google Trends Data Collector for Disease Tracking
+==================================================
+This script collects Google Trends data for 20 tracked diseases and stores
+it in Supabase. It runs weekly via GitHub Actions.
+
+Data collected:
+- Time-series: Last 30 days of daily interest values (0-100 scale)
+- Region popularity: Country-level popularity scores (0-100 scale)
+
+Each disease is fetched INDIVIDUALLY to get accurate normalized values
+(100 = peak interest for that specific disease in the time period).
 """
 
 import os
 import time
+import random
 from datetime import datetime
 
 from pytrends.request import TrendReq
 from supabase import create_client, Client
 
 
-# --------------------------------------------------------------------
+# =============================================================================
 # Configuration
-# --------------------------------------------------------------------
+# =============================================================================
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE = os.environ.get("SUPABASE_SERVICE_ROLE")
 
+# The 20 diseases we track - these are search terms optimized for Google Trends
 TRACKED_DISEASES = [
-    "influenza", "covid", "measles", "cholera", "ebola",
-    "marburg virus", "dengue fever", "yellow fever", "zika virus",
-    "plague", "mpox", "meningitis", "norovirus", "RSV virus",
-    "SARS", "MERS", "bird flu", "hand foot mouth disease",
-    "polio", "hepatitis A",
+    "influenza",
+    "covid",
+    "measles",
+    "cholera",
+    "ebola",
+    "marburg virus",
+    "dengue fever",
+    "yellow fever",
+    "zika virus",
+    "plague",
+    "mpox",
+    "meningitis",
+    "norovirus",
+    "RSV virus",
+    "SARS",
+    "MERS",
+    "bird flu",
+    "hand foot mouth disease",
+    "polio",
+    "hepatitis A",
 ]
 
-# Google Trends limit
-GROUP_SIZE = 5
-
-DELAY_BETWEEN_REQUESTS = 2
-DELAY_ON_ERROR = 15
-MAX_RETRIES = 3
+# Rate limiting settings
+DELAY_BETWEEN_REQUESTS = 2  # seconds between API calls
+DELAY_ON_ERROR = 15  # seconds to wait after an error
+MAX_RETRIES = 3  # max retries per disease
 
 
-# --------------------------------------------------------------------
-# Helpers
-# --------------------------------------------------------------------
+# =============================================================================
+# Helper Functions
+# =============================================================================
 
-def chunk_list(lst, size):
-    """Split list into chunks of size n."""
-    for i in range(0, len(lst), size):
-        yield lst[i:i + size]
+def validate_environment():
+    """Ensure required environment variables are set."""
+    if not SUPABASE_URL:
+        raise ValueError("Missing SUPABASE_URL environment variable")
+    if not SUPABASE_SERVICE_ROLE:
+        raise ValueError("Missing SUPABASE_SERVICE_ROLE environment variable")
+    print("✓ Environment variables validated")
 
 
-def get_pytrends():
-    return TrendReq(hl="en-US", tz=0, retries=3, backoff_factor=0.5)
-
-
-def get_supabase() -> Client:
-    if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE:
-        raise ValueError("Missing Supabase credentials")
+def create_supabase_client() -> Client:
+    """Create and return Supabase client."""
     return create_client(SUPABASE_URL, SUPABASE_SERVICE_ROLE)
 
 
-# --------------------------------------------------------------------
-# Google Trends Fetch
-# --------------------------------------------------------------------
-
-def fetch_group_data(pytrends: TrendReq, diseases: list[str]) -> list[dict]:
-    """Fetch Google Trends values for a group of up to 5 diseases."""
-    pytrends.build_payload(diseases, timeframe="today 1-m", geo="")
-    df = pytrends.interest_over_time()
-
-    if df.empty:
-        print("  No data returned for group")
-        return []
-
-    records = []
-
-    for date_idx, row in df.iterrows():
-        date = date_idx.date().isoformat()
-
-        for disease in diseases:
-            value = row.get(disease, 0)
-
-            if value > 0:
-                records.append({
-                    "disease": disease,
-                    "date": date,
-                    "interest_value": int(value),
-                })
-
-    return records
+def create_pytrends_client() -> TrendReq:
+    """Create and return Pytrends client with retry settings."""
+    return TrendReq(
+        hl="en-US",
+        tz=0,  # UTC timezone
+        retries=3,
+        backoff_factor=0.5,
+    )
 
 
-def upsert_records(supabase: Client, records: list[dict]):
-    if not records:
-        return
-
-    for i in range(0, len(records), 100):
-        batch = records[i:i+100]
-        supabase.table("google_trends").upsert(
-            batch,
-            on_conflict="disease,date"
-        ).execute()
-
-
-# --------------------------------------------------------------------
+# =============================================================================
 # Region Name Normalization
-# --------------------------------------------------------------------
+# =============================================================================
 
 def normalize_region_name(region: str) -> str:
     """
@@ -133,36 +118,59 @@ def normalize_region_name(region: str) -> str:
     return region
 
 
-# --------------------------------------------------------------------
-# Region Data Fetch
-# --------------------------------------------------------------------
+# =============================================================================
+# Main Collection Logic
+# =============================================================================
 
-def fetch_region_data(pytrends: TrendReq, diseases: list[str]) -> list[dict]:
+def collect_all_data_for_disease(pytrends: TrendReq, disease: str, collection_date: str) -> tuple[list, list]:
     """
-    Fetch Google Trends region popularity data for a group of up to 5 diseases.
-    Returns list of records with disease, region, popularity_score, and date.
+    Fetch BOTH time-series and region data for a SINGLE disease.
+    Builds payload ONCE and reuses it for both queries (critical optimization).
+    
+    Returns:
+        tuple: (time_series_records, region_records)
     """
+    time_series_records = []
+    region_records = []
+    
     try:
-        # Build payload (reuse same payload from time-series fetch)
-        pytrends.build_payload(diseases, timeframe="today 1-m", geo="")
+        # Build payload ONCE for this disease - last 30 days
+        # This is the critical optimization: one payload, two queries
+        pytrends.build_payload(
+            [disease],  # Single disease for accurate normalization
+            timeframe="today 1-m",  # Last 30 days, daily granularity
+            geo="",  # Worldwide
+        )
         
-        # Fetch interest by region (country level)
-        df = pytrends.interest_by_region(resolution="COUNTRY", inc_low_vol=True, inc_geo_code=False)
+        # Add jitter to avoid bot-like behavior
+        time.sleep(0.5 + random.random())
         
-        if df.empty:
-            print("  No region data returned for group")
-            return []
+        # Get interest over time (time-series data)
+        df_time = pytrends.interest_over_time()
         
-        records = []
-        today = datetime.utcnow().date().isoformat()
+        if not df_time.empty and disease in df_time.columns:
+            for date_index, row in df_time.iterrows():
+                time_series_records.append({
+                    "disease": disease,
+                    "date": date_index.strftime("%Y-%m-%d"),
+                    "interest_value": int(row[disease]),
+                })
+            print(f"    ✓ Collected {len(time_series_records)} time-series data points")
+        else:
+            print(f"    ⚠ No time-series data returned for: {disease}")
         
-        # Process each disease
-        for disease in diseases:
-            if disease not in df.columns:
-                continue
-            
-            # Get region data for this disease
-            disease_data = df[disease].dropna()
+        # Add jitter before second query
+        time.sleep(0.5 + random.random())
+        
+        # Get interest by region (country level) - REUSES SAME PAYLOAD
+        df_region = pytrends.interest_by_region(
+            resolution="COUNTRY",
+            inc_low_vol=True,
+            inc_geo_code=False
+        )
+        
+        if not df_region.empty and disease in df_region.columns:
+            disease_data = df_region[disease].dropna()
             
             for region, score in disease_data.items():
                 # Skip if score is 0 (insufficient data)
@@ -172,97 +180,173 @@ def fetch_region_data(pytrends: TrendReq, diseases: list[str]) -> list[dict]:
                 # Normalize region name
                 normalized_region = normalize_region_name(region)
                 
-                records.append({
+                region_records.append({
                     "disease": disease,
                     "region": normalized_region,
                     "region_code": None,  # Could be enhanced with ISO code lookup
                     "popularity_score": int(score),
-                    "date": today,
+                    "date": collection_date,  # Use collection date for consistency
                 })
+            
+            print(f"    ✓ Collected {len(region_records)} region data points")
+        else:
+            print(f"    ⚠ No region data returned for: {disease}")
         
-        return records
-    
     except Exception as e:
-        print(f"  Error fetching region data: {str(e)[:100]}")
-        return []
+        print(f"    ✗ Error fetching data for {disease}: {e}")
+        raise
+    
+    return time_series_records, region_records
 
 
-def upsert_region_records(supabase: Client, records: list[dict]):
-    """Upsert region popularity records into google_trends_regions table."""
+def upload_to_supabase(supabase: Client, records: list):
+    """
+    Upload time-series records to Supabase using upsert (insert or update on conflict).
+    """
     if not records:
         return
     
-    for i in range(0, len(records), 100):
-        batch = records[i:i+100]
-        supabase.table("google_trends_regions").upsert(
-            batch,
-            on_conflict="disease,region,date"
-        ).execute()
+    try:
+        # Upsert in batches of 100 to avoid payload size limits
+        batch_size = 100
+        for i in range(0, len(records), batch_size):
+            batch = records[i:i + batch_size]
+            supabase.table("google_trends").upsert(
+                batch,
+                on_conflict="disease,date"
+            ).execute()
+        
+        print(f"    ✓ Uploaded {len(records)} time-series records to Supabase")
+        
+    except Exception as e:
+        print(f"    ✗ Error uploading to Supabase: {e}")
+        raise
 
 
-# --------------------------------------------------------------------
-# Main
-# --------------------------------------------------------------------
+def upload_region_records_to_supabase(supabase: Client, records: list):
+    """
+    Upload region popularity records to Supabase using upsert.
+    """
+    if not records:
+        return
+    
+    try:
+        # Upsert in batches of 100 to avoid payload size limits
+        batch_size = 100
+        for i in range(0, len(records), batch_size):
+            batch = records[i:i + batch_size]
+            supabase.table("google_trends_regions").upsert(
+                batch,
+                on_conflict="disease,region,date"
+            ).execute()
+        
+        print(f"    ✓ Uploaded {len(records)} region records to Supabase")
+        
+    except Exception as e:
+        print(f"    ✗ Error uploading region data to Supabase: {e}")
+        raise
 
-def main():
+
+def collect_all_trends():
+    """
+    Main function: Collect Google Trends data for all 20 diseases.
+    Each disease is fetched individually for accurate normalized values.
+    """
     print("=" * 60)
-    print("Google Trends Disease Tracker (Grouped Mode)")
-    print(f"Started: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%SZ')}")
+    print("Google Trends Data Collection")
+    print(f"Started at: {datetime.utcnow().isoformat()}Z")
     print("=" * 60)
-
-    supabase = get_supabase()
-    pytrends = get_pytrends()
-
-    success = fail = total_records = total_region_records = 0
-
-    disease_groups = list(chunk_list(TRACKED_DISEASES, GROUP_SIZE))
-
-    for i, group in enumerate(disease_groups, 1):
-        print(f"\n[{i}/{len(disease_groups)}] Fetching group: {group}")
-
+    
+    # Validate and initialize
+    validate_environment()
+    supabase = create_supabase_client()
+    pytrends = create_pytrends_client()
+    
+    # Use collection date for region data (consistent across all diseases in this run)
+    collection_date = datetime.utcnow().date().isoformat()
+    
+    total_records = 0
+    total_region_records = 0
+    successful = 0
+    failed = 0
+    
+    print(f"\nCollecting data for {len(TRACKED_DISEASES)} diseases (individually)...")
+    print(f"Collection date: {collection_date}")
+    print("-" * 60)
+    
+    for idx, disease in enumerate(TRACKED_DISEASES, 1):
+        print(f"\n[{idx}/{len(TRACKED_DISEASES)}] Processing: {disease}")
+        
         retries = 0
-        done = False
-
-        while retries < MAX_RETRIES and not done:
+        success = False
+        
+        while retries < MAX_RETRIES and not success:
             try:
-                # Fetch time-series data
-                records = fetch_group_data(pytrends, group)
-                upsert_records(supabase, records)
-                total_records += len(records)
-                print(f"  → {len(records)} time-series pts stored")
+                # Collect BOTH time-series and region data in one go (payload reuse)
+                time_series_records, region_records = collect_all_data_for_disease(
+                    pytrends, disease, collection_date
+                )
                 
-                # Fetch region popularity data
-                region_records = fetch_region_data(pytrends, group)
-                upsert_region_records(supabase, region_records)
-                total_region_records += len(region_records)
-                print(f"  → {len(region_records)} region popularity pts stored")
+                # Upload time-series data to Supabase
+                if time_series_records:
+                    upload_to_supabase(supabase, time_series_records)
+                    total_records += len(time_series_records)
                 
-                success += 1
-                done = True
+                # Upload region data to Supabase
+                if region_records:
+                    upload_region_records_to_supabase(supabase, region_records)
+                    total_region_records += len(region_records)
+                
+                # Count as success if we got either time-series or region data
+                if time_series_records or region_records:
+                    successful += 1
+                    success = True
+                else:
+                    # No data returned, count as success but warn
+                    successful += 1
+                    success = True
+                
+                # Rate limiting - be respectful to Google
+                if idx < len(TRACKED_DISEASES):
+                    # Add jitter to base delay to avoid bot-like patterns
+                    delay = DELAY_BETWEEN_REQUESTS + random.random()
+                    print(f"    Waiting {delay:.1f}s...")
+                    time.sleep(delay)
+                    
             except Exception as e:
                 retries += 1
-                print(f"  (retry {retries}: {str(e)[:80]})")
-                time.sleep(DELAY_ON_ERROR)
-                pytrends = get_pytrends()  # Reset session after error
-
-        if not done:
-            print("  → FAILED")
-            fail += 1
-
-        if i < len(disease_groups):
-            time.sleep(DELAY_BETWEEN_REQUESTS)
-
+                if retries < MAX_RETRIES:
+                    print(f"    ⚠ Retry {retries}/{MAX_RETRIES} after error: {e}")
+                    time.sleep(DELAY_ON_ERROR)
+                    # Recreate pytrends client to reset session
+                    pytrends = create_pytrends_client()
+                else:
+                    print(f"    ✗ Failed after {MAX_RETRIES} retries")
+                    failed += 1
+    
+    # Summary
     print("\n" + "=" * 60)
-    print(f"Completed | Success: {success} | Failed: {fail}")
-    print(f"Time-series records: {total_records}")
-    print(f"Region popularity records: {total_region_records}")
-    print(f"Total records: {total_records + total_region_records}")
-    print(f"Ended: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%SZ')}")
+    print("Collection Complete!")
+    print(f"Successful: {successful}/{len(TRACKED_DISEASES)} diseases")
+    print(f"Failed: {failed}/{len(TRACKED_DISEASES)} diseases")
+    print(f"Time-series records uploaded: {total_records}")
+    print(f"Region records uploaded: {total_region_records}")
+    print(f"Total records uploaded: {total_records + total_region_records}")
+    print(f"Finished at: {datetime.utcnow().isoformat()}Z")
     print("=" * 60)
-
-    if fail:
+    
+    # Exit with error code only if everything failed (partial success is acceptable)
+    # This prevents GitHub Actions from marking runs as failed when only a few diseases fail
+    if successful == 0:
+        print("\n⚠ CRITICAL: All diseases failed to collect data!")
         exit(1)
+    elif failed > 0:
+        print(f"\n⚠ Warning: {failed} disease(s) failed, but {successful} succeeded")
 
+
+# =============================================================================
+# Entry Point
+# =============================================================================
 
 if __name__ == "__main__":
-    main()
+    collect_all_trends()

@@ -422,13 +422,13 @@ export const AdminFeedbackPanel: React.FC = () => {
                 <select
                   value={selectedStatus}
                   onChange={(e) => setSelectedStatus(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-md"
+                  className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
-                  <option value="new">New</option>
-                  <option value="acknowledged">Acknowledged</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="resolved">Resolved</option>
-                  <option value="closed">Closed</option>
+                  <option className="bg-background text-foreground" value="new">New</option>
+                  <option className="bg-background text-foreground" value="acknowledged">Acknowledged</option>
+                  <option className="bg-background text-foreground" value="in_progress">In Progress</option>
+                  <option className="bg-background text-foreground" value="resolved">Resolved</option>
+                  <option className="bg-background text-foreground" value="closed">Closed</option>
                 </select>
               </div>
 
@@ -465,6 +465,7 @@ export const AdminFeedbackPanel: React.FC = () => {
     </div>
   );
 };
+
 
 
 

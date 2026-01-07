@@ -281,7 +281,11 @@
     "invalidEmail": "Inserisci un indirizzo email valido",
     "passwordsDontMatch": "Le password non corrispondono",
     "loginError": "Si è verificato un errore durante l'accesso",
-    "signupError": "Si è verificato un errore durante la registrazione"
+    "signupError": "Si è verificato un errore durante la registrazione",
+    "orContinueWith": "O continua con",
+    "continueWithGoogle": "Continua con Google",
+    "signingInWithGoogle": "Accesso con Google...",
+    "googleLoginError": "Si è verificato un errore durante l'accesso con Google"
   },
   "footer": {
     "description": "OutbreakNow è una piattaforma sviluppata da <strong>EldoNova+ Technologies</strong> in partnership con l'<strong>Alleanza globale per la salute e la qualità (GHQA)</strong> per promuovere il monitoraggio degli focolai in tempo reale, migliorare l'intelligence sulla salute pubblica globale e supportare gli sforzi di risposta rapida in tutto il mondo.",

@@ -281,7 +281,11 @@
     "invalidEmail": "有効なメールアドレスを入力してください",
     "passwordsDontMatch": "パスワードが一致しません",
     "loginError": "ログイン中にエラーが発生しました",
-    "signupError": "登録中にエラーが発生しました"
+    "signupError": "登録中にエラーが発生しました",
+    "orContinueWith": "または次で続行",
+    "continueWithGoogle": "Googleで続行",
+    "signingInWithGoogle": "Googleでサインイン中...",
+    "googleLoginError": "Googleログイン中にエラーが発生しました"
   },
   "footer": {
     "description": "OutbreakNowは、<strong>EldoNova+ Technologies</strong>が<strong>世界保健・品質同盟（GHQA）</strong>と提携して開発したプラットフォームで、リアルタイムの発生監視を推進し、世界の公衆衛生インテリジェンスを強化し、世界中の迅速な対応努力を支援します。",

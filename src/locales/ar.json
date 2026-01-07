@@ -281,7 +281,11 @@
     "invalidEmail": "يرجى إدخال عنوان بريد إلكتروني صالح",
     "passwordsDontMatch": "كلمات المرور غير متطابقة",
     "loginError": "حدث خطأ أثناء تسجيل الدخول",
-    "signupError": "حدث خطأ أثناء التسجيل"
+    "signupError": "حدث خطأ أثناء التسجيل",
+    "orContinueWith": "أو المتابعة مع",
+    "continueWithGoogle": "المتابعة مع Google",
+    "signingInWithGoogle": "جاري تسجيل الدخول مع Google...",
+    "googleLoginError": "حدث خطأ أثناء تسجيل الدخول مع Google"
   },
   "footer": {
     "description": "OutbreakNow هي منصة طورتها <strong>EldoNova+ Technologies</strong> بالشراكة مع <strong>التحالف العالمي للصحة والجودة (GHQA)</strong> لتعزيز مراقبة التفشي في الوقت الفعلي، وتحسين ذكاء الصحة العامة العالمي، ودعم جهود الاستجابة السريعة في جميع أنحاء العالم.",

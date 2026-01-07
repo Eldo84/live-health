@@ -57,3 +57,6 @@ COMMENT ON FUNCTION trigger_weekly_top_diseases() IS
 
 
 
+
+
+

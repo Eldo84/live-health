@@ -1,6 +1,17 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://outbreaknow.org/sitemap.xml
+# Disallow admin and private routes
+Disallow: /admin
+Disallow: /dashboard/advertising
+Disallow: /app/dashboard
 
+# Allow important public pages
+Allow: /
+Allow: /map
+Allow: /app/map
+Allow: /news
+Allow: /partnership
+
+Sitemap: https://outbreaknow.org/sitemap.xml
 

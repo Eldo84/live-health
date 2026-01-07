@@ -30,6 +30,7 @@ import { DonationCancelled } from "./screens/Donate/DonationCancelled";
 import { AdminDashboard } from "./screens/Admin/AdminDashboard";
 import { AdminAlertReviewPanel } from "./screens/Admin/AdminAlertReviewPanel";
 import { AdminNotificationPanel } from "./screens/Admin/AdminNotificationPanel";
+import { AdminFeedbackPanel } from "./screens/Admin/AdminFeedbackPanel";
 import { WeeklyReport } from "./screens/Dashboard/WeeklyReport";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { News } from "./screens/News";
@@ -37,7 +38,7 @@ import { News } from "./screens/News";
 createRoot(document.getElementById("app") as HTMLElement).render(
   <StrictMode>
     <HelmetProvider>
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_relativeSplatPath: true }}>
         <LanguageProvider>
           <AuthProvider>
             <SidebarProvider>
@@ -94,6 +95,7 @@ createRoot(document.getElementById("app") as HTMLElement).render(
                 <Route index element={<AdminDashboard />} />
                 <Route path="advertising" element={<AdminAdvertisingPanel />} />
                 <Route path="alerts" element={<AdminAlertReviewPanel />} />
+                <Route path="feedback" element={<AdminFeedbackPanel />} />
                 <Route path="notifications" element={<AdminNotificationPanel />} />
               </Route>
               </Routes>

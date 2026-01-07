@@ -32,3 +32,24 @@ venv/
 .venv
 env/
 ENV/
+
+# Development documentation and planning files
+*.md
+!README.md
+!CHANGELOG.md
+!LICENSE.md
+
+# Temporary SQL files
+*.sql
+!supabase/migrations/*.sql
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Build artifacts
+*.tsbuildinfo
+.cache/

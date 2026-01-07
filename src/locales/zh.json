@@ -281,7 +281,11 @@
     "invalidEmail": "请输入有效的电子邮件地址",
     "passwordsDontMatch": "密码不匹配",
     "loginError": "登录时发生错误",
-    "signupError": "注册时发生错误"
+    "signupError": "注册时发生错误",
+    "orContinueWith": "或继续使用",
+    "continueWithGoogle": "使用 Google 继续",
+    "signingInWithGoogle": "正在使用 Google 登录...",
+    "googleLoginError": "使用 Google 登录时发生错误"
   },
   "footer": {
     "description": "OutbreakNow是由<strong>EldoNova+ Technologies</strong>与<strong>全球健康与质量联盟（GHQA）</strong>合作开发的平台，旨在推进实时疫情监测，增强全球公共卫生情报，并支持世界各地的快速响应工作。",
