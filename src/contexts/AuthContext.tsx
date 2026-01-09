@@ -34,11 +34,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-      
-      // Redirect to /map after successful sign-in (including OAuth)
-      if (event === "SIGNED_IN" && session && window.location.pathname !== "/map") {
-        window.location.href = "/map";
-      }
+      // No auto-redirect - let user stay where they are
     });
 
     return () => subscription.unsubscribe();

@@ -195,20 +195,53 @@ export const DiseaseRegionMap = ({
 
     const regionsArray = Array.from(regionMap.values());
 
-    // Filter and rank regions to match Google Trends website behavior
-    // This works for ANY disease combination - filters out score 100 regions for the selected sort disease
-    // Google Trends website filters these out as they're typically low-volume small territories
-    const filteredRegions = regionsArray.filter((region) => {
-      const sortScore = region.scores[sortDisease] ?? 0;
-      
-      // Filter out regions with score 100 for sort disease (works for any disease)
-      // These are typically small territories with 100% of tiny volume
-      if (sortScore === 100) {
-        return false;
-      }
-      
-      return true;
-    });
+    // Define major countries/regions that should always be shown even with score 100
+    // These are countries with significant population and search volume
+    const majorCountries = new Set([
+      "United States", "Canada", "United Kingdom", "China", "India", "Brazil",
+      "Russia", "Japan", "Germany", "France", "Italy", "Spain", "Australia",
+      "Mexico", "Indonesia", "South Korea", "Turkey", "Saudi Arabia", "Argentina",
+      "South Africa", "Poland", "Netherlands", "Belgium", "Sweden", "Norway",
+      "Denmark", "Finland", "Switzerland", "Austria", "Ireland", "New Zealand",
+      "Portugal", "Greece", "Israel", "Chile", "Colombia", "Peru", "Venezuela",
+      "Philippines", "Thailand", "Vietnam", "Malaysia", "Singapore", "Taiwan",
+      "Egypt", "Nigeria", "Kenya", "Morocco", "Algeria", "Tunisia", "Ghana",
+      "Ukraine", "Romania", "Czech Republic", "Hungary", "Bulgaria", "Croatia",
+      "Serbia", "Slovakia", "Slovenia", "Estonia", "Latvia", "Lithuania"
+    ]);
+
+    // Identify regions with score 100 for the sort disease
+    const regionsWith100 = regionsArray.filter(
+      (r) => (r.scores[sortDisease] ?? 0) === 100
+    );
+    
+    // Check if there are major countries with scores < 100
+    const majorCountriesBelow100 = regionsArray.filter(
+      (r) => majorCountries.has(r.regionName) && (r.scores[sortDisease] ?? 0) < 100
+    );
+
+    // If there are many regions with 100 AND major countries with lower scores,
+    // filter out small territories/islands with 100 (but keep major countries)
+    // This matches Google Trends website behavior
+    let filteredRegions = regionsArray;
+    if (regionsWith100.length > 5 && majorCountriesBelow100.length > 0) {
+      filteredRegions = regionsArray.filter((region) => {
+        const score = region.scores[sortDisease] ?? 0;
+        
+        // Always keep major countries, even with score 100
+        if (majorCountries.has(region.regionName)) {
+          return true;
+        }
+        
+        // Filter out small territories/islands with score 100
+        // when there are major countries with lower scores
+        if (score === 100) {
+          return false;
+        }
+        
+        return true;
+      });
+    }
 
     // Sort by selected disease interest descending
     // Google Trends website sorts by the selected disease's score

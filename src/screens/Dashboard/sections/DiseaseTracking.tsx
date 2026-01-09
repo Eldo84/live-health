@@ -1,5 +1,4 @@
-// @ts-nocheck - Recharts type compatibility issues with React 18+
-import { useMemo, useState, useRef } from "react";
+import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader } from "../../../components/ui/card";
 import { Loader2, Search, X, Clock } from "lucide-react";
 import { Input } from "../../../components/ui/input";
@@ -7,6 +6,30 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../../components/ui
 import { useGoogleTrends, TRACKED_DISEASES } from "../../../lib/useGoogleTrends";
 import { DiseaseRegionMap } from "./DiseaseRegionMap";
 import { useLanguage } from "../../../contexts/LanguageContext";
+import { Line } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  TimeScale,
+} from 'chart.js';
+import 'chartjs-adapter-date-fns';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  TimeScale
+);
 
 // Google Trends authentic color palette
 const colorPalette = [
@@ -18,55 +41,6 @@ const colorPalette = [
 ];
 
 type TimeRangeValue = "4h" | "1d" | "7d" | "30d";
-
-// Generate wavy line path using Catmull-Rom spline interpolation (Google Trends style)
-// This creates smooth, natural curves that pass through all points, matching Google Trends exactly
-const generateWavyPath = (points: { x: number; y: number }[]): string => {
-  if (points.length < 2) return "";
-  if (points.length === 2) {
-    return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
-  }
-  
-  let path = `M ${points[0].x} ${points[0].y}`;
-  
-  // Catmull-Rom spline with tension parameter (0.5 = centripetal, creates smooth curves)
-  const tension = 0.5;
-  
-  for (let i = 0; i < points.length - 1; i++) {
-    const p0 = i > 0 ? points[i - 1] : points[i];
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const p3 = i < points.length - 2 ? points[i + 2] : p2;
-    
-    // Calculate control points using Catmull-Rom to Bezier conversion
-    const dx1 = p2.x - p0.x;
-    const dy1 = p2.y - p0.y;
-    const dx2 = p3.x - p1.x;
-    const dy2 = p3.y - p1.y;
-    
-    // Control points for smooth cubic bezier curve
-    // This creates the natural wavy effect seen in Google Trends
-    const cp1x = p1.x + (dx1 * tension) / 6;
-    const cp1y = p1.y + (dy1 * tension) / 6;
-    const cp2x = p2.x - (dx2 * tension) / 6;
-    const cp2y = p2.y - (dy2 * tension) / 6;
-    
-    path += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x} ${p2.y}`;
-  }
-  
-  return path;
-};
-
-// Tooltip data
-interface HoveredData {
-  date: string;
-  x: number;
-  values: Array<{
-    disease: string;
-    value: number;
-    color: string;
-  }>;
-}
 
 // Chart Props
 interface GoogleTrendsChartProps {
@@ -83,111 +57,95 @@ interface GoogleTrendsChartProps {
 
 const GoogleTrendsChart = ({ datasets, onClearAll, timeRange, onTimeRangeChange, timeRanges }: GoogleTrendsChartProps) => {
   const { t } = useLanguage();
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [hoveredData, setHoveredData] = useState<HoveredData | null>(null);
 
-  // Chart dimensions - separate lane for each disease
-  const chartWidth = 900;
-  const laneHeight = 55; // Reduced from 80 to make comparisons closer together
-  const chartHeight = datasets.length * laneHeight + 60; // 60 for x-axis
-  const leftPadding = 120; // Space for disease labels
-  const rightPadding = 20;
-  const topPadding = 10;
-  const chartAreaWidth = chartWidth - leftPadding - rightPadding;
-
-  // Get all dates
+  // Get all dates and sort them
   const allDates = useMemo(() => {
     const dateSet = new Set<string>();
     datasets.forEach((ds) => ds.data.forEach((d) => dateSet.add(d.date)));
     return Array.from(dateSet).sort();
   }, [datasets]);
 
-  // Get X position
-  const getX = (index: number) => {
-    return leftPadding + (index / Math.max(allDates.length - 1, 1)) * chartAreaWidth;
-  };
-
-  // Get Y position within a lane
-  const getY = (value: number, laneIndex: number) => {
-    const laneTop = topPadding + laneIndex * laneHeight;
-    const laneBottom = laneTop + laneHeight - 6; // Reduced padding at bottom (was 10px)
-    const usableHeight = laneBottom - laneTop - 12; // Reduced padding (was 20px)
-    // Invert Y, map 0-100 to lane
-    return laneTop + 6 + usableHeight - (value / 100) * usableHeight;
-  };
-
-  // Generate paths for each disease in its own lane
-  const linePaths = useMemo(() => {
-    return datasets.map((dataset, laneIndex) => {
-      const points: { x: number; y: number; date: string; value: number }[] = [];
-
-      allDates.forEach((date, i) => {
-        const dataPoint = dataset.data.find((d) => d.date === date);
-        const value = dataPoint?.normalized_value ?? 0;
-        points.push({
-          x: getX(i),
-          y: getY(value, laneIndex),
-          date,
-          value,
-        });
+  // Prepare chart data for Chart.js
+  const chartData = useMemo(() => {
+    // Create datasets for each disease
+    const chartDatasets = datasets.map((dataset) => {
+      // Map data points to { x: Date, y: value } format for time scale
+      const data = allDates.map((dateStr) => {
+        const dataPoint = dataset.data.find((d) => d.date === dateStr);
+        return {
+          x: new Date(dateStr),
+          y: dataPoint?.normalized_value ?? 0,
+        };
       });
 
       return {
-        disease: dataset.disease,
-        color: dataset.color,
-        path: generateWavyPath(points),
-        points,
-        laneIndex,
+        label: dataset.disease.charAt(0).toUpperCase() + dataset.disease.slice(1),
+        data: data,
+        borderColor: dataset.color,
+        backgroundColor: dataset.color,
+        pointStyle: 'circle' as const,
+        pointRadius: 4,
+        fill: false,
       };
     });
+
+    return {
+      datasets: chartDatasets,
+    };
   }, [datasets, allDates]);
 
-  // Mouse move handler
-  const handleMouseMove = (e: React.MouseEvent<SVGSVGElement>) => {
-    const svg = e.currentTarget;
-    const rect = svg.getBoundingClientRect();
-    const scaleX = chartWidth / rect.width;
-    const mouseX = (e.clientX - rect.left) * scaleX;
-
-    if (mouseX < leftPadding || mouseX > chartWidth - rightPadding) {
-      setHoveredData(null);
-      return;
-    }
-
-    let closestDateIndex = 0;
-    let minDist = Infinity;
-    allDates.forEach((_, i) => {
-      const dist = Math.abs(getX(i) - mouseX);
-      if (dist < minDist) {
-        minDist = dist;
-        closestDateIndex = i;
-      }
-    });
-
-    const hoveredDate = allDates[closestDateIndex];
-    const values = datasets.map((dataset) => {
-      const dataPoint = dataset.data.find((d) => d.date === hoveredDate);
-      return {
-        disease: dataset.disease,
-        value: dataPoint?.normalized_value ?? 0,
-        color: dataset.color,
-      };
-    });
-
-    setHoveredData({ date: hoveredDate, x: getX(closestDateIndex), values });
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: {
+      mode: 'index' as const,
+      intersect: false,
+    },
+    scales: {
+      x: {
+        type: 'time' as const,
+        time: {
+          unit: 'day' as const,
+          displayFormats: {
+            day: 'MMM d, yyyy',
+          },
+        },
+        ticks: {
+          maxTicksLimit: 4,
+          maxRotation: 0,
+        },
+        title: {
+          display: true,
+          text: 'Date',
+        },
+      },
+      y: {
+        min: 0,
+        max: 100,
+        ticks: {
+          stepSize: 25,
+        },
+        title: {
+          display: true,
+          text: 'Interest Score',
+        },
+      },
+    },
+    plugins: {
+      title: {
+        display: true,
+        text: 'Interest Over Time',
+      },
+      legend: {
+        display: datasets.length > 0,
+        position: 'bottom' as const,
+      },
+      tooltip: {
+        mode: 'index' as const,
+        intersect: false,
+      },
+    },
   };
-
-  // X-axis labels
-  const xAxisLabels = useMemo(() => {
-    const maxLabels = 6;
-    const step = Math.max(1, Math.floor(allDates.length / maxLabels));
-    return allDates
-      .filter((_, i) => i % step === 0 || i === allDates.length - 1)
-      .map((date) => ({
-        label: new Date(date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-        x: getX(allDates.indexOf(date)),
-      }));
-  }, [allDates]);
 
   if (datasets.length === 0) {
     return (
@@ -232,160 +190,22 @@ const GoogleTrendsChart = ({ datasets, onClearAll, timeRange, onTimeRangeChange,
           <p className="text-gray-600 text-sm">{t("dashboard.noDataAvailableForTimeRange")}</p>
         </div>
       ) : (
-        <div>
-          {/* Chart */}
-          <div ref={containerRef} className="relative w-full overflow-x-auto">
-            <svg
-              viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-              className="w-full"
-              style={{ minHeight: `${chartHeight}px` }}
-              onMouseMove={handleMouseMove}
-              onMouseLeave={() => setHoveredData(null)}
-            >
-              {/* Lanes */}
-              {datasets.map((dataset, i) => {
-                const laneTop = topPadding + i * laneHeight;
-                return (
-                  <g key={dataset.disease}>
-                    {/* Lane background - alternating */}
-                    <rect
-                      x={leftPadding}
-                      y={laneTop}
-                      width={chartAreaWidth}
-                      height={laneHeight}
-                      fill={i % 2 === 0 ? "#fafafa" : "#ffffff"}
-                    />
-                    {/* Lane separator */}
-                    <line
-                      x1={leftPadding}
-                      y1={laneTop + laneHeight}
-                      x2={chartWidth - rightPadding}
-                      y2={laneTop + laneHeight}
-                      stroke="#e5e7eb"
-                      strokeWidth="1"
-                    />
-                    {/* Disease label */}
-                    <text
-                      x={leftPadding - 10}
-                      y={laneTop + laneHeight / 2 + 4}
-                      textAnchor="end"
-                      fill={dataset.color}
-                      fontSize="12"
-                      fontWeight="500"
-                      className="capitalize"
-                    >
-                      {dataset.disease}
-                    </text>
-                  </g>
-                );
-              })}
-
-              {/* Wavy lines for each disease */}
-              {linePaths.map((line) => (
-                <path
-                  key={line.disease}
-                  d={line.path}
-                  fill="none"
-                  stroke={line.color}
-                  strokeWidth="2"
-                  strokeLinejoin="round"
-                  strokeLinecap="round"
-                />
-              ))}
-
-              {/* Hover line */}
-              {hoveredData && (
-                <line
-                  x1={hoveredData.x}
-                  y1={topPadding}
-                  x2={hoveredData.x}
-                  y2={topPadding + datasets.length * laneHeight}
-                  stroke="#9ca3af"
-                  strokeWidth="1"
-                  strokeDasharray="4 4"
-                />
-              )}
-
-              {/* Hover points */}
-              {hoveredData && linePaths.map((line) => {
-                const point = line.points.find((p) => p.date === hoveredData.date);
-                if (!point) return null;
-                return (
-                  <circle
-                    key={line.disease}
-                    cx={point.x}
-                    cy={point.y}
-                    r="5"
-                    fill={line.color}
-                    stroke="white"
-                    strokeWidth="2"
-                  />
-                );
-              })}
-
-              {/* X-axis labels */}
-              {xAxisLabels.map((label, i) => (
-                <text
-                  key={i}
-                  x={label.x}
-                  y={chartHeight - 20}
-                  textAnchor="middle"
-                  fill="#9ca3af"
-                  fontSize="11"
-                >
-                  {label.label}
-                </text>
-              ))}
-            </svg>
-
-            {/* Tooltip - positioned to the side so it doesn't block disease lines */}
-            {hoveredData && (
-              <div
-                className="absolute pointer-events-none bg-white border border-gray-200 rounded-lg shadow-lg z-10 min-w-[160px]"
-                style={{
-                  // Position tooltip to the left or right of the hover line
-                  left: hoveredData.x > chartWidth * 0.5 
-                    ? `${((hoveredData.x - 20) / chartWidth) * 100}%` 
-                    : `${((hoveredData.x + 20) / chartWidth) * 100}%`,
-                  top: "50%",
-                  transform: hoveredData.x > chartWidth * 0.5 
-                    ? "translate(-100%, -50%)" 
-                    : "translate(0%, -50%)",
-                }}
-              >
-                <div className="px-3 py-2 border-b border-gray-100 bg-gray-50 rounded-t-lg">
-                  <div className="text-xs font-medium text-gray-700">
-                    {new Date(hoveredData.date).toLocaleDateString("en-US", {
-                      month: "short", day: "numeric", year: "numeric",
-                    })}
-                  </div>
-                </div>
-                <div className="px-3 py-2 space-y-1">
-                  {hoveredData.values.sort((a, b) => b.value - a.value).map((item) => (
-                    <div key={item.disease} className="flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                        <span className="text-xs text-gray-700 capitalize">{item.disease}</span>
-                      </div>
-                      <span className="text-xs font-bold" style={{ color: item.color }}>{Math.round(item.value)}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+        <div className="h-[400px]">
+          <Line data={chartData} options={options} />
         </div>
       )}
 
       {/* Legend */}
-      <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t border-gray-200">
-        {datasets.map((dataset) => (
-          <div key={dataset.disease} className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: dataset.color }} />
-            <span className="text-sm text-gray-700 capitalize">{dataset.disease}</span>
-          </div>
-        ))}
-      </div>
+      {datasets.length > 0 && (
+        <div className="flex flex-wrap items-center gap-4 mt-4 pt-4 border-t border-gray-200">
+          {datasets.map((dataset) => (
+            <div key={dataset.disease} className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: dataset.color }} />
+              <span className="text-sm text-gray-700 capitalize">{dataset.disease}</span>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

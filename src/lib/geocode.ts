@@ -136,6 +136,10 @@ const GEO_LOOKUP: Record<string, [number, number]> = {
   'New Caledonia': [-20.9043, 165.6180],
   'Samoa': [-13.7590, -172.1046],
   'Tonga': [-21.1789, -175.1982],
+  'Cayman Islands': [19.3133, -81.2546],
+  'Jersey': [49.2144, -2.1312],
+  'Cook Islands': [-21.2367, -159.7777],
+  'Isle of Man': [54.2361, -4.5481],
 };
 
 export function geocodeLocation(location: string): [number, number] | null {

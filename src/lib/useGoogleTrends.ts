@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { supabase } from "./supabase";
 
 /**
- * The 20 diseases we track with Google Trends.
+ * The 21 diseases we track with Google Trends.
  * These are pre-fetched weekly and stored in Supabase.
  */
 export const TRACKED_DISEASES = [
   "influenza",
+  "H3N2",
   "covid",
   "measles",
   "cholera",

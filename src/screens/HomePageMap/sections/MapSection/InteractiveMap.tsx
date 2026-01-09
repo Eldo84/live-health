@@ -907,10 +907,16 @@ const OutbreakPopupContent = ({ outbreak }: { outbreak: OutbreakSignal | any }) 
     console.log('🔍 Full outbreak object keys:', Object.keys(outbreak));
   }
   
+  // If disease is "OTHER", use detected_disease_name if available
+  const diseaseName = outbreak.disease || 'Unknown Disease';
+  const isOther = diseaseName.toUpperCase() === 'OTHER';
+  const detectedName = (outbreak as any).detectedDiseaseName;
+  const displayDiseaseName = isOther && detectedName ? detectedName : diseaseName;
+
   return (
     <div className="p-2 min-w-[200px]">
       <div className="mb-1 font-semibold flex items-center gap-2 flex-wrap">
-        {outbreak.disease}
+        {displayDiseaseName}
         {isUserSubmitted && (
           <span className="px-2 py-0.5 bg-green-500/20 text-green-600 dark:text-green-400 rounded text-[10px] font-medium border border-green-500/30 whitespace-nowrap">
             User Submitted
@@ -2373,7 +2379,13 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
                         >
                           <div className="p-2 min-w-[200px]">
                             <div className="mb-1 font-semibold flex items-center gap-2 flex-wrap">
-                              {outbreak.disease}
+                              {(() => {
+                                // If disease is "OTHER", use detected_disease_name if available
+                                const diseaseName = outbreak.disease || 'Unknown Disease';
+                                const isOther = diseaseName.toUpperCase() === 'OTHER';
+                                const detectedName = (outbreak as any).detectedDiseaseName;
+                                return isOther && detectedName ? detectedName : diseaseName;
+                              })()}
                               {((outbreak as any).isUserSubmitted === true || 
                                 outbreak.id === 'ea2bf599-c3af-4a12-9a4c-ca28fcb2dc30' || 
                                 outbreak.id === 'c55b1f8c-b92b-49e6-adfa-9af8a01a6e71') && (
@@ -2390,7 +2402,10 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
                                 </span>
                               )}
                             </div>
-                            <div className="text-xs"><strong>Category:</strong> {outbreak.category}</div>
+                            <div className="text-xs"><strong>Category:</strong> {outbreak.category || 'Other'}</div>
+                            {outbreak.date && (
+                              <div className="text-xs"><strong>Date:</strong> {new Date(outbreak.date).toLocaleDateString()}</div>
+                            )}
                           </div>
                         </Tooltip>
                         <Popup>
@@ -2478,11 +2493,18 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
                             }}
                           >
                             <div className="space-y-1.5 pr-1">
-                              {outbreaks.map((outbreak: OutbreakSignal, idx: number) => (
+                              {outbreaks.map((outbreak: OutbreakSignal, idx: number) => {
+                                // If disease is "OTHER", use detected_disease_name if available
+                                const diseaseName = outbreak.disease || 'Unknown Disease';
+                                const isOther = diseaseName.toUpperCase() === 'OTHER';
+                                const detectedName = (outbreak as any).detectedDiseaseName;
+                                const displayDiseaseName = isOther && detectedName ? detectedName : diseaseName;
+                                
+                                return (
                                 <div key={idx} className="text-xs border-b border-gray-700 pb-1.5 last:border-0">
-                                  <div className="font-semibold mb-0.5">{outbreak.disease}</div>
+                                  <div className="font-semibold mb-0.5">{displayDiseaseName}</div>
                                   <div className="text-white/70"><strong>Location:</strong> {outbreak.location}</div>
-                                  <div className="text-white/70"><strong>Category:</strong> {outbreak.category}</div>
+                                  <div className="text-white/70"><strong>Category:</strong> {outbreak.category || 'Other'}</div>
                                   {outbreak.source && (
                                     <div className="text-white/70"><strong>Source:</strong> <span className="text-[#67DBE2]">{outbreak.source}</span></div>
                                   )}
@@ -2492,8 +2514,9 @@ export const InteractiveMap = ({ filters, isFullscreen = false, zoomTarget, isUs
                                     Read article →
                                   </a>
                                 )}
-                              </div>
-                            ))}
+                                </div>
+                              );
+                            })}
                             </div>
                           </div>
                           

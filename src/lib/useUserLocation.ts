@@ -90,7 +90,8 @@ export function useUserLocation(autoRequest = true) {
       // Only auto-request once on mount
       requestLocation();
     }
-  }, [autoRequest]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoRequest]); // Intentionally only depend on autoRequest to prevent re-requesting on tab focus
 
   return {
     location,

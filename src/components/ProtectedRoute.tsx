@@ -18,7 +18,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     if (!loading && !user) {
       setAuthDialogOpen(true);
     } else if (user) {
-      // Close dialog when user becomes authenticated
       setAuthDialogOpen(false);
     }
   }, [loading, user]);
@@ -26,13 +25,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   // Handle dialog close - redirect to map route only if user is not authenticated
   const handleDialogClose = (open: boolean) => {
     if (!open) {
-      // Dialog is closing
-      if (user) {
-        // User is authenticated, allow close (they'll see the protected content)
-        setAuthDialogOpen(false);
-      } else {
-        // User closed dialog without logging in, redirect to map
-        setAuthDialogOpen(false);
+      setAuthDialogOpen(false);
+      if (!user) {
         navigate("/app/map");
       }
     } else {

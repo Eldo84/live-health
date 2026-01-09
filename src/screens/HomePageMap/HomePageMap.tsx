@@ -44,6 +44,14 @@ export const HomePageMap = (): JSX.Element => {
   const [showLocationError, setShowLocationError] = React.useState(true);
   const [isUserLocationZoom, setIsUserLocationZoom] = React.useState(false);
   const locationAutoAppliedRef = React.useRef(false);
+  
+  // Persist location auto-applied state across component re-mounts to prevent re-zooming on tab focus
+  React.useEffect(() => {
+    const wasApplied = sessionStorage.getItem('locationAutoApplied') === 'true';
+    if (wasApplied) {
+      locationAutoAppliedRef.current = true;
+    }
+  }, []);
   const [nearMeRadius, setNearMeRadius] = React.useState<number>(500);
   const [nearMeCategory, setNearMeCategory] = React.useState<string | null>(null);
   const { isMobileFiltersOpen, setIsMobileFiltersOpen } = useFilterPanel();
@@ -147,6 +155,9 @@ export const HomePageMap = (): JSX.Element => {
     setNearMeCategory(null);
     setZoomTarget(null);
     setIsUserLocationZoom(false);
+    // Clear location auto-applied flag so location can be re-applied if needed
+    locationAutoAppliedRef.current = false;
+    sessionStorage.removeItem('locationAutoApplied');
   };
 
   // Process search (country or disease)
@@ -492,7 +503,7 @@ export const HomePageMap = (): JSX.Element => {
     setIsMapFullscreen(!isMapFullscreen);
   };
 
-  // Auto-apply location
+  // Auto-apply location (only once, prevent re-application on tab focus)
   React.useEffect(() => {
     if (location && !locationAutoAppliedRef.current) {
       const userCoords = location.coordinates;
@@ -506,16 +517,28 @@ export const HomePageMap = (): JSX.Element => {
         return;
       }
       
+      // Only auto-apply if we don't already have a zoom target set to this location
+      // This prevents re-zooming when user switches tabs and comes back
+      if (zoomTarget && 
+          Math.abs(zoomTarget[0] - userCoords[0]) < 0.0001 &&
+          Math.abs(zoomTarget[1] - userCoords[1]) < 0.0001) {
+        // Already zoomed to this location, just mark as applied
+        locationAutoAppliedRef.current = true;
+        sessionStorage.setItem('locationAutoApplied', 'true');
+        return;
+      }
+      
       setIsUserLocationZoom(true);
       setZoomTarget(userCoords);
       setShowLocationNotification(true);
       locationAutoAppliedRef.current = true;
+      sessionStorage.setItem('locationAutoApplied', 'true');
       
       setTimeout(() => {
         setShowLocationNotification(false);
       }, 5000);
     }
-  }, [location]);
+  }, [location, zoomTarget]);
   
   // Maintain user location zoom
   React.useEffect(() => {
