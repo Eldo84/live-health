@@ -10,7 +10,7 @@ const corsHeaders = {
 // Plan configuration (must match webhook handler)
 const PLAN_CONFIG = {
   basic: {
-    price: 30.00,
+    price: 50.00,
     duration_days: 30,
     display_order: 200,
     is_featured: false,
@@ -19,7 +19,7 @@ const PLAN_CONFIG = {
     analytics_level: "basic",
   },
   professional: {
-    price: 75.00,
+    price: 150.00,
     duration_days: 60,
     display_order: 100,
     is_featured: true,
@@ -28,7 +28,7 @@ const PLAN_CONFIG = {
     analytics_level: "advanced",
   },
   enterprise: {
-    price: 150.00,
+    price: 300.00,
     duration_days: 90,
     display_order: 50,
     is_featured: true,

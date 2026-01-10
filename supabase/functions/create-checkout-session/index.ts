@@ -10,17 +10,17 @@ const corsHeaders = {
 // Plan configuration
 const PLAN_CONFIG = {
   basic: {
-    price: 3000, // $30.00 in cents
+    price: 5000, // $50.00 in cents
     name: "Basic Plan",
     duration_days: 30,
   },
   professional: {
-    price: 7500, // $75.00 in cents
+    price: 15000, // $150.00 in cents
     name: "Professional Plan",
     duration_days: 60,
   },
   enterprise: {
-    price: 15000, // $150.00 in cents
+    price: 30000, // $300.00 in cents
     name: "Enterprise Plan",
     duration_days: 90,
   },
@@ -96,31 +96,16 @@ Deno.serve(async (req: Request) => {
       apiVersion: "2024-04-10",
     });
 
-    // Get or create Stripe customer
-    let customerId: string;
-    
-    // Check if user already has a Stripe customer ID
-    const { data: existingSubscription } = await supabase
-      .from("subscriptions")
-      .select("stripe_customer_id")
-      .eq("user_id", user.id)
-      .not("stripe_customer_id", "is", null)
-      .limit(1)
-      .maybeSingle();
-
-    if (existingSubscription?.stripe_customer_id) {
-      customerId = existingSubscription.stripe_customer_id;
-    } else {
-      // Create new customer
-      const customer = await stripe.customers.create({
-        email: user.email,
-        metadata: {
-          user_id: user.id,
-          submission_id: submission_id,
-        },
-      });
-      customerId = customer.id;
-    }
+    // Always create customer dynamically per mode (never reuse IDs across test/live modes)
+    // This ensures mode isolation: test customers don't exist in live mode and vice versa
+    const customer = await stripe.customers.create({
+      email: user.email,
+      metadata: {
+        user_id: user.id,
+        submission_id: submission_id,
+      },
+    });
+    const customerId = customer.id;
 
     // Get success/cancel URLs from request or use defaults
     const origin = req.headers.get("origin") || "http://localhost:5173";

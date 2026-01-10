@@ -8,9 +8,9 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 
 const PLAN_INFO = {
-  basic: { name: 'Basic Plan', price: '$30', duration: '30 days' },
-  professional: { name: 'Professional Plan', price: '$75', duration: '60 days' },
-  enterprise: { name: 'Enterprise Plan', price: '$150', duration: '90 days' },
+  basic: { name: 'Basic Plan', price: '$50', duration: '30 days' },
+  professional: { name: 'Professional Plan', price: '$150', duration: '60 days' },
+  enterprise: { name: 'Enterprise Plan', price: '$300', duration: '90 days' },
 };
 
 interface Submission {
