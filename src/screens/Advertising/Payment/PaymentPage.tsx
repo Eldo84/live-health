@@ -6,6 +6,7 @@ import { Loader2, CreditCard, CheckCircle, XCircle, ArrowLeft, Clock, Shield } f
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { trackAdPaymentInitiated } from '@/lib/analytics';
 
 const PLAN_INFO = {
   basic: { name: 'Basic Plan', price: '$50', duration: '30 days' },

@@ -24,6 +24,7 @@ import { DiseaseTracking } from "./sections/DiseaseTracking";
 import { DataExportTable } from "./sections/DataExportTable";
 import { useCountries } from "../../lib/useCountries";
 import { useLanguage } from "../../contexts/LanguageContext";
+import { trackDashboardView, trackDashboardTabSwitch } from "../../lib/analytics";
 
 export const Dashboard = (): JSX.Element => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -65,7 +66,13 @@ export const Dashboard = (): JSX.Element => {
   const handleTabChange = (value: string) => {
     setActiveView(value);
     setSearchParams({ tab: value }, { replace: true });
+    trackDashboardTabSwitch(value);
   };
+
+  // Track dashboard view on mount
+  useEffect(() => {
+    trackDashboardView();
+  }, []);
 
   // Filter countries based on search query
   const filteredCountries = React.useMemo(() => {

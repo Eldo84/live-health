@@ -8,6 +8,7 @@ import { useFullscreen } from "../contexts/FullscreenContext";
 import { FilterPanelProvider } from "../contexts/FilterPanelContext";
 import { useSidebar } from "../contexts/SidebarContext";
 import { Home, Map as MapIcon, BarChart3, Database, Newspaper } from "lucide-react";
+import { trackNavigationClick } from "../lib/analytics";
 
 type MobileNavItem = {
   id: string;
@@ -88,6 +89,7 @@ export const AppLayout = (): JSX.Element => {
   };
 
   const handleNavClick = (path: string) => {
+    trackNavigationClick(path);
     navigate(path);
   };
 

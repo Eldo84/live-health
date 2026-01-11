@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { trackLanguageChange } from "../lib/analytics";
 
 export type Language = "en" | "fr" | "es" | "ar" | "de" | "pt" | "it" | "ru" | "ja" | "zh";
 
@@ -70,6 +71,7 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const setLanguage = useCallback((lang: Language) => {
     setLanguageState(lang);
+    trackLanguageChange(lang);
   }, []);
 
   const getNestedValue = (obj: any, path: string): string => {

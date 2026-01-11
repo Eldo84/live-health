@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Mail } from "lucide-react";
+import { trackNewsletterSignup } from "@/lib/analytics";
 
 const newsletterSchema = z.object({
   email: z
@@ -37,6 +38,7 @@ const NewsletterSignup = () => {
       // For now, just show success message
       await new Promise(resolve => setTimeout(resolve, 1000));
       
+      trackNewsletterSignup();
       toast({
         title: "Subscribed successfully!",
         description: "You'll receive outbreak alerts and updates.",

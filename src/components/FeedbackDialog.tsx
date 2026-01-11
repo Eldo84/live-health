@@ -11,6 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import { trackContactFormSubmit } from "../lib/analytics";
 
 const feedbackSchema = z.object({
   email: z.union([
@@ -85,6 +86,8 @@ export const FeedbackDialog: React.FC<FeedbackDialogProps> = ({ open, onOpenChan
       if (submissionError) {
         throw new Error("Failed to submit feedback: " + submissionError.message);
       }
+
+      trackContactFormSubmit(values.feedbackType);
 
       toast({
         title: "Feedback Submitted",

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { User, Session, AuthError } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
+import { trackLogin, trackSignup, trackLogout } from "../lib/analytics";
 
 interface AuthContextType {
   user: User | null;
@@ -45,6 +46,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email,
       password,
     });
+    if (!error) {
+      trackLogin("email");
+    }
     return { error };
   };
 
@@ -53,6 +57,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email,
       password,
     });
+    if (!error) {
+      trackSignup("email");
+    }
     return { error };
   };
 
@@ -63,11 +70,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         redirectTo: `${window.location.origin}/map`,
       },
     });
+    if (!error) {
+      trackLogin("google");
+    }
     return { error };
   };
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    trackLogout();
   };
 
   const value = {

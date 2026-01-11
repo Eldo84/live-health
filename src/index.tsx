@@ -34,11 +34,17 @@ import { AdminFeedbackPanel } from "./screens/Admin/AdminFeedbackPanel";
 import { WeeklyReport } from "./screens/Dashboard/WeeklyReport";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { News } from "./screens/News";
+import { PageTracking } from "./components/PageTracking";
+import { initGA4 } from "./lib/analytics";
+
+// Initialize Google Analytics on app load
+initGA4();
 
 createRoot(document.getElementById("app") as HTMLElement).render(
   <StrictMode>
     <HelmetProvider>
       <BrowserRouter future={{ v7_relativeSplatPath: true }}>
+        <PageTracking />
         <LanguageProvider>
           <AuthProvider>
             <SidebarProvider>

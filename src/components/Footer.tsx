@@ -22,6 +22,7 @@ export const Footer = () => {
     try {
       // TODO: Implement newsletter subscription logic
       await new Promise(resolve => setTimeout(resolve, 500));
+      trackNewsletterSignup();
       toast({
         title: t("footer.subscribeSuccess"),
         description: t("footer.subscribeSuccessDesc"),

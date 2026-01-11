@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { Mail } from "lucide-react";
+import { trackNewsletterSignup } from "@/lib/analytics";
 
 /**
  * NewsletterSignup component - newsletter subscription form
@@ -19,6 +20,7 @@ const NewsletterSignup = () => {
       });
       return;
     }
+    trackNewsletterSignup();
     toast({
       title: "Thanks for subscribing!",
       description: "You'll receive updates about OutbreakNow.",

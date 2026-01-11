@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from './supabase';
+import { trackAdView, trackAdClick } from './analytics';
 
 export interface SponsoredContent {
   id: string;
@@ -229,6 +230,11 @@ export function useSponsoredContent(options: UseSponsoredContentOptions = {}): U
         referrer: document.referrer,
         user_agent: navigator.userAgent,
       });
+
+      // Track in Google Analytics
+      const location = window.location.pathname.includes('/dashboard') ? 'dashboard' : 
+                      window.location.pathname.includes('/news') ? 'news' : 'map';
+      trackAdView(contentId, location);
     } catch (err) {
       // Silently fail - analytics shouldn't break the UI
       console.warn('Failed to track view:', err);
@@ -262,6 +268,11 @@ export function useSponsoredContent(options: UseSponsoredContentOptions = {}): U
         referrer: document.referrer,
         user_agent: navigator.userAgent,
       });
+
+      // Track in Google Analytics
+      const location = window.location.pathname.includes('/dashboard') ? 'dashboard' : 
+                      window.location.pathname.includes('/news') ? 'news' : 'map';
+      trackAdClick(contentId, location);
     } catch (err) {
       // Silently fail
       console.warn('Failed to track click:', err);
