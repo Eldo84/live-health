@@ -20,6 +20,7 @@ import { useFilterPanel } from "../../contexts/FilterPanelContext";
 import { useSidebar } from "../../contexts/SidebarContext";
 import { calculateDistance } from "../../lib/utils";
 import { buildStandardizedCategories, normalizeCategoryForDisplay } from "../../lib/outbreakCategoryUtils";
+import { trackMapView } from "../../lib/analytics";
 
 // Constants
 const MOBILE_ADS_HEIGHT = 90;
