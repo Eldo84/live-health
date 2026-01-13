@@ -5,6 +5,8 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { Link } from "react-router-dom";
+import { trackNewsletterSignup } from "@/lib/analytics";
 import outbreakNowLogo from "@/assets/outbreaknow-logo.png";
 import { FaFacebook, FaInstagram, FaLinkedin } from "react-icons/fa";
 
@@ -87,21 +89,12 @@ export const Footer = () => {
                 </DialogContent>
               </Dialog>
 
-              <Dialog>
-                <DialogTrigger asChild>
-                  <button className="text-muted-foreground hover:text-foreground text-left transition-colors text-xs sm:text-sm break-words">{t("footer.privacyLegal")}</button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto bg-background">
-                  <DialogHeader>
-                    <DialogTitle className="text-sm sm:text-base">{t("footer.privacyLegal")}</DialogTitle>
-                  </DialogHeader>
-                  <div className="px-4 sm:px-6 pb-4 sm:pb-6">
-                    <p className="text-foreground leading-relaxed text-sm sm:text-base">
-                      {t("footer.privacyLegalText")}
-                    </p>
-                  </div>
-                </DialogContent>
-              </Dialog>
+              <Link 
+                to="/privacy" 
+                className="text-muted-foreground hover:text-foreground text-left transition-colors text-xs sm:text-sm break-words"
+              >
+                {t("footer.privacyLegal")}
+              </Link>
 
               <Dialog>
                 <DialogTrigger asChild>

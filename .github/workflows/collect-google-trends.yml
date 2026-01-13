@@ -1,11 +1,15 @@
 # =============================================================================
 # Google Trends Data Collection Workflow
 # =============================================================================
-# This workflow runs daily to collect Google Trends data for 20 tracked
+# This workflow runs every 3 days to collect Google Trends data for 21 tracked
 # diseases and stores it in Supabase for the Disease Tracking feature.
 #
-# Schedule: Every day at 6:00 AM UTC
+# Schedule: Every 3 days at 6:00 AM UTC (reduced from daily to avoid rate limits)
 # Manual trigger: Available via workflow_dispatch
+#
+# Note: Reduced frequency to avoid Google Trends rate limiting (429 errors).
+# Google Trends data doesn't change dramatically day-to-day, so 3-day intervals
+# provide good data freshness while respecting API limits.
 #
 # Required Secrets:
 #   - SUPABASE_URL: Your Supabase project URL
@@ -15,9 +19,9 @@
 name: Collect Google Trends Data
 
 on:
-  # Run every day at 6:00 AM UTC
+  # Run every 3 days at 6:00 AM UTC (reduced from daily to avoid rate limits)
   schedule:
-    - cron: "0 6 * * *"
+    - cron: "0 6 */3 * *"
   
   # Allow manual trigger from GitHub Actions UI
   workflow_dispatch:

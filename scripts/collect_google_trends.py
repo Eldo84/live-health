@@ -75,10 +75,13 @@ TRACKED_DISEASES = [
     "hepatitis A",
 ]
 
-# Rate limiting settings - increased to reduce 429 errors
-DELAY_BETWEEN_REQUESTS = 10  # seconds between API calls (increased from 2)
-DELAY_ON_ERROR = 30  # seconds to wait after an error (increased from 15)
-MAX_RETRIES = 10  # max retries per disease (increased from 3)
+# Rate limiting settings - increased significantly to avoid 429 errors
+# Google Trends has strict rate limits, especially for automated requests
+DELAY_BETWEEN_REQUESTS = 60  # seconds between API calls (increased from 10 to 60)
+DELAY_ON_ERROR = 60  # seconds to wait after a non-rate-limit error
+DELAY_ON_RATE_LIMIT = 300  # seconds (5 minutes) to wait after rate limit error
+MAX_RETRIES = 5  # max retries per disease (reduced from 10 to avoid long runs)
+EXPONENTIAL_BACKOFF = True  # Use exponential backoff for rate limit errors
 
 # Query mode: "individual" or "comparative"
 # - "individual": Each disease queried separately (current approach)
@@ -524,7 +527,10 @@ def collect_all_trends():
     if QUERY_MODE == "comparative":
         print(f"  - Batch size: {BATCH_SIZE}")
     print(f"  - Delay between requests: {DELAY_BETWEEN_REQUESTS}s")
+    print(f"  - Delay on error: {DELAY_ON_ERROR}s")
+    print(f"  - Delay on rate limit: {DELAY_ON_RATE_LIMIT}s ({DELAY_ON_RATE_LIMIT/60:.1f} minutes)")
     print(f"  - Max retries: {MAX_RETRIES}")
+    print(f"  - Exponential backoff: {EXPONENTIAL_BACKOFF}")
     print(f"  - Include low-volume regions: {INCLUDE_LOW_VOLUME_REGIONS}")
     print(f"  - Exclude partial data: {EXCLUDE_PARTIAL_DATA}")
     if EXCLUDE_PARTIAL_DATA:
@@ -590,10 +596,14 @@ def collect_all_trends():
                     is_rate_limit = "429" in error_msg or "rate limit" in error_msg.lower() or "too many requests" in error_msg.lower()
                     
                     if retries < MAX_RETRIES:
-                        delay = DELAY_ON_ERROR * 2 if is_rate_limit else DELAY_ON_ERROR
-                        print(f"    ⚠ Retry {retries}/{MAX_RETRIES} after {error_type}: {error_msg}")
                         if is_rate_limit:
-                            print(f"    ⚠ Rate limit detected - waiting {delay}s before retry...")
+                            # Exponential backoff for rate limits: 5min, 10min, 20min, etc.
+                            delay = DELAY_ON_RATE_LIMIT * (2 ** (retries - 1))
+                            print(f"    ⚠ Retry {retries}/{MAX_RETRIES} after {error_type}: {error_msg}")
+                            print(f"    ⚠ Rate limit detected - waiting {delay}s ({delay/60:.1f} minutes) before retry...")
+                        else:
+                            delay = DELAY_ON_ERROR
+                            print(f"    ⚠ Retry {retries}/{MAX_RETRIES} after {error_type}: {error_msg}")
                         time.sleep(delay)
                         pytrends = create_pytrends_client()
                     else:
@@ -650,11 +660,14 @@ def collect_all_trends():
                     is_rate_limit = "429" in error_msg or "rate limit" in error_msg.lower() or "too many requests" in error_msg.lower()
                     
                     if retries < MAX_RETRIES:
-                        # Longer delay for rate limiting errors
-                        delay = DELAY_ON_ERROR * 2 if is_rate_limit else DELAY_ON_ERROR
-                        print(f"    ⚠ Retry {retries}/{MAX_RETRIES} after {error_type}: {error_msg}")
                         if is_rate_limit:
-                            print(f"    ⚠ Rate limit detected - waiting {delay}s before retry...")
+                            # Exponential backoff for rate limits: 5min, 10min, 20min, etc.
+                            delay = DELAY_ON_RATE_LIMIT * (2 ** (retries - 1))
+                            print(f"    ⚠ Retry {retries}/{MAX_RETRIES} after {error_type}: {error_msg}")
+                            print(f"    ⚠ Rate limit detected - waiting {delay}s ({delay/60:.1f} minutes) before retry...")
+                        else:
+                            delay = DELAY_ON_ERROR
+                            print(f"    ⚠ Retry {retries}/{MAX_RETRIES} after {error_type}: {error_msg}")
                         time.sleep(delay)
                         # Recreate pytrends client to reset session
                         pytrends = create_pytrends_client()

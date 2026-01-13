@@ -12,6 +12,7 @@ import { LanguageProvider } from "./contexts/LanguageContext";
 import { SidebarProvider } from "./contexts/SidebarContext";
 import HomePage from "./screens/mainpage/pages/index";
 import Partnership from "./screens/mainpage/pages/Partnership";
+import PrivacyPolicy from "./screens/mainpage/pages/PrivacyPolicy";
 
 // Advertising pages
 import { 
@@ -54,6 +55,7 @@ createRoot(document.getElementById("app") as HTMLElement).render(
               <Route path="/" element={<MainPageLayout />}>
                 <Route index element={<HomePage />} />
                 <Route path="partnership" element={<Partnership />} />
+                <Route path="privacy" element={<PrivacyPolicy />} />
               </Route>
               
               {/* App pages - with AppLayout (header/sidebar) */}
