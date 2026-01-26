@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { useLanguage } from "../../contexts/LanguageContext";
+import { translateArticle } from "../../lib/translateArticle";
 
 interface NewsArticle {
   id: string;
   title: string;
   content: string;
+  original_text?: string | null;
   translated_text?: string | null;
   language?: string | null;
   url: string;
@@ -12,6 +14,12 @@ interface NewsArticle {
   source: {
     name: string;
   };
+  // Client-side translation state
+  isTranslated?: boolean;
+  translatedTitle?: string;
+  translatedContent?: string;
+  isTranslating?: boolean;
+  translationError?: string | null;
 }
 
 export const News = (): JSX.Element => {
@@ -32,7 +40,7 @@ export const News = (): JSX.Element => {
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
 
     const queryParams = new URLSearchParams({
-      select: '*,news_sources!source_id(name),outbreak_signals(count)',
+      select: '*,news_sources!source_id(name),outbreak_signals(count),original_text',
       published_at: `gte.${oneMonthAgo.toISOString()}`,
       order: 'published_at.desc',
       limit: '1000'
@@ -66,15 +74,23 @@ export const News = (): JSX.Element => {
           ? item.news_sources[0]?.name || 'Unknown Source'
           : item.news_sources?.name || 'Unknown Source';
 
+        // Determine original content - prefer original_text, fallback to content
+        const originalContent = item.original_text || item.content || '';
+        // If translated_text exists, content might be translated, so use original_text for original
+        const displayContent = item.translated_text ? originalContent : (item.content || '');
+        
         return {
           id: item.id,
           title: stripHtmlTags(item.title || ''),
-          content: item.translated_text || item.content || '',
+          content: displayContent, // Original content for display
+          original_text: originalContent,
           translated_text: item.translated_text || null,
           language: item.language || null,
           url: item.url || '#',
           published_at: item.published_at || new Date().toISOString(),
-          source: { name: sourceName }
+          source: { name: sourceName },
+          isTranslated: false, // Start with original content
+          isTranslating: false,
         };
       })
       .filter(article => {
@@ -174,6 +190,99 @@ export const News = (): JSX.Element => {
     return cleanContent.substring(0, maxLength).trim() + '...';
   };
 
+  const handleTranslate = async (article: NewsArticle) => {
+    // If already translated, toggle back to original
+    if (article.isTranslated) {
+      setArticles(prev => prev.map(a => 
+        a.id === article.id 
+          ? { ...a, isTranslated: false, translatedTitle: undefined, translatedContent: undefined }
+          : a
+      ));
+      return;
+    }
+
+    // If translation already exists in database, use it
+    if (article.translated_text) {
+      setArticles(prev => prev.map(a => {
+        if (a.id === article.id) {
+          // Use the stored translation
+          return {
+            ...a, 
+            isTranslated: true,
+            translatedTitle: a.title, // Title stays same, only content translates
+            translatedContent: a.translated_text,
+          };
+        }
+        return a;
+      }));
+      return;
+    }
+
+    // Set translating state
+    setArticles(prev => prev.map(a => 
+      a.id === article.id 
+        ? { ...a, isTranslating: true, translationError: null }
+        : a
+    ));
+
+    try {
+      // Use original_text for translation (the actual original content)
+      const originalText = article.original_text || article.content || '';
+      
+      if (!originalText || originalText.trim() === '') {
+        throw new Error('No content to translate');
+      }
+      
+      console.log('Translating article:', article.id, 'Language:', article.language, 'Content length:', originalText.length);
+      
+      // Translate only the content, not the title (title usually doesn't need translation)
+      const result = await translateArticle(
+        originalText,
+        article.language || undefined
+      );
+
+      console.log('Translation result:', result.translatedText?.substring(0, 100));
+
+      if (!result.translatedText || result.translatedText.trim() === '') {
+        throw new Error('Translation returned empty result');
+      }
+
+      // Update article with translation
+      setArticles(prev => prev.map(a => {
+        if (a.id === article.id) {
+          const updated = {
+            ...a, 
+            isTranslated: true,
+            translatedTitle: a.title, // Keep original title
+            translatedContent: result.translatedText, // Use translated content
+            isTranslating: false,
+            translationError: null,
+          };
+          console.log('Updated article state:', { 
+            id: updated.id, 
+            isTranslated: updated.isTranslated, 
+            hasTranslatedContent: !!updated.translatedContent,
+            translatedContentLength: updated.translatedContent?.length 
+          });
+          return updated;
+        }
+        return a;
+      }));
+    } catch (error: any) {
+      console.error('Translation error:', error);
+      // Handle error
+      setArticles(prev => prev.map(a => 
+        a.id === article.id 
+          ? { 
+              ...a, 
+              isTranslating: false,
+              translationError: error.message || 'Translation failed',
+            }
+          : a
+      ));
+    }
+  };
+
   return (
     <div className="w-full min-h-screen bg-[#2a4149] pb-20">
       <div className="container mx-auto px-4 py-6">
@@ -214,22 +323,48 @@ export const News = (): JSX.Element => {
                     <span className="text-xs text-[#a7a7a7]">
                       {formatTimeAgo(article.published_at)}
                     </span>
-                    <div className="flex items-center gap-2">
-                      {article.language && article.language !== 'en' && article.translated_text && (
-                        <span className="text-[10px] text-[#a7a7a7] bg-[#2a4149] px-2 py-1 rounded">
-                          {article.language.toUpperCase()}
-                        </span>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {article.language && article.language !== 'en' && (
+                        <>
+                          <span className="text-[10px] text-[#a7a7a7] bg-[#2a4149] px-2 py-1 rounded">
+                            {article.language.toUpperCase()}
+                          </span>
+                          <button
+                            onClick={() => handleTranslate(article)}
+                            disabled={article.isTranslating}
+                            className="text-xs text-[#67DBE2] hover:text-[#5bc5cb] hover:underline transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+                            title={article.isTranslated ? "Show original" : "Translate to English"}
+                          >
+                            {article.isTranslating ? (
+                              <>⏳ Translating...</>
+                            ) : article.isTranslated ? (
+                              <>Show Original</>
+                            ) : (
+                              <>Translate</>
+                            )}
+                          </button>
+                        </>
                       )}
                       <span className="text-xs text-[#67DBE2] font-medium">
                         {article.source.name}
                       </span>
                     </div>
                   </div>
+                  {article.translationError && (
+                    <div className="text-xs text-red-400 mb-2">
+                      {article.translationError}
+                    </div>
+                  )}
                   <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-white text-base leading-tight mb-2">
                     {stripHtml(article.title)}
                   </h3>
                   <p className="text-sm text-[#ffffff90] leading-relaxed mb-3">
-                    {truncateContent(article.content, 200)}
+                    {truncateContent(
+                      article.isTranslated && article.translatedContent 
+                        ? article.translatedContent 
+                        : (article.original_text || article.content), 
+                      200
+                    )}
                   </p>
                   <a
                     href={article.url}

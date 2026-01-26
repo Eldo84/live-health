@@ -1,10 +1,12 @@
 import { CSSProperties, useEffect, useState } from "react";
 import { useLanguage } from "../../../../contexts/LanguageContext";
+import { translateArticle } from "../../../../lib/translateArticle";
 
 interface NewsArticle {
   id: string;
   title: string;
   content: string;
+  original_text?: string | null;
   translated_text?: string | null;
   language?: string | null;
   url: string;
@@ -12,6 +14,12 @@ interface NewsArticle {
   source: {
     name: string;
   };
+  // Client-side translation state
+  isTranslated?: boolean;
+  translatedTitle?: string;
+  translatedContent?: string;
+  isTranslating?: boolean;
+  translationError?: string | null;
 }
 
 interface NewsSectionProps {
@@ -39,7 +47,7 @@ export const NewsSection = ({ width, height, maxHeight, className }: NewsSection
     oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
 
     const queryParams = new URLSearchParams({
-      select: '*,news_sources!source_id(name),outbreak_signals(count)',
+      select: '*,news_sources!source_id(name),outbreak_signals(count),original_text,translated_text,language',
       published_at: `gte.${oneMonthAgo.toISOString()}`,
       order: 'published_at.desc',
       limit: '1000'
@@ -60,6 +68,17 @@ export const NewsSection = ({ width, height, maxHeight, className }: NewsSection
 
     const data: any[] = await response.json();
 
+    // Debug: Log sample articles to check for language and translated_text
+    if (data.length > 0) {
+      console.log('Sample articles from API:', data.slice(0, 3).map(item => ({
+        id: item.id,
+        language: item.language,
+        hasTranslatedText: !!item.translated_text,
+        hasOriginalText: !!item.original_text,
+        title: item.title?.substring(0, 50)
+      })));
+    }
+
     const stripHtmlTags = (html: string): string => {
       if (!html) return '';
       const tmp = document.createElement('div');
@@ -73,15 +92,26 @@ export const NewsSection = ({ width, height, maxHeight, className }: NewsSection
           ? item.news_sources[0]?.name || 'Unknown Source'
           : item.news_sources?.name || 'Unknown Source';
 
+        // Determine original content - prefer original_text, fallback to content
+        const originalContent = item.original_text || item.content || '';
+        // If translated_text exists, content might be translated, so use original_text for original
+        const displayContent = item.translated_text ? originalContent : (item.content || '');
+        
+        const translatedText = item.translated_text || null;
+        
         return {
           id: item.id,
           title: stripHtmlTags(item.title || ''),
-          content: item.translated_text || item.content || '',
-          translated_text: item.translated_text || null,
+          content: displayContent, // Original content for display
+          original_text: originalContent,
+          translated_text: translatedText,
           language: item.language || null,
           url: item.url || '#',
           published_at: item.published_at || new Date().toISOString(),
-          source: { name: sourceName }
+          source: { name: sourceName },
+          isTranslated: false, // Start with original content
+          isTranslating: false,
+          translationError: null,
         };
       })
       .filter(article => {
@@ -181,6 +211,100 @@ export const NewsSection = ({ width, height, maxHeight, className }: NewsSection
     return cleanContent.substring(0, maxLength).trim() + '...';
   };
 
+  // Simple check if text is in English
+  const isEnglish = (text: string): boolean => {
+    if (!text) return false;
+    
+    // Common English words
+    const englishWords = /\b(the|and|to|of|a|in|is|it|you|that|was|for|on|are|as|with|his|they|i|at|be|this|have|from|or|one|had|by|but|not|what|all|were|we|when|your|can|said|there|each|which|she|do|how|their|if|will|up|other|about|out|many|then|them|these|so|some|her|would|make|like|into|him|has|two|more|very|after|long|than|first|been|call|who|its|now|find|down|day|did|get|come|made|may|part)\b/gi;
+    
+    const words = text.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+    if (words.length === 0) return false;
+    
+    const englishMatches = text.match(englishWords) || [];
+    const englishRatio = englishMatches.length / words.length;
+    
+    // If more than 15% of words are common English words, consider it English
+    return englishRatio > 0.15;
+  };
+
+  const handleTranslate = async (article: NewsArticle) => {
+    // If already translated, toggle back to original
+    if (article.isTranslated) {
+      setArticles(prev => prev.map(a => 
+        a.id === article.id 
+          ? { ...a, isTranslated: false, translatedTitle: undefined, translatedContent: undefined }
+          : a
+      ));
+      return;
+    }
+
+    // Get the text to check
+    const originalText = article.original_text || article.content || '';
+    
+    // If text is already in English, no need to translate
+    if (isEnglish(originalText) && isEnglish(article.title)) {
+      setArticles(prev => prev.map(a => 
+        a.id === article.id 
+          ? { ...a, translationError: 'Article is already in English' }
+          : a
+      ));
+      return;
+    }
+
+    // Set translating state
+    setArticles(prev => prev.map(a => 
+      a.id === article.id 
+        ? { ...a, isTranslating: true, translationError: null }
+        : a
+    ));
+
+    try {
+      if (!originalText || originalText.trim() === '') {
+        throw new Error('No content to translate');
+      }
+      
+      // Translate both title and content - let DeepSeek auto-detect language
+      const [titleResult, contentResult] = await Promise.all([
+        translateArticle(article.title).catch(err => {
+          console.warn('Title translation failed, keeping original:', err);
+          return { translatedText: article.title };
+        }),
+        translateArticle(originalText)
+      ]);
+
+      if (!contentResult || !contentResult.translatedText || contentResult.translatedText.trim() === '') {
+        throw new Error('Translation returned empty result');
+      }
+
+      // Update article with translation
+      setArticles(prev => prev.map(a => {
+        if (a.id === article.id) {
+          return {
+            ...a, 
+            isTranslated: true,
+            translatedTitle: titleResult.translatedText || a.title,
+            translatedContent: contentResult.translatedText,
+            isTranslating: false,
+            translationError: null,
+          };
+        }
+        return a;
+      }));
+    } catch (error: any) {
+      console.error('Translation error:', error);
+      setArticles(prev => prev.map(a => 
+        a.id === article.id 
+          ? { 
+              ...a, 
+              isTranslating: false,
+              translationError: error.message || 'Translation failed',
+            }
+          : a
+      ));
+    }
+  };
+
   const rootClasses = [
     'w-full',
     width ? '' : 'lg:w-[240px]',
@@ -225,23 +349,59 @@ export const NewsSection = ({ width, height, maxHeight, className }: NewsSection
                     <span className="text-[10px] text-[#a7a7a7]">
                       {formatTimeAgo(article.published_at)}
                     </span>
-                    <div className="flex items-center gap-1.5">
-                      {article.language && article.language !== 'en' && article.translated_text && (
-                        <span className="text-[9px] text-[#a7a7a7] bg-[#23313c] px-1 py-0.5 rounded">
-                          {article.language.toUpperCase()}
-                        </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {article.language && article.language !== 'en' && (
+                        <>
+                          <span className="text-[9px] text-[#a7a7a7] bg-[#23313c] px-1 py-0.5 rounded">
+                            {article.language.toUpperCase()}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              console.log('Button clicked for article:', article.id);
+                              handleTranslate(article);
+                            }}
+                            disabled={article.isTranslating}
+                            className="text-[9px] text-[#67DBE2] hover:text-[#5bc5cb] hover:underline transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-0.5 cursor-pointer"
+                            title={article.isTranslated ? "Show original" : "Translate to English"}
+                            type="button"
+                          >
+                            {article.isTranslating ? (
+                              <>⏳ Translating...</>
+                            ) : article.isTranslated ? (
+                              <>Show Original</>
+                            ) : (
+                              <>Translate</>
+                            )}
+                          </button>
+                        </>
                       )}
                       <span className="text-[10px] text-[#67DBE2] font-medium truncate max-w-[100px]">
                         {article.source.name}
                       </span>
                     </div>
                   </div>
+                  {article.translationError && (
+                    <div className="text-[9px] text-red-400">
+                      {article.translationError}
+                    </div>
+                  )}
                   <h3 className="[font-family:'Roboto',Helvetica] font-semibold text-white text-xs leading-tight line-clamp-1">
-                    {stripHtml(article.title)}
+                    {stripHtml(
+                      article.isTranslated && article.translatedTitle
+                        ? article.translatedTitle
+                        : article.title
+                    )}
                   </h3>
                   <div className="flex items-end gap-2">
                     <p className="text-[10px] text-[#ffffff90] leading-snug line-clamp-2 flex-1">
-                      {truncateContent(article.content, 80)}
+                      {truncateContent(
+                        article.isTranslated && article.translatedContent 
+                          ? article.translatedContent 
+                          : (article.original_text || article.content), 
+                        80
+                      )}
                     </p>
                     <a
                       href={article.url}

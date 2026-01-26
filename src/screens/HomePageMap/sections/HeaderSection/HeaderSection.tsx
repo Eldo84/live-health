@@ -65,6 +65,7 @@ export const HeaderSection = (): JSX.Element => {
   const [languageDropdownOpen, setLanguageDropdownOpen] = useState(false);
   const [languageDropdownPosition, setLanguageDropdownPosition] = useState<{ top: number; right: number } | null>(null);
   const languageDropdownRef = useRef<HTMLDivElement>(null);
+  const languageDropdownPortalRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { user, signOut } = useAuth();
@@ -203,17 +204,23 @@ export const HeaderSection = (): JSX.Element => {
   // Close language dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (languageDropdownRef.current && !languageDropdownRef.current.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const isClickInsideDropdown = 
+        (languageDropdownRef.current && languageDropdownRef.current.contains(target)) ||
+        (languageDropdownPortalRef.current && languageDropdownPortalRef.current.contains(target));
+      
+      if (!isClickInsideDropdown) {
         setLanguageDropdownOpen(false);
       }
     };
 
     if (languageDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+      // Use capture phase to catch events before they reach Leaflet map
+      document.addEventListener('mousedown', handleClickOutside, true);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside, true);
     };
   }, [languageDropdownOpen]);
 
@@ -301,7 +308,10 @@ export const HeaderSection = (): JSX.Element => {
               <div className="relative" ref={languageDropdownRef}>
                 <div
                   className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
-                  onClick={() => setLanguageDropdownOpen(!languageDropdownOpen)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setLanguageDropdownOpen(!languageDropdownOpen);
+                  }}
                 >
                   <span className="[font-family:'Roboto',Helvetica] font-semibold text-[#ffffff] text-base tracking-[0] leading-6 whitespace-nowrap">
                     {SUPPORTED_LANGUAGES.find(l => l.code === language)?.nativeName.toUpperCase() || "ENG"}
@@ -312,20 +322,26 @@ export const HeaderSection = (): JSX.Element => {
                   <>
                     <div
                       className="fixed inset-0 z-[999998] bg-black/10"
-                      onClick={() => setLanguageDropdownOpen(false)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setLanguageDropdownOpen(false);
+                      }}
                     />
                     <div 
+                      ref={languageDropdownPortalRef}
                       className="fixed w-56 bg-[#2a4149] border-2 border-[#4eb7bd]/50 rounded-lg shadow-2xl z-[999999] overflow-hidden backdrop-blur-sm"
                       style={{
                         top: `${languageDropdownPosition.top}px`,
                         right: `${languageDropdownPosition.right}px`,
                       }}
+                      onClick={(e) => e.stopPropagation()}
                     >
                       <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
                         {SUPPORTED_LANGUAGES.map((lang) => (
                           <button
                             key={lang.code}
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setLanguage(lang.code);
                               setLanguageDropdownOpen(false);
                             }}
