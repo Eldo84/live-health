@@ -209,6 +209,7 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const lastDateRangeRef = React.useRef<string | null>(null);
+  const lastDiseaseSearchRef = React.useRef<string | null>(null);
   const hasFetchedRef = React.useRef(false);
   const fetchIdRef = React.useRef(0);
 
@@ -264,7 +265,52 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
     }
 
     // Filter by country (client-side)
-    if (filters?.country) {
+    // Skip country filter if it matches the disease search term (likely a misidentified disease name)
+    if (filters?.country && filters?.diseaseSearch) {
+      const countryFilter = filters.country.toLowerCase().trim();
+      const diseaseSearch = filters.diseaseSearch.toLowerCase().trim();
+      
+      // If country filter matches disease search, it's likely a disease name, not a country
+      // Skip the country filter in this case
+      if (countryFilter === diseaseSearch || 
+          countryFilter.includes(diseaseSearch) || 
+          diseaseSearch.includes(countryFilter)) {
+        console.log('⚠️ Skipping country filter - appears to be a disease name:', countryFilter);
+      } else {
+        // Apply country filter normally
+        const countryFilterLower = countryFilter;
+        filtered = filtered.filter(s => {
+          const signalCountry = (s as any).countryName?.toLowerCase().trim() || '';
+          const locationLower = s.location.toLowerCase().trim();
+          
+          // Handle common aliases (optimized checks)
+          if (countryFilterLower.includes('united states') || countryFilterLower.includes('usa') || countryFilterLower === 'us') {
+            return signalCountry.includes('united states') ||
+                   locationLower.includes('united states') || 
+                   locationLower.includes('usa') || 
+                   locationLower.includes(', us') ||
+                   locationLower.includes(' u.s.') ||
+                   locationLower.endsWith(', us');
+          }
+          if (countryFilterLower.includes('united kingdom') || countryFilterLower === 'uk') {
+            return signalCountry.includes('united kingdom') ||
+                   locationLower.includes('united kingdom') || 
+                   locationLower.includes(' uk') ||
+                   locationLower.includes(', uk') ||
+                   locationLower.endsWith(', uk');
+          }
+          
+          // Quick exact match first
+          if (signalCountry === countryFilterLower) return true;
+          
+          // Then partial matches
+          return signalCountry.includes(countryFilterLower) ||
+                 countryFilterLower.includes(signalCountry) ||
+                 locationLower.includes(countryFilterLower);
+        });
+      }
+    } else if (filters?.country) {
+      // No disease search, apply country filter normally
       const countryFilter = filters.country.toLowerCase().trim();
       filtered = filtered.filter(s => {
         const signalCountry = (s as any).countryName?.toLowerCase().trim() || '';
@@ -311,6 +357,45 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
       );
       
       if (!isCountryMatch) {
+        // Helper function for fuzzy matching (handles typos like "nipha" -> "nipah")
+        const fuzzyMatch = (search: string, target: string): boolean => {
+          if (!search || !target) return false;
+          const s = search.toLowerCase();
+          const t = target.toLowerCase();
+          
+          // Exact or substring match
+          if (t.includes(s) || s.includes(t)) return true;
+          
+          // For short terms (3-6 chars), allow 1 character difference
+          if (s.length >= 3 && s.length <= 6 && t.length >= 3 && t.length <= 6) {
+            const lenDiff = Math.abs(s.length - t.length);
+            if (lenDiff <= 1) {
+              // Check if they're similar (e.g., "nipha" vs "nipah")
+              let matches = 0;
+              const minLen = Math.min(s.length, t.length);
+              for (let i = 0; i < minLen; i++) {
+                if (s[i] === t[i]) matches++;
+              }
+              // Allow 1 character difference
+              if (matches >= minLen - 1) return true;
+              
+              // Check for transpositions (e.g., "nipha" vs "nipah")
+              if (s.length === t.length) {
+                let transpositions = 0;
+                for (let i = 0; i < s.length - 1; i++) {
+                  if (s[i] === t[i + 1] && s[i + 1] === t[i]) {
+                    transpositions++;
+                    i++; // Skip next char
+                  }
+                }
+                if (transpositions > 0 && matches + transpositions >= minLen - 1) return true;
+              }
+            }
+          }
+          
+          return false;
+        };
+        
         // Precompute lowercase strings once for better performance
         filtered = filtered.filter(s => {
           const detectedDisease = (s as any).detectedDiseaseName?.toLowerCase() || '';
@@ -332,9 +417,20 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
               .filter(Boolean)
               .some((word: string) => word.startsWith(searchTerm))
           );
+          if (prefixMatch) return true;
 
-          return prefixMatch;
+          // Fuzzy match for typo tolerance (e.g., "nipha" -> "nipah")
+          const fuzzyMatchResult = fields.some(field => fuzzyMatch(searchTerm, field));
+          if (fuzzyMatchResult) return true;
+
+          return false;
         });
+        
+        // Debug: Log if search resulted in 0 results
+        if (filters?.diseaseSearch && filtered.length === 0 && allSignals.length > 0) {
+          console.log('⚠️ Disease search returned 0 results. Search term:', filters.diseaseSearch);
+          console.log('⚠️ Sample diseases in allSignals:', allSignals.slice(0, 10).map(s => s.disease));
+        }
       }
     }
 
@@ -450,9 +546,109 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
           throw new Error("Missing Supabase configuration. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY");
         }
 
-        // Calculate date range filter (server-side) only for short ranges to reduce payload
+        // When searching for a disease, find matching disease_ids to filter server-side
+        // This ensures we get all signals for that disease, not just the first 1000 results
+        let matchingDiseaseIds: string[] = [];
+        const hasDiseaseSearch = filters?.diseaseSearch && filters.diseaseSearch.trim();
+        
+        if (hasDiseaseSearch) {
+          const searchTerm = filters.diseaseSearch.toLowerCase().trim();
+          
+          // Fetch diseases and keywords to find matching disease_ids
+          const [diseasesResponse, keywordsResponse] = await Promise.all([
+            fetch(`${supabaseUrl}/rest/v1/diseases?select=id,name`, {
+              headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+            }),
+            fetch(`${supabaseUrl}/rest/v1/disease_keywords?select=disease_id,keyword`, {
+              headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
+            }),
+          ]);
+          
+          const diseaseIdsSet = new Set<string>();
+          
+          // Helper function for fuzzy matching (handles typos like "nipha" -> "nipah")
+          const fuzzyMatch = (search: string, target: string): boolean => {
+            if (!search || !target) return false;
+            const s = search.toLowerCase();
+            const t = target.toLowerCase();
+            
+            // Exact or substring match
+            if (t.includes(s) || s.includes(t)) return true;
+            
+            // For short terms (3-6 chars), allow 1 character difference
+            if (s.length >= 3 && s.length <= 6 && t.length >= 3 && t.length <= 6) {
+              const lenDiff = Math.abs(s.length - t.length);
+              if (lenDiff <= 1) {
+                // Check if they're similar (e.g., "nipha" vs "nipah")
+                let matches = 0;
+                const minLen = Math.min(s.length, t.length);
+                for (let i = 0; i < minLen; i++) {
+                  if (s[i] === t[i]) matches++;
+                }
+                // Allow 1 character difference
+                if (matches >= minLen - 1) return true;
+                
+                // Check for transpositions (e.g., "nipha" vs "nipah")
+                if (s.length === t.length) {
+                  let transpositions = 0;
+                  for (let i = 0; i < s.length - 1; i++) {
+                    if (s[i] === t[i + 1] && s[i + 1] === t[i]) {
+                      transpositions++;
+                      i++; // Skip next char
+                    }
+                  }
+                  if (transpositions > 0 && matches + transpositions >= minLen - 1) return true;
+                }
+              }
+            }
+            
+            return false;
+          };
+          
+          if (diseasesResponse.ok) {
+            const diseases: any[] = await diseasesResponse.json();
+            diseases.forEach((d: any) => {
+              if (d.name) {
+                const nameLower = d.name.toLowerCase();
+                // Check exact match, substring match, or fuzzy match
+                if (nameLower.includes(searchTerm) || 
+                    searchTerm.includes(nameLower) ||
+                    fuzzyMatch(searchTerm, nameLower)) {
+                  diseaseIdsSet.add(d.id);
+                }
+              }
+            });
+          }
+          
+          if (keywordsResponse.ok) {
+            const keywords: any[] = await keywordsResponse.json();
+            keywords.forEach((kw: any) => {
+              if (kw.keyword) {
+                const keywordLower = kw.keyword.toLowerCase();
+                // Check exact match, substring match, or fuzzy match
+                if (keywordLower.includes(searchTerm) ||
+                    searchTerm.includes(keywordLower) ||
+                    fuzzyMatch(searchTerm, keywordLower)) {
+                  diseaseIdsSet.add(kw.disease_id);
+                }
+              }
+            });
+          }
+          
+          matchingDiseaseIds = Array.from(diseaseIdsSet);
+          console.log('🔍 Found', matchingDiseaseIds.length, 'matching disease IDs for search:', searchTerm, matchingDiseaseIds);
+        }
+
+        // Calculate date range filter (server-side)
+        // When searching for a disease, expand date range to ensure we find it
+        // User's selected date range will still be applied client-side
         let dateFilter: string | null = null;
-        if (filters?.dateRange === "24h" || filters?.dateRange === "7d") {
+        if (hasDiseaseSearch) {
+          // Always expand to 1 year when searching for a disease (even if no disease_id match found)
+          // This ensures we get enough data for client-side fuzzy matching
+          const oneYearAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
+          dateFilter = oneYearAgo;
+        } else if (filters?.dateRange === "24h" || filters?.dateRange === "7d") {
           const rangeMs = DATE_RANGE_MS[filters.dateRange];
           if (rangeMs) {
             dateFilter = new Date(Date.now() - rangeMs).toISOString();
@@ -472,10 +668,18 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
         if (dateFilter) {
           queryParams.set('detected_at', `gte.${dateFilter}`);
         }
+        // When searching for a disease, filter by disease_id on server side
+        // This ensures we get all signals for that disease, not just the first 1000 results
+        if (matchingDiseaseIds.length > 0) {
+          queryParams.set('disease_id', `in.(${matchingDiseaseIds.join(',')})`);
+          console.log('🔍 Filtering by disease_id on server:', matchingDiseaseIds);
+        } else if (hasDiseaseSearch) {
+          console.log('⚠️ No matching disease IDs found for search:', searchTerm, '- will rely on client-side filtering');
+        }
         // NO country filter at DB level - fetch all data for client-side filtering
         queryParams.set('order', 'detected_at.desc');
-        // Default to last 30 days if no date filter to reduce payload size
-        if (!dateFilter) {
+        // Default to last 30 days if no date filter and no disease search to reduce payload size
+        if (!dateFilter && !hasDiseaseSearch) {
           const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
           queryParams.set('detected_at', `gte.${thirtyDaysAgo}`);
         }
@@ -824,24 +1028,33 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
       }
     }
 
-    // Only refetch when dateRange changes (affects database query)
-    // Country and disease search are handled client-side for instant results
+    // Refetch when dateRange or diseaseSearch changes (both affect database query)
+    // When disease search is active, we filter by disease_id on the server
     const currentDateRange = filters?.dateRange || null;
+    const currentDiseaseSearch = filters?.diseaseSearch?.trim() || null;
     const dateRangeChanged = lastDateRangeRef.current !== currentDateRange;
+    const diseaseSearchChanged = lastDiseaseSearchRef.current !== currentDiseaseSearch;
     const isInitialFetch = !hasFetchedRef.current;
     
-    // Always fetch on initial mount (hasFetchedRef will be false on first render)
-    // Also fetch when dateRange changes
-    if (isInitialFetch || dateRangeChanged) {
-      console.log('🔄 Fetching signals - isInitial:', isInitialFetch, 'dateRangeChanged:', dateRangeChanged, 'dateRange:', currentDateRange, 'allSignals.length:', allSignals.length);
+    // Update refs for next comparison
+    if (dateRangeChanged) {
       lastDateRangeRef.current = currentDateRange;
+    }
+    if (diseaseSearchChanged) {
+      lastDiseaseSearchRef.current = currentDiseaseSearch;
+    }
+    
+    // Always fetch on initial mount (hasFetchedRef will be false on first render)
+    // Also fetch when dateRange or diseaseSearch changes (disease search affects server-side filtering)
+    if (isInitialFetch || dateRangeChanged || diseaseSearchChanged) {
+      console.log('🔄 Fetching signals - isInitial:', isInitialFetch, 'dateRangeChanged:', dateRangeChanged, 'diseaseSearchChanged:', diseaseSearchChanged, 'dateRange:', currentDateRange, 'diseaseSearch:', currentDiseaseSearch, 'allSignals.length:', allSignals.length);
       hasFetchedRef.current = true;
       // Initial fetch shows loading, date range change doesn't
       fetchSignals(isInitialFetch).catch(err => {
         console.error('❌ Fetch error in useEffect:', err);
       });
     } else {
-      console.log('⏭️ Skipping fetch - already fetched, dateRange unchanged. allSignals.length:', allSignals.length);
+      console.log('⏭️ Skipping fetch - already fetched, no changes requiring refetch. allSignals.length:', allSignals.length);
     }
 
     // Poll for new signals every 10 minutes (reduced from 2 minutes to save bandwidth)
@@ -865,9 +1078,10 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
       // Reset fetch tracking so StrictMode re-run triggers fetch again
       hasFetchedRef.current = false;
       lastDateRangeRef.current = null;
+      lastDiseaseSearchRef.current = null;
       fetchIdRef.current = 0;
     };
-  }, [filters?.dateRange]); // Only depend on dateRange, not all filters
+  }, [filters?.dateRange, filters?.diseaseSearch]); // Depend on dateRange and diseaseSearch (both affect server query)
 
   return { signals, loading, error };
 }
