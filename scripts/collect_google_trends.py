@@ -137,7 +137,12 @@ DELAY_BETWEEN_GROUPS_MIN = 60
 DELAY_BETWEEN_GROUPS_MAX = 180
 DELAY_BETWEEN_CALLS_MIN = 5
 DELAY_BETWEEN_CALLS_MAX = 15
-DELAY_ON_ERROR = 90
+DELAY_ON_ERROR = 240
+
+# Adaptive throttling: after any group fails to produce data we assume the
+# IP is being rate-limited and lengthen remaining inter-group delays by this
+# multiplier. Lets the rate-limit token bucket refill before we hit it again.
+THROTTLED_DELAY_MULTIPLIER = 4
 
 # Fast-fail: one quick retry per group, then move on. Long backoffs deepen
 # Google's IP flag instead of clearing it.
@@ -447,6 +452,7 @@ def collect_all_trends():
     print("-" * 60)
 
     successful_diseases: set = set()
+    throttled_mode = False  # flipped on the first group that fails to deliver data
 
     for group_idx, group in enumerate(groups, 1):
         print(f"\n[Group {group_idx}/{len(groups)}] {', '.join(group)}")
@@ -458,7 +464,7 @@ def collect_all_trends():
             if not remaining:
                 break
             if attempt > 0:
-                delay = DELAY_ON_ERROR + random.uniform(0, 30)
+                delay = DELAY_ON_ERROR + random.uniform(0, 60)
                 print(f"    Retry {attempt}/{MAX_RETRIES} for {remaining} after {delay:.0f}s")
                 time.sleep(delay)
             group_success |= collect_data_for_group(
@@ -468,9 +474,19 @@ def collect_all_trends():
 
         successful_diseases |= group_success
 
+        # If this group didn't fully succeed, assume rate-limiting and bump
+        # delays for the remainder of the run.
+        if len(group_success) < len(group):
+            if not throttled_mode:
+                print(f"    ⚠ Group only got {len(group_success)}/{len(group)} — "
+                      f"entering throttled mode (delays x{THROTTLED_DELAY_MULTIPLIER})")
+            throttled_mode = True
+
         if group_idx < len(groups):
-            delay = random.uniform(DELAY_BETWEEN_GROUPS_MIN, DELAY_BETWEEN_GROUPS_MAX)
-            print(f"    Waiting {delay:.0f}s before next group...")
+            base = random.uniform(DELAY_BETWEEN_GROUPS_MIN, DELAY_BETWEEN_GROUPS_MAX)
+            delay = base * THROTTLED_DELAY_MULTIPLIER if throttled_mode else base
+            mode_tag = " [throttled]" if throttled_mode else ""
+            print(f"    Waiting {delay:.0f}s before next group{mode_tag}...")
             time.sleep(delay)
 
     # ----- Summary + honest exit code -----
