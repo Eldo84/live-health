@@ -213,24 +213,34 @@ def validate_data_quality(time_series_records: list, region_records: list, disea
 
 
 # ===========================================================================
-# Per-disease collection — each pytrends call is independent, never raises
+# Group-level fetch — ONE HTTP call per endpoint returns data for all
+# diseases in the group. Pytrends works by building one payload over a list
+# of keywords and returning a dataframe with one column per keyword.
+# Calling interest_over_time() N times per group would make N HTTP requests
+# returning the same data — wasted requests that trigger rate limits.
 # ===========================================================================
 
-def fetch_time_series(pytrends: TrendReq, disease: str) -> list:
-    """Returns time-series records for `disease`, or [] on any failure."""
-    records = []
+def fetch_time_series_for_group(pytrends: TrendReq, diseases: list) -> dict:
+    """
+    Single HTTP call returns time-series for all diseases in `diseases`.
+    Returns {disease: [records]}. Empty list for any disease whose column
+    is missing (Google sometimes drops low-volume keywords from a batch).
+    Never raises.
+    """
+    out = {d: [] for d in diseases}
+
     try:
         df_time = pytrends.interest_over_time()
     except Exception as e:
-        print(f"    ✗ interest_over_time({disease}): {type(e).__name__}: {e}")
-        return records
+        print(f"    ✗ interest_over_time({diseases}): {type(e).__name__}: {e}")
+        return out
 
     if ENABLE_DIAGNOSTIC_LOGGING and not df_time.empty:
-        print(f"    [DEBUG] time-series for {disease}:\n{df_time.to_string()}")
+        print(f"    [DEBUG] time-series for {diseases}:\n{df_time.to_string()}")
 
-    if df_time.empty or disease not in df_time.columns:
-        print(f"    ⚠ {disease}: no time-series rows")
-        return records
+    if df_time.empty:
+        print(f"    ⚠ time-series: empty response for {diseases}")
+        return out
 
     cutoff = None
     if EXCLUDE_PARTIAL_DATA:
@@ -250,22 +260,37 @@ def fetch_time_series(pytrends: TrendReq, disease: str) -> list:
         if EXCLUDE_PARTIAL_DATA and is_partial:
             excluded_partial += 1
             continue
-        records.append({
-            "disease": disease,
-            "date": date_obj.isoformat(),
-            "interest_value": int(row[disease]),
-        })
+        for disease in diseases:
+            if disease in df_time.columns:
+                out[disease].append({
+                    "disease": disease,
+                    "date": date_obj.isoformat(),
+                    "interest_value": int(row[disease]),
+                })
 
-    msg = f"    ✓ {disease}: {len(records)} time-series rows"
-    if excluded_recent or excluded_partial:
-        msg += f" (excluded {excluded_recent} recent, {excluded_partial} partial)"
-    print(msg)
-    return records
+    for disease in diseases:
+        if out[disease]:
+            suffix = ""
+            if excluded_recent or excluded_partial:
+                suffix = f" (excluded {excluded_recent} recent, {excluded_partial} partial)"
+            print(f"    ✓ {disease}: {len(out[disease])} time-series rows{suffix}")
+        elif disease in df_time.columns:
+            print(f"    ⚠ {disease}: no usable time-series rows after filtering")
+        else:
+            print(f"    ⚠ {disease}: dropped from time-series response (low volume?)")
+
+    return out
 
 
-def fetch_regions(pytrends: TrendReq, disease: str, collection_date: str) -> list:
-    """Returns region records for `disease`, or [] on any failure."""
-    records = []
+def fetch_regions_for_group(
+    pytrends: TrendReq, diseases: list, collection_date: str
+) -> dict:
+    """
+    Single HTTP call returns regions for all diseases in `diseases`.
+    Returns {disease: [records]}. Never raises.
+    """
+    out = {d: [] for d in diseases}
+
     try:
         df_region = pytrends.interest_by_region(
             resolution="COUNTRY",
@@ -273,27 +298,32 @@ def fetch_regions(pytrends: TrendReq, disease: str, collection_date: str) -> lis
             inc_geo_code=False,
         )
     except Exception as e:
-        print(f"    ✗ interest_by_region({disease}): {type(e).__name__}: {e}")
-        return records
+        print(f"    ✗ interest_by_region({diseases}): {type(e).__name__}: {e}")
+        return out
 
     if ENABLE_DIAGNOSTIC_LOGGING and not df_region.empty:
-        print(f"    [DEBUG] regions for {disease}:\n{df_region.to_string()}")
+        print(f"    [DEBUG] regions for {diseases}:\n{df_region.to_string()}")
 
-    if df_region.empty or disease not in df_region.columns:
-        print(f"    ⚠ {disease}: no region rows")
-        return records
+    if df_region.empty:
+        print(f"    ⚠ regions: empty response for {diseases}")
+        return out
 
-    for region, score in df_region[disease].dropna().items():
-        records.append({
-            "disease": disease,
-            "region": normalize_region_name(region),
-            "region_code": None,
-            "popularity_score": int(score),
-            "date": collection_date,
-        })
+    for disease in diseases:
+        if disease not in df_region.columns:
+            print(f"    ⚠ {disease}: dropped from regions response (low volume?)")
+            continue
+        for region, score in df_region[disease].dropna().items():
+            out[disease].append({
+                "disease": disease,
+                "region": normalize_region_name(region),
+                "region_code": None,
+                "popularity_score": int(score),
+                "date": collection_date,
+            })
+        if out[disease]:
+            print(f"    ✓ {disease}: {len(out[disease])} region rows")
 
-    print(f"    ✓ {disease}: {len(records)} region rows")
-    return records
+    return out
 
 
 # ===========================================================================
@@ -346,8 +376,8 @@ def collect_data_for_group(
 
     time.sleep(random.uniform(DELAY_BETWEEN_CALLS_MIN, DELAY_BETWEEN_CALLS_MAX))
 
-    # --- Time-series: collected per-disease, uploaded immediately ---
-    ts_by_disease = {d: fetch_time_series(pytrends, d) for d in diseases}
+    # --- Time-series: ONE HTTP call returns all diseases; upload per-disease ---
+    ts_by_disease = fetch_time_series_for_group(pytrends, diseases)
     for disease, records in ts_by_disease.items():
         if not records:
             continue
@@ -360,8 +390,8 @@ def collect_data_for_group(
 
     time.sleep(random.uniform(DELAY_BETWEEN_CALLS_MIN, DELAY_BETWEEN_CALLS_MAX))
 
-    # --- Regions: same pattern ---
-    reg_by_disease = {d: fetch_regions(pytrends, d, collection_date) for d in diseases}
+    # --- Regions: ONE HTTP call returns all diseases; upload per-disease ---
+    reg_by_disease = fetch_regions_for_group(pytrends, diseases, collection_date)
     for disease, records in reg_by_disease.items():
         if not records:
             continue
