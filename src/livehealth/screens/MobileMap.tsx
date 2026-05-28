@@ -421,17 +421,26 @@ export function MobileMapScreen() {
               }}
               style={{
                 flex: 1,
+                minWidth: 0,
                 padding: "10px 0",
                 background: "none",
                 border: "none",
                 cursor: "pointer",
                 color: tab === t.id ? "var(--ln-ink)" : "var(--ln-ink-3)",
                 borderBottom: tab === t.id ? `1.5px solid ${ACCENT}` : "1.5px solid transparent",
-                fontSize: 13,
+                fontSize: isNarrow ? 11 : 13,
+                whiteSpace: "nowrap",
               }}
             >
               {t.label}{" "}
-              <span className="ln-num" style={{ color: "var(--ln-ink-4)", marginLeft: 3 }}>
+              <span
+                className="ln-num"
+                style={{
+                  color: "var(--ln-ink-4)",
+                  marginLeft: isNarrow ? 2 : 3,
+                  fontSize: isNarrow ? 10 : undefined,
+                }}
+              >
                 {t.count}
               </span>
             </button>
