@@ -147,7 +147,7 @@ export function MobileLandingScreen() {
       {/* Sponsors — early & prominent: 1 featured + 4 in a 2-col grid */}
       <section
         style={{
-          padding: "32px 18px 36px",
+          padding: "32px clamp(18px, 5vw, 36px) 36px",
           borderBottom: "1px solid var(--ln-line)",
           background: "var(--ln-surface)",
         }}
@@ -193,7 +193,7 @@ export function MobileLandingScreen() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              height: 110,
+              height: "clamp(84px, 22vw, 110px)",
             }}
           >
             <img
@@ -234,7 +234,7 @@ export function MobileLandingScreen() {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  height: 70,
+                  height: "clamp(58px, 16vw, 78px)",
                 }}
               >
                 <img
@@ -739,6 +739,8 @@ function MobileHero({
               display: "inline-flex",
               alignSelf: "flex-start",
               alignItems: "center",
+              flexWrap: "wrap",
+              maxWidth: "100%",
               gap: 7,
               padding: "4px 10px 4px 8px",
               borderRadius: 999,
