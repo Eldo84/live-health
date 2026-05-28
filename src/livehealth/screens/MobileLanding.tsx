@@ -15,6 +15,7 @@ import { useLiveRegionRisk } from "../data/useLiveRegionRisk";
 import { useLiveSponsored } from "../data/useLiveSponsored";
 import { useDashboardStats } from "../../lib/useDashboardStats";
 import { timeAgo } from "../lib/utils";
+import { useMobileSize } from "../lib/useBreakpoint";
 
 const ACCENT = "#4ee0c4";
 
@@ -615,6 +616,8 @@ function MobileHero({
   regionRisk: Record<string, number>;
   featured: ReturnType<typeof useLiveOutbreaks>["outbreaks"][number] | undefined;
 }) {
+  const mobileSize = useMobileSize();
+  const isNarrow = mobileSize === "narrow";
   const vRef = useRef<HTMLVideoElement | null>(null);
   const [hasVideo, setHasVideo] = useState(false);
 
@@ -734,7 +737,7 @@ function MobileHero({
         <h1
           className="ln-display"
           style={{
-            fontSize: 52,
+            fontSize: "clamp(32px, 8vw, 52px)",
             lineHeight: 0.94,
             margin: "20px 0 18px",
             letterSpacing: "-0.03em",
@@ -761,11 +764,24 @@ function MobileHero({
           picture.
         </p>
 
-        <div style={{ display: "flex", gap: 8, marginBottom: "auto" }}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: isNarrow ? "column" : "row",
+            gap: 8,
+            marginBottom: "auto",
+          }}
+        >
           <Link
             to="/map"
             className="ln-btn is-primary"
-            style={{ flex: 1, justifyContent: "center", padding: "12px 12px", fontSize: 13 }}
+            style={{
+              flex: isNarrow ? "0 0 auto" : 1,
+              width: isNarrow ? "100%" : undefined,
+              justifyContent: "center",
+              padding: "12px 12px",
+              fontSize: 13,
+            }}
           >
             Open live map
           </Link>
@@ -775,6 +791,8 @@ function MobileHero({
             style={{
               padding: "12px 14px",
               fontSize: 13,
+              width: isNarrow ? "100%" : undefined,
+              justifyContent: isNarrow ? "center" : undefined,
               background: "color-mix(in oklab, var(--ln-bg) 60%, transparent)",
               backdropFilter: "blur(6px)",
             }}
