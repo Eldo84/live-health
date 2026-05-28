@@ -253,8 +253,9 @@ export function MobileMapScreen() {
           flex: "0 0 auto",
           display: "flex",
           gap: 6,
-          padding: "10px 14px",
+          padding: isNarrow ? "10px 12px" : "10px 14px",
           overflowX: "auto",
+          WebkitOverflowScrolling: "touch",
           borderBottom: "1px solid var(--ln-line)",
           background: "var(--ln-topbar)",
         }}
@@ -267,7 +268,7 @@ export function MobileMapScreen() {
             style={{
               flex: "0 0 auto",
               cursor: "pointer",
-              padding: "5px 10px",
+              padding: isNarrow ? "5px 8px" : "5px 10px",
               borderRadius: 999,
             }}
           >
@@ -276,7 +277,7 @@ export function MobileMapScreen() {
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
-                maxWidth: 120,
+                maxWidth: isNarrow ? 90 : 120,
                 display: "inline-block",
               }}
               title={c.label}
