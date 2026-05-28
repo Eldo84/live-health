@@ -620,6 +620,21 @@ function MobileHero({
   const isNarrow = mobileSize === "narrow";
   const vRef = useRef<HTMLVideoElement | null>(null);
   const [hasVideo, setHasVideo] = useState(false);
+  const mapWrapRef = useRef<HTMLDivElement | null>(null);
+  const [mapW, setMapW] = useState(420);
+
+  useEffect(() => {
+    const el = mapWrapRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((entries) => {
+      for (const e of entries) {
+        const w = Math.max(280, Math.round(e.contentRect.width));
+        setMapW(w);
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     const v = vRef.current;
@@ -662,10 +677,10 @@ function MobileHero({
             zIndex: 2,
           }}
         />
-        <div style={{ position: "absolute", inset: 0 }}>
+        <div ref={mapWrapRef} style={{ position: "absolute", inset: 0 }}>
           <WorldMap
-            width={420}
-            height={620}
+            width={mapW}
+            height={Math.round(mapW * (620 / 420))}
             outbreaks={outbreaks.map((o) => ({ id: o.id, lng: o.lng, lat: o.lat, severity: o.severity }))}
             regionRisk={regionRisk}
             showChoropleth
