@@ -108,18 +108,42 @@ export function MobileMapScreen() {
         height: "100vh",
         background: "var(--ln-bg)",
         color: "var(--ln-ink)",
-        display: "flex",
-        flexDirection: "column",
         overflow: "hidden",
         position: "relative",
       }}
     >
-      {/* Header */}
+      {/* Map — fills the entire viewport so it's always painted at full height
+          regardless of header/sheet sizing. Header and sheet float on top. */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          background: "var(--ln-map-bg)",
+          zIndex: 0,
+        }}
+      >
+        <LiveMap
+          outbreaks={filtered}
+          selectedId={selected?.id ?? null}
+          pulse
+          cluster
+          onSelect={(o) => setSelected(o)}
+          focusOn={userLocation?.coordinates ? (userLocation.coordinates as [number, number]) : null}
+          focusRadiusKm={3000}
+        />
+      </div>
+
+      {/* Header — floats over the map */}
       <header
         style={{
-          flex: "0 0 auto",
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 600,
           padding: "14px 16px 10px",
-          background: "var(--ln-topbar)",
+          background: "color-mix(in oklab, var(--ln-topbar) 90%, transparent)",
+          backdropFilter: "blur(10px)",
           borderBottom: "1px solid var(--ln-line)",
         }}
       >
@@ -577,68 +601,95 @@ export function MobileMapScreen() {
               background: "var(--ln-elev-bg)",
               borderTopLeftRadius: 14,
               borderTopRightRadius: 14,
-              padding: "16px 18px 24px",
-              maxHeight: "70vh",
-              overflowY: "auto",
+              maxHeight: "90vh",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
             }}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
-              <div style={{ minWidth: 0 }}>
-                <span className="ln-eyebrow" style={{ color: severityColor(selected.severity) }}>
-                  ● {selected.severityLabel.toUpperCase()}
-                </span>
-                <div className="ln-display" style={{ fontSize: 22, lineHeight: 1.05, marginTop: 4 }}>
-                  {selected.disease}
+            <div style={{ padding: "16px 18px 16px", overflowY: "auto", flex: 1 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <span className="ln-eyebrow" style={{ color: severityColor(selected.severity) }}>
+                    ● {selected.severityLabel.toUpperCase()}
+                  </span>
+                  <div
+                    className="ln-display"
+                    style={{
+                      fontSize: "clamp(18px, 5vw, 22px)",
+                      lineHeight: 1.1,
+                      marginTop: 4,
+                      wordBreak: "break-word",
+                    }}
+                  >
+                    {selected.disease}
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--ln-ink-3)", marginTop: 4 }}>
+                    {selected.city || selected.country} · {selected.source}
+                  </div>
                 </div>
-                <div style={{ fontSize: 12, color: "var(--ln-ink-3)", marginTop: 4 }}>
-                  {selected.city || selected.country} · {selected.source}
-                </div>
+                <button
+                  onClick={() => setSelected(null)}
+                  className="ln-btn"
+                  style={{ padding: 6, flex: "0 0 auto" }}
+                  aria-label="Close"
+                >
+                  <Icon.X />
+                </button>
               </div>
-              <button
-                onClick={() => setSelected(null)}
-                className="ln-btn"
-                style={{ padding: 6 }}
-                aria-label="Close"
-              >
-                <Icon.X />
-              </button>
-            </div>
-            {selected.title && (
+              {selected.title && (
+                <div
+                  style={{
+                    fontSize: 13,
+                    color: "var(--ln-ink-2)",
+                    marginTop: 14,
+                    lineHeight: 1.4,
+                    wordBreak: "break-word",
+                  }}
+                >
+                  "{selected.title}"
+                </div>
+              )}
               <div
                 style={{
-                  fontSize: 13,
-                  color: "var(--ln-ink-2)",
+                  display: "grid",
+                  gridTemplateColumns: isNarrow ? "1fr 1fr" : "1fr 1fr 1fr",
+                  gap: 8,
                   marginTop: 14,
-                  lineHeight: 1.4,
                 }}
               >
-                "{selected.title}"
+                <Metric label="Cases" value={selected.cases > 0 ? selected.cases.toLocaleString() : "—"} />
+                <Metric
+                  label="Deaths"
+                  value={selected.deaths > 0 ? selected.deaths.toLocaleString() : "—"}
+                  tone={selected.deaths > 0 ? "crit" : undefined}
+                />
+                <Metric label="Confidence" value={`${Math.round(selected.confidence * 100)}%`} />
               </div>
-            )}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 14 }}>
-              <Metric label="Cases" value={selected.cases > 0 ? selected.cases.toLocaleString() : "—"} />
-              <Metric
-                label="Deaths"
-                value={selected.deaths > 0 ? selected.deaths.toLocaleString() : "—"}
-                tone={selected.deaths > 0 ? "crit" : undefined}
-              />
-              <Metric label="Confidence" value={`${Math.round(selected.confidence * 100)}%`} />
             </div>
             {selected.url && (
-              <a
-                href={selected.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="ln-btn is-primary"
+              <div
                 style={{
-                  marginTop: 16,
-                  width: "100%",
-                  justifyContent: "center",
-                  padding: "12px 0",
+                  padding: "12px 18px 18px",
+                  borderTop: "1px solid var(--ln-line)",
+                  background: "var(--ln-elev-bg)",
+                  flex: "0 0 auto",
                 }}
               >
-                Read full article <Icon.ArrowR />
-              </a>
+                <a
+                  href={selected.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="ln-btn is-primary"
+                  style={{
+                    width: "100%",
+                    justifyContent: "center",
+                    padding: "12px 0",
+                  }}
+                >
+                  Read full article <Icon.ArrowR />
+                </a>
+              </div>
             )}
           </div>
         </div>
