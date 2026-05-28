@@ -38,3 +38,38 @@ export const isAtMost = (bp: Breakpoint, target: Breakpoint) => {
   const order: Record<Breakpoint, number> = { mobile: 0, tablet: 1, desktop: 2 };
   return order[bp] <= order[target];
 };
+
+// Sub-mobile sizing for the dedicated mobile screens. Used inside
+// MobileLandingScreen and MobileMapScreen to branch layout for narrow
+// phones (iPhone SE class) and phablets/portrait small tablets.
+//   narrow  ≤ 375 px   (iPhone SE 1–3, small Android)
+//   regular 376–540 px (most modern phones)
+//   phablet 541–720 px (large phones, small tablets in portrait)
+export type MobileSize = "narrow" | "regular" | "phablet";
+
+const NARROW_MAX = 375;
+const REGULAR_MAX = 540;
+
+function readMobileSize(): MobileSize {
+  if (typeof window === "undefined") return "regular";
+  if (window.matchMedia(`(max-width: ${NARROW_MAX}px)`).matches) return "narrow";
+  if (window.matchMedia(`(max-width: ${REGULAR_MAX}px)`).matches) return "regular";
+  return "phablet";
+}
+
+export function useMobileSize(): MobileSize {
+  const [size, setSize] = useState<MobileSize>(() => readMobileSize());
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mql1 = window.matchMedia(`(max-width: ${NARROW_MAX}px)`);
+    const mql2 = window.matchMedia(`(max-width: ${REGULAR_MAX}px)`);
+    const update = () => setSize(readMobileSize());
+    mql1.addEventListener?.("change", update);
+    mql2.addEventListener?.("change", update);
+    return () => {
+      mql1.removeEventListener?.("change", update);
+      mql2.removeEventListener?.("change", update);
+    };
+  }, []);
+  return size;
+}
