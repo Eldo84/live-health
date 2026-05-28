@@ -12,6 +12,7 @@ import { useLiveSponsored } from "../data/useLiveSponsored";
 import { useUserLocation } from "../../lib/useUserLocation";
 import { severityColor, timeAgo, haversineKm } from "../lib/utils";
 import { PREDICTIONS } from "../data/predictions";
+import { useMobileSize } from "../lib/useBreakpoint";
 
 const ACCENT = "#4ee0c4";
 
@@ -22,6 +23,8 @@ type Tab = "nearby" | "alerts" | "news";
 // design bundle: full-bleed map, scrolling filter chips, 3-stop pull-up sheet,
 // bottom tab nav. Replaces the responsive SurveillanceMap below ~720px.
 export function MobileMapScreen() {
+  const mobileSize = useMobileSize();
+  const isNarrow = mobileSize === "narrow";
   const [sheetMode, setSheetMode] = useState<SheetMode>("half");
   const [tab, setTab] = useState<Tab>("nearby");
   const [chip, setChip] = useState<string>("all");
@@ -317,13 +320,25 @@ export function MobileMapScreen() {
               border: "1px solid var(--ln-line-2)",
               padding: "10px 12px",
               display: "flex",
-              gap: 10,
-              alignItems: "center",
+              flexDirection: isNarrow ? "column" : "row",
+              gap: isNarrow ? 6 : 10,
+              alignItems: isNarrow ? "flex-start" : "center",
               zIndex: 500,
             }}
           >
-            <Icon.Sparkles style={{ color: ACCENT, flex: "0 0 14px" }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                width: isNarrow ? "100%" : "auto",
+                justifyContent: "space-between",
+              }}
+            >
+              <Icon.Sparkles style={{ color: ACCENT, flex: "0 0 14px" }} />
+              {isNarrow && <Icon.ArrowR style={{ color: "var(--ln-ink-3)" }} />}
+            </div>
+            <div style={{ flex: 1, minWidth: 0, width: isNarrow ? "100%" : undefined }}>
               <div
                 style={{
                   fontFamily: "var(--ln-font-mono)",
@@ -341,13 +356,14 @@ export function MobileMapScreen() {
                   marginTop: 2,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
+                  whiteSpace: isNarrow ? "normal" : "nowrap",
+                  wordBreak: isNarrow ? "break-word" : undefined,
                 }}
               >
                 {topPrediction.disease} surge · {topPrediction.region}
               </div>
             </div>
-            <Icon.ArrowR style={{ color: "var(--ln-ink-3)" }} />
+            {!isNarrow && <Icon.ArrowR style={{ color: "var(--ln-ink-3)" }} />}
           </div>
         )}
       </div>
