@@ -85,7 +85,11 @@ export function MobileMapScreen() {
   }, [filtered, userLocation]);
 
   const sheetHeight =
-    sheetMode === "peek" ? 220 : sheetMode === "half" ? "55vh" : "calc(100vh - 60px)";
+    sheetMode === "peek"
+      ? 220
+      : sheetMode === "half"
+      ? "clamp(220px, 50vh, 360px)"
+      : "clamp(360px, calc(100vh - 60px), 720px)";
 
   const topPrediction = useMemo(() => [...PREDICTIONS].sort((a, b) => b.risk - a.risk)[0], []);
   const featuredAd = ads[0];
