@@ -533,6 +533,7 @@ export function MobileMapScreen() {
               <Link
                 key={b.label}
                 to={b.to}
+                aria-label={b.label}
                 style={{
                   background: "none",
                   border: "none",
@@ -549,7 +550,7 @@ export function MobileMapScreen() {
                 }}
               >
                 {b.icon}
-                <span>{b.label.toUpperCase()}</span>
+                {!isNarrow && <span>{b.label.toUpperCase()}</span>}
               </Link>
             ))}
           </div>
