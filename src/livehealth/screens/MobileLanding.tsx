@@ -27,6 +27,8 @@ const ACCENT = "#4ee0c4";
 //  - 2-stat strip pinned to the bottom of the hero
 //  - access tiers compressed to single-row pricing rows
 export function MobileLandingScreen() {
+  const mobileSize = useMobileSize();
+  const isNarrow = mobileSize === "narrow";
   const { outbreaks } = useLiveOutbreaks("30d", 40);
   const { alerts } = useLiveAlerts(12, "24h");
   const { regionRisk } = useLiveRegionRisk("30d");
@@ -154,7 +156,7 @@ export function MobileLandingScreen() {
           <span className="ln-eyebrow">In partnership with</span>
           <h2
             className="ln-display"
-            style={{ fontSize: 26, margin: "8px 0 8px", letterSpacing: "-0.02em", lineHeight: 1.1 }}
+            style={{ fontSize: "clamp(22px, 5.5vw, 28px)", margin: "8px 0 8px", letterSpacing: "-0.02em", lineHeight: 1.1 }}
           >
             Built with the institutions{" "}
             <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}>that set the standard.</span>
@@ -164,7 +166,7 @@ export function MobileLandingScreen() {
               fontSize: 12.5,
               color: "var(--ln-ink-2)",
               lineHeight: 1.5,
-              maxWidth: 320,
+              maxWidth: "100%",
               margin: "0 auto",
             }}
           >
@@ -276,7 +278,13 @@ export function MobileLandingScreen() {
             11s ago
           </span>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", border: "1px solid var(--ln-line)" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: isNarrow ? "1fr" : "1fr 1fr",
+            border: "1px solid var(--ln-line)",
+          }}
+        >
           {[
             {
               l: "Active outbreaks",
@@ -306,13 +314,19 @@ export function MobileLandingScreen() {
               c: ACCENT,
               sp: [5.6, 5.7, 5.8, 5.9, 6.0, 6.1, 6.2, 6.3, 6.4],
             },
-          ].map((s, i) => (
+          ].map((s, i, arr) => (
             <div
               key={s.l}
               style={{
                 padding: "14px 14px",
-                borderRight: i % 2 === 0 ? "1px solid var(--ln-line)" : "none",
-                borderBottom: i < 2 ? "1px solid var(--ln-line)" : "none",
+                borderRight: !isNarrow && i % 2 === 0 ? "1px solid var(--ln-line)" : "none",
+                borderBottom: isNarrow
+                  ? i !== arr.length - 1
+                    ? "1px solid var(--ln-line)"
+                    : "none"
+                  : i < 2
+                  ? "1px solid var(--ln-line)"
+                  : "none",
                 position: "relative",
               }}
             >
@@ -347,7 +361,7 @@ export function MobileLandingScreen() {
         <span className="ln-eyebrow">The product</span>
         <h2
           className="ln-display"
-          style={{ fontSize: 32, margin: "8px 0 6px", letterSpacing: "-0.02em", lineHeight: 1.05 }}
+          style={{ fontSize: "clamp(24px, 6.5vw, 32px)", margin: "8px 0 6px", letterSpacing: "-0.02em", lineHeight: 1.05 }}
         >
           Three surfaces, <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}>one truth.</span>
         </h2>
@@ -391,7 +405,7 @@ export function MobileLandingScreen() {
       {/* Latest signals */}
       <section style={{ padding: "36px 18px", borderBottom: "1px solid var(--ln-line)" }}>
         <span className="ln-eyebrow">Latest signals</span>
-        <h2 className="ln-display" style={{ fontSize: 30, margin: "8px 0 16px", letterSpacing: "-0.02em" }}>
+        <h2 className="ln-display" style={{ fontSize: "clamp(24px, 6vw, 30px)", margin: "8px 0 16px", letterSpacing: "-0.02em" }}>
           What broke <span style={{ color: "var(--ln-ink-3)", fontStyle: "italic" }}>this morning.</span>
         </h2>
         <div style={{ border: "1px solid var(--ln-line)" }}>
@@ -473,7 +487,7 @@ export function MobileLandingScreen() {
         <span className="ln-eyebrow">Access</span>
         <h2
           className="ln-display"
-          style={{ fontSize: 30, margin: "8px 0 22px", letterSpacing: "-0.025em", lineHeight: 1 }}
+          style={{ fontSize: "clamp(24px, 6vw, 30px)", margin: "8px 0 22px", letterSpacing: "-0.025em", lineHeight: 1 }}
         >
           The world's view <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}>shouldn't be locked up.</span>
         </h2>
@@ -537,7 +551,7 @@ export function MobileLandingScreen() {
         <span className="ln-eyebrow">Support the work</span>
         <h2
           className="ln-display"
-          style={{ fontSize: 24, margin: "8px 0 6px", letterSpacing: "-0.02em", lineHeight: 1.1 }}
+          style={{ fontSize: "clamp(20px, 5.5vw, 24px)", margin: "8px 0 6px", letterSpacing: "-0.02em", lineHeight: 1.1 }}
         >
           Open surveillance is{" "}
           <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}>cheaper than the next outbreak.</span>
@@ -569,7 +583,14 @@ export function MobileLandingScreen() {
           OutbreakNow is operated by EldoNova+ Technologies in partnership with the Global Health and
           Quality Alliance.
         </p>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 20 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: isNarrow ? "1fr" : "1fr 1fr",
+            gap: isNarrow ? 14 : 18,
+            marginBottom: 20,
+          }}
+        >
           {[
             { h: "Product", items: ["Map", "Analytics", "Forecast", "API"] },
             { h: "Coverage", items: ["Pathogens", "Sources", "Methodology"] },
