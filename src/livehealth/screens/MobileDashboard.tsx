@@ -214,43 +214,47 @@ function DmOverview({ range }: { range: RangeKey }) {
   const { alerts } = useLiveAlerts(6, timeRange);
   const { series } = useLiveSeries(supaRange);
 
-  const kpiCards = useMemo(
-    () => [
-      {
-        label: useTLabel("Active Outbreaks"),
-        value: kpis ? kpis.activeOutbreaks.toLocaleString() : "—",
-        delta: kpis?.activeOutbreaksDelta ?? "—",
-        tone: "crit" as const,
-        spark: kpis?.outbreaksSpark ?? [],
-        c: "var(--ln-crit)",
-      },
-      {
-        label: useTLabel("Countries"),
-        value: kpis ? kpis.countries.toLocaleString() : "—",
-        delta: kpis?.countriesDelta ?? "—",
-        tone: "warn" as const,
-        spark: kpis?.countriesSpark ?? [],
-        c: "var(--ln-warn)",
-      },
-      {
-        label: useTLabel("Cases / week"),
-        value: kpis ? compactNumber(kpis.cases) : "—",
-        delta: kpis?.casesDelta ?? "—",
-        tone: "crit" as const,
-        spark: kpis?.casesSpark ?? [],
-        c: "var(--ln-info)",
-      },
-      {
-        label: useTLabel("Critical Events"),
-        value: kpis ? kpis.critical.toLocaleString() : "—",
-        delta: kpis?.criticalDelta ?? "—",
-        tone: "crit" as const,
-        spark: kpis?.criticalSpark ?? [],
-        c: "var(--ln-crit)",
-      },
-    ],
-    [kpis]
-  );
+  // Translated KPI labels — must be at the top level, not inside useMemo,
+  // because useT itself is a hook.
+  const tActive = useT("Active Outbreaks");
+  const tCountriesKpi = useT("Countries");
+  const tCasesWeek = useT("Cases / week");
+  const tCriticalEvents = useT("Critical Events");
+
+  const kpiCards = [
+    {
+      label: tActive,
+      value: kpis ? kpis.activeOutbreaks.toLocaleString() : "—",
+      delta: kpis?.activeOutbreaksDelta ?? "—",
+      tone: "crit" as const,
+      spark: kpis?.outbreaksSpark ?? [],
+      c: "var(--ln-crit)",
+    },
+    {
+      label: tCountriesKpi,
+      value: kpis ? kpis.countries.toLocaleString() : "—",
+      delta: kpis?.countriesDelta ?? "—",
+      tone: "warn" as const,
+      spark: kpis?.countriesSpark ?? [],
+      c: "var(--ln-warn)",
+    },
+    {
+      label: tCasesWeek,
+      value: kpis ? compactNumber(kpis.cases) : "—",
+      delta: kpis?.casesDelta ?? "—",
+      tone: "crit" as const,
+      spark: kpis?.casesSpark ?? [],
+      c: "var(--ln-info)",
+    },
+    {
+      label: tCriticalEvents,
+      value: kpis ? kpis.critical.toLocaleString() : "—",
+      delta: kpis?.criticalDelta ?? "—",
+      tone: "crit" as const,
+      spark: kpis?.criticalSpark ?? [],
+      c: "var(--ln-crit)",
+    },
+  ];
 
   // Multi-series mini chart — pick top 4 real diseases with their colors.
   const lineSeries = useMemo(() => {
