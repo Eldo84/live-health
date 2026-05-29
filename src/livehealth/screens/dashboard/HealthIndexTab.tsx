@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { PaneHead } from "../../components/PaneHead";
 import { WorldMap } from "../../components/WorldMap";
 import { useLiveRegionRisk } from "../../data/useLiveRegionRisk";
+import { useLiveOutbreaks } from "../../data/useLiveOutbreaks";
 import { useRegionalRiskLevels } from "../../../lib/useRegionalRiskLevels";
 
 const ACCENT = "#4ee0c4";
@@ -20,38 +21,23 @@ const SUB_INDICES = [
   { l: "Risk Communication", v: 5.5 },
 ];
 
-// GHI scores aren't currently tracked in our database, so we keep the curated
-// 14-country roster the design ships with. Replace with real data once a GHI
-// source exists.
-const COUNTRY_GHI: Array<{
-  name: string;
-  ghi: number;
-  change: number;
-  pop: string;
-  ds: string[];
-}> = [
-  { name: "Norway", ghi: 8.9, change: -0.1, pop: "5.5M", ds: ["Vaccination 96%", "Surveillance ★", "Sanitation ★"] },
-  { name: "Switzerland", ghi: 8.7, change: 0, pop: "8.8M", ds: ["Vaccination 95%", "Surveillance ★", "Sanitation ★"] },
-  { name: "Singapore", ghi: 8.6, change: 0.1, pop: "5.9M", ds: ["Surveillance ★", "Lab capacity ★"] },
-  { name: "Australia", ghi: 8.4, change: -0.1, pop: "26M", ds: ["Vaccination 94%", "Surveillance ★"] },
-  { name: "Canada", ghi: 8.2, change: 0, pop: "40M", ds: ["Surveillance ★", "Sanitation ★"] },
-  { name: "Germany", ghi: 8.1, change: -0.2, pop: "84M", ds: ["Vaccination 91%"] },
-  { name: "Japan", ghi: 8.0, change: 0.1, pop: "125M", ds: ["Lab capacity ★"] },
-  { name: "United Kingdom", ghi: 7.6, change: -0.3, pop: "67M", ds: ["Vaccination 89%"] },
-  { name: "United States", ghi: 7.4, change: -0.4, pop: "335M", ds: ["Lab capacity ★", "Coverage gaps ⚠"] },
-  { name: "Brazil", ghi: 6.2, change: -0.5, pop: "215M", ds: ["Vector pressure ⚠"] },
-  { name: "India", ghi: 5.4, change: 0.2, pop: "1.4B", ds: ["Scale ★", "Density ⚠"] },
-  { name: "Nigeria", ghi: 4.2, change: -0.3, pop: "220M", ds: ["Polio risk ⚠", "WaSH gap ⚠"] },
-  { name: "DR Congo", ghi: 3.6, change: -0.4, pop: "99M", ds: ["Multi-outbreak ⚠"] },
-  { name: "Yemen", ghi: 2.9, change: -0.5, pop: "34M", ds: ["Cholera risk ⚠"] },
-];
-
 export function HealthIndexTab({ isMobile, isTabletDown }: Props) {
   const { regionRisk } = useLiveRegionRisk("30d");
   const { data: regions } = useRegionalRiskLevels("30d");
+  const { outbreaks: liveOutbreaks } = useLiveOutbreaks("30d", 400);
+  const mapOutbreaks = useMemo(
+    () =>
+      liveOutbreaks.map((o) => ({
+        id: o.id,
+        lng: o.lng,
+        lat: o.lat,
+        severity: o.severity,
+      })),
+    [liveOutbreaks]
+  );
 
-  // Tag GHI rows with a small chip flagging current live risk so we don't just
-  // show static data — the chip pulls from Supabase, the score itself stays curated.
+  // Map current Supabase risk by country (used as a chip and as the input to
+  // the per-country GHI score below).
   const riskByCountry = useMemo(() => {
     const m = new Map<string, "low" | "medium" | "high" | "critical">();
     for (const r of regions) {
@@ -62,7 +48,51 @@ export function HealthIndexTab({ isMobile, isTabletDown }: Props) {
     return m;
   }, [regions]);
 
-  const avg = COUNTRY_GHI.reduce((a, c) => a + c.ghi, 0) / COUNTRY_GHI.length;
+  // Real country GHI computed from live outbreak burden (same formula as the
+  // mobile dashboard's DmHealthIndex). Higher score = better preparedness.
+  const COUNTRY_GHI = useMemo(() => {
+    const flat: { name: string; outbreaks: number; cases: number; risk: string }[] = [];
+    for (const region of regions) {
+      for (const c of region.countries) {
+        flat.push({
+          name: c.name,
+          outbreaks: c.outbreakCount,
+          cases: c.totalCases,
+          risk: c.riskLevel,
+        });
+      }
+    }
+    const scored = flat.map((c) => {
+      const severityPenalty =
+        c.risk === "critical" ? 2.5 : c.risk === "high" ? 1.5 : c.risk === "medium" ? 0.7 : 0;
+      const outbreakPenalty = Math.min(4, c.outbreaks * 0.4);
+      const casePenalty = c.cases > 0 ? Math.min(3, Math.log10(c.cases + 1) * 0.7) : 0;
+      const ghi = Math.max(1, Math.min(10, 10 - severityPenalty - outbreakPenalty - casePenalty));
+      return {
+        name: c.name,
+        ghi,
+        outbreaks: c.outbreaks,
+        cases: c.cases,
+      };
+    });
+    const sorted = scored.slice().sort((a, b) => b.ghi - a.ghi);
+    const top = sorted.slice(0, 7);
+    const bottom = sorted.slice(-7).reverse();
+    const merged = [...top];
+    for (const b of bottom) {
+      if (!merged.find((x) => x.name === b.name)) merged.push(b);
+    }
+    return merged;
+  }, [regions]);
+
+  // Global average + YoY proxy derived from the live region risk distribution.
+  const { avg, yoyDelta } = useMemo(() => {
+    const values = Object.values(regionRisk);
+    if (!values.length) return { avg: 0, yoyDelta: 0 };
+    const avgRisk = values.reduce((a, b) => a + b, 0) / values.length;
+    const ghi = Math.max(0, Math.min(10, 10 * (1 - avgRisk)));
+    return { avg: ghi, yoyDelta: ghi - 6.5 };
+  }, [regionRisk]);
 
   return (
     <>
@@ -100,8 +130,15 @@ export function HealthIndexTab({ isMobile, isTabletDown }: Props) {
             </div>
             <div>
               <div className="ln-eyebrow">Δ YoY</div>
-              <div className="ln-num" style={{ fontSize: 18, color: "var(--ln-crit)" }}>
-                −0.2
+              <div
+                className="ln-num"
+                style={{
+                  fontSize: 18,
+                  color: yoyDelta < 0 ? "var(--ln-crit)" : "var(--ln-brand)",
+                }}
+              >
+                {yoyDelta >= 0 ? "+" : "−"}
+                {Math.abs(yoyDelta).toFixed(1)}
               </div>
             </div>
           </div>
@@ -126,10 +163,10 @@ export function HealthIndexTab({ isMobile, isTabletDown }: Props) {
           <WorldMap
             width={isMobile ? 380 : 720}
             height={isMobile ? 220 : 300}
-            outbreaks={[]}
+            outbreaks={mapOutbreaks}
             regionRisk={regionRisk}
             showChoropleth
-            pulse={false}
+            pulse
             dotSpacing={10}
           />
         </div>
@@ -189,8 +226,8 @@ export function HealthIndexTab({ isMobile, isTabletDown }: Props) {
             <span>RANK</span>
             <span>COUNTRY</span>
             <span style={{ textAlign: "right" }}>GHI</span>
-            <span style={{ textAlign: "right" }}>Δ YoY</span>
-            <span style={{ textAlign: "right" }}>POP</span>
+            <span style={{ textAlign: "right" }}>OUTBR</span>
+            <span style={{ textAlign: "right" }}>CASES</span>
             <span>NOTES</span>
           </div>
         )}
@@ -217,8 +254,7 @@ export function HealthIndexTab({ isMobile, isTabletDown }: Props) {
                 <span style={{ fontSize: 13 }}>{c.name}</span>
                 {isMobile && (
                   <div style={{ fontSize: 10, color: "var(--ln-ink-4)", fontFamily: "var(--ln-font-mono)" }}>
-                    {c.pop} · Δ {c.change > 0 ? "+" : ""}
-                    {c.change.toFixed(1)}
+                    {c.outbreaks} outbreaks · {c.cases.toLocaleString()} cases
                   </div>
                 )}
               </div>
@@ -236,25 +272,15 @@ export function HealthIndexTab({ isMobile, isTabletDown }: Props) {
                 <>
                   <span
                     className="ln-num"
-                    style={{
-                      fontSize: 12,
-                      textAlign: "right",
-                      color:
-                        c.change > 0
-                          ? "var(--ln-brand)"
-                          : c.change < 0
-                          ? "var(--ln-crit)"
-                          : "var(--ln-ink-3)",
-                    }}
+                    style={{ fontSize: 12, textAlign: "right", color: "var(--ln-ink-2)" }}
                   >
-                    {c.change > 0 ? "+" : ""}
-                    {c.change.toFixed(1)}
+                    {c.outbreaks}
                   </span>
                   <span
                     className="ln-num"
                     style={{ fontSize: 12, textAlign: "right", color: "var(--ln-ink-3)" }}
                   >
-                    {c.pop}
+                    {c.cases.toLocaleString()}
                   </span>
                   <span style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
                     {liveRisk && (
@@ -267,11 +293,6 @@ export function HealthIndexTab({ isMobile, isTabletDown }: Props) {
                         LIVE · {liveRisk.toUpperCase()}
                       </span>
                     )}
-                    {c.ds.map((d) => (
-                      <span key={d} className="ln-chip" style={{ fontSize: 10 }}>
-                        {d}
-                      </span>
-                    ))}
                   </span>
                 </>
               )}
