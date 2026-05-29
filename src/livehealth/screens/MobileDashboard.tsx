@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Icon } from "../components/Icon";
 import { Logo } from "../components/Logo";
 import { Sparkline } from "../components/Sparkline";
@@ -1731,6 +1731,42 @@ export function MobileDashboardScreen() {
   const tThisMonth = useT("this month");
   const headlineSuffix = range === "24h" ? tToday : range === "7d" ? tThisWeek : tThisMonth;
 
+  // Tab strip auto-scroll: after a tab is picked, scroll so the selected tab is
+  // left-aligned and the next tab peeks at the right edge, hinting users that
+  // there's more to swipe through.
+  const tabStripRef = useRef<HTMLDivElement | null>(null);
+  const tabBtnRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  useEffect(() => {
+    const strip = tabStripRef.current;
+    const btn = tabBtnRefs.current[tab];
+    if (!strip || !btn) return;
+    const stripRect = strip.getBoundingClientRect();
+    const btnRect = btn.getBoundingClientRect();
+    const idx = DASH_TABS.findIndex((t) => t.id === tab);
+    const nextBtn =
+      idx < DASH_TABS.length - 1 ? tabBtnRefs.current[DASH_TABS[idx + 1].id] : null;
+    const nextWidth = nextBtn?.getBoundingClientRect().width ?? 0;
+    // Target: active tab's left edge at the strip's left edge plus a small
+    // visible inset, so the previous tab is partially clipped (peek-left) and
+    // the next tab is fully visible on the right.
+    const peekLeft = 12;
+    const desiredLeft = btn.offsetLeft - peekLeft;
+    // Clamp so we never scroll past the right edge or before zero.
+    const maxScroll = strip.scrollWidth - strip.clientWidth;
+    const target = Math.max(0, Math.min(maxScroll, desiredLeft));
+    // If the selected tab + next tab fully fit at the current scroll position,
+    // don't bother moving (avoids jitter when the user is already scrolled).
+    const visibleRight = strip.scrollLeft + stripRect.width;
+    const nextEnd = btnRect.left - stripRect.left + strip.scrollLeft + btn.offsetWidth + nextWidth;
+    if (
+      btn.offsetLeft >= strip.scrollLeft &&
+      nextEnd <= visibleRight
+    ) {
+      return;
+    }
+    strip.scrollTo({ left: target, behavior: "smooth" });
+  }, [tab]);
+
   return (
     <div
       className="ln-app"
@@ -1825,6 +1861,7 @@ export function MobileDashboardScreen() {
 
       {/* Tab strip — scrollable */}
       <div
+        ref={tabStripRef}
         className="ln-pane"
         style={{
           flex: "0 0 auto",
@@ -1833,6 +1870,7 @@ export function MobileDashboardScreen() {
           borderBottom: "1px solid var(--ln-line)",
           background: "var(--ln-topbar)",
           overflowX: "auto",
+          scrollBehavior: "smooth",
           WebkitOverflowScrolling: "touch",
         }}
       >
@@ -1841,6 +1879,9 @@ export function MobileDashboardScreen() {
           return (
             <button
               key={t.id}
+              ref={(el) => {
+                tabBtnRefs.current[t.id] = el;
+              }}
               onClick={() => setTab(t.id)}
               style={{
                 flex: "0 0 auto",
