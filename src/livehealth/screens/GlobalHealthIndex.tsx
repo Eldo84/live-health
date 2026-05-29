@@ -2,20 +2,18 @@ import { useMemo, useState } from "react";
 import { Icon } from "../components/Icon";
 import { Sparkline } from "../components/Sparkline";
 import { WorldMap } from "../components/WorldMap";
-import { AdCard } from "../components/AdCard";
 import { TopBar } from "./SurveillanceMap";
 import {
-  GHI_CATEGORIES,
-  GHI_DISEASES,
-  GHI_YEARS,
-  GHI_COUNTRIES,
-  makeTrend,
-  type GhiCategory,
-  type GhiDisease,
-} from "../data/ghiData";
-import { useLiveSponsored } from "../data/useLiveSponsored";
+  useGbdCountries,
+  useGbdCauses,
+  useGbdCountryIndicator,
+  useGbdDiseaseEstimates,
+  useGbdDataCoverage,
+  type GbdCause,
+} from "../data/useGBD";
 import { useLiveRegionRisk } from "../data/useLiveRegionRisk";
 import { useRegionalRiskLevels } from "../../lib/useRegionalRiskLevels";
+import { useLiveOutbreaks } from "../data/useLiveOutbreaks";
 import { useBreakpoint } from "../lib/useBreakpoint";
 
 const ACCENT = "#4ee0c4";
@@ -29,64 +27,59 @@ const selStyle = {
   borderRadius: 6,
 } as const;
 
+// Country-level indicators we present alongside the disease-specific data.
+// Each key matches a row in gbd_country_indicators.indicator.
+const COUNTRY_METRICS = [
+  { key: "life_expectancy", label: "Life expectancy", unit: "years", color: ACCENT },
+  { key: "dtp3_coverage", label: "DTP3 coverage", unit: "%", color: "#6ab7ff" },
+  { key: "measles_coverage", label: "Measles vaccine", unit: "%", color: "#9bd95b" },
+  { key: "under5_mortality", label: "Under-5 mortality", unit: "per 1k", color: "var(--ln-crit)" },
+  { key: "maternal_mortality", label: "Maternal mortality", unit: "per 100k", color: "var(--ln-warn)" },
+  { key: "health_expenditure_pct_gdp", label: "Health spending", unit: "% GDP", color: "#b07cff" },
+];
+
 export function GlobalHealthIndexScreen() {
   const bp = useBreakpoint();
   const isMobile = bp === "mobile";
   const isTabletDown = bp !== "desktop";
 
-  const [diseaseId, setDiseaseId] = useState<string>("ischemic");
-  const [category, setCategory] = useState<GhiCategory>("all");
-  const [year, setYear] = useState<number>(2026);
-  const [country, setCountry] = useState<string>("all");
-  const [diseaseSearch, setDiseaseSearch] = useState("");
+  const { countries } = useGbdCountries();
+  const causes = useGbdCauses();
+  const coverage = useGbdDataCoverage();
 
-  const { ads } = useLiveSponsored({ location: "homepage" });
+  // Country & disease selection — both default to a country/disease with real data.
+  const [countryIso, setCountryIso] = useState<string>("global");
+  const [diseaseId, setDiseaseId] = useState<string>("tuberculosis");
+  const [year, setYear] = useState<number>(2022);
+
+  const disease = useMemo<GbdCause | null>(
+    () => causes.find((c) => c.id === diseaseId) || causes[0] || null,
+    [causes, diseaseId]
+  );
+
+  // Live regional risk (real Supabase outbreak data) for the map.
   const { regionRisk } = useLiveRegionRisk("30d");
   const { data: regions } = useRegionalRiskLevels("30d");
-
-  const visibleDiseases = useMemo(
+  const { outbreaks: liveOutbreaks } = useLiveOutbreaks("30d", 400);
+  const mapOutbreaks = useMemo(
     () =>
-      GHI_DISEASES.filter((d) => category === "all" || d.cat === category).filter(
-        (d) => !diseaseSearch || d.name.toLowerCase().includes(diseaseSearch.toLowerCase())
-      ),
-    [category, diseaseSearch]
+      liveOutbreaks.map((o) => ({
+        id: o.id,
+        lng: o.lng,
+        lat: o.lat,
+        severity: o.severity,
+      })),
+    [liveOutbreaks]
   );
-
-  const disease = useMemo(
-    () => GHI_DISEASES.find((d) => d.id === diseaseId) || GHI_DISEASES[0],
-    [diseaseId]
-  );
-
-  const cFactor =
-    country === "all" ? 1 : GHI_COUNTRIES.find((c) => c.code === country)?.factor || 1;
-
-  const metricSeries = useMemo(
-    () => ({
-      prevalence: makeTrend(disease.prevalence * cFactor, 0.04, -0.008),
-      incidence: makeTrend(disease.incidence * cFactor, 0.05, 0.004),
-      mortality: makeTrend(disease.mortality * cFactor, 0.03, -0.014),
-      dalys: makeTrend(disease.dalys * cFactor, 0.03, -0.006),
-    }),
-    [disease, cFactor]
-  );
-
-  const yearIndex = GHI_YEARS.indexOf(year);
-  const val = (s: number[]) => s[yearIndex];
-  const trend = (s: number[]) =>
-    yearIndex > 0 ? +(((s[yearIndex] - s[yearIndex - 1]) / s[yearIndex - 1]) * 100).toFixed(1) : 0;
-
   const liveRiskByCountry = useMemo(() => {
     const m = new Map<string, "low" | "medium" | "high" | "critical">();
-    for (const r of regions) {
-      for (const c of r.countries) m.set(c.name, c.riskLevel);
-    }
+    for (const r of regions) for (const c of r.countries) m.set(c.name, c.riskLevel);
     return m;
   }, [regions]);
 
-  // Responsive column templates for the chart rows.
-  const triCols = isMobile ? "1fr" : isTabletDown ? "1fr 1fr" : "1fr 1fr 1fr";
-  const duoCols = isTabletDown ? "1fr" : "1fr 1fr";
-  const leaderCols = isTabletDown ? "1fr" : "1.1fr 1fr";
+  // Disease incidence — real WHO data for TB / HIV / Malaria; "—" for others.
+  const { rows: incidenceRows } = useGbdDiseaseEstimates(disease?.id ?? null, "incidence");
+  const hasIncidence = incidenceRows.length > 0;
 
   return (
     <div
@@ -109,24 +102,32 @@ export function GlobalHealthIndexScreen() {
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 12,
+            gap: 10,
             padding: isMobile ? "12px 14px" : "14px 28px",
             borderBottom: "1px solid var(--ln-line)",
             background: "var(--ln-topbar)",
             flexWrap: "wrap",
           }}
         >
-          <select value={category} onChange={(e) => setCategory(e.target.value as GhiCategory)} style={selStyle}>
-            {GHI_CATEGORIES.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.label}
+          <select
+            value={countryIso}
+            onChange={(e) => setCountryIso(e.target.value)}
+            style={{ ...selStyle, minWidth: 200 }}
+          >
+            <option value="global">Global average</option>
+            {countries.map((c) => (
+              <option key={c.iso3} value={c.iso3}>
+                {c.name}
               </option>
             ))}
           </select>
-          <select value={country} onChange={(e) => setCountry(e.target.value)} style={selStyle}>
-            <option value="all">All countries</option>
-            {GHI_COUNTRIES.map((c) => (
-              <option key={c.code} value={c.code}>
+          <select
+            value={diseaseId}
+            onChange={(e) => setDiseaseId(e.target.value)}
+            style={{ ...selStyle, minWidth: 220 }}
+          >
+            {causes.map((c) => (
+              <option key={c.id} value={c.id}>
                 {c.name}
               </option>
             ))}
@@ -137,8 +138,8 @@ export function GlobalHealthIndexScreen() {
             </span>
             <input
               type="range"
-              min={2020}
-              max={2026}
+              min={2017}
+              max={2023}
               value={year}
               onChange={(e) => setYear(+e.target.value)}
               style={{ width: isMobile ? 110 : 160 }}
@@ -148,476 +149,438 @@ export function GlobalHealthIndexScreen() {
             </span>
           </div>
           <div style={{ flex: 1 }} />
-          <button className="ln-btn ln-hide-mobile">
-            <Icon.ArrowR /> Export
-          </button>
-        </div>
-
-        <div style={{ display: "grid", gridTemplateColumns: isTabletDown ? "1fr" : "260px 1fr" }}>
-          {/* Disease sidebar */}
-          {!isTabletDown && (
-            <aside
-              style={{ borderRight: "1px solid var(--ln-line)", background: "var(--ln-rail)" }}
-              className="ln-pane"
+          {coverage && (
+            <span
+              style={{
+                fontFamily: "var(--ln-font-mono)",
+                fontSize: 10,
+                color: "var(--ln-ink-3)",
+                letterSpacing: "0.08em",
+              }}
             >
-              <div style={{ padding: "16px 14px 10px" }}>
-                <span className="ln-eyebrow">Conditions</span>
-                <div style={{ position: "relative", marginTop: 8 }}>
-                  <span
-                    style={{
-                      position: "absolute",
-                      left: 10,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      color: "var(--ln-ink-4)",
-                    }}
-                  >
-                    <Icon.Search />
-                  </span>
-                  <input
-                    className="ln-input"
-                    placeholder="Search…"
-                    value={diseaseSearch}
-                    onChange={(e) => setDiseaseSearch(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div style={{ borderTop: "1px solid var(--ln-line)" }}>
-                {visibleDiseases.map((d) => {
-                  const on = d.id === diseaseId;
-                  const catLabel =
-                    GHI_CATEGORIES.find((c) => c.id === d.cat)?.label.split(",")[0] || d.cat;
-                  return (
-                    <button
-                      key={d.id}
-                      onClick={() => setDiseaseId(d.id)}
-                      style={{
-                        width: "100%",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 2,
-                        padding: "12px 14px",
-                        background: on ? "rgba(255,255,255,0.04)" : "transparent",
-                        border: "none",
-                        borderLeft: on ? `2px solid ${ACCENT}` : "2px solid transparent",
-                        borderBottom: "1px solid var(--ln-line)",
-                        cursor: "pointer",
-                        color: "inherit",
-                        textAlign: "left",
-                      }}
-                    >
-                      <span style={{ fontSize: 13, color: on ? "var(--ln-ink)" : "var(--ln-ink-2)" }}>
-                        {d.name}
-                      </span>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <span
-                          style={{
-                            fontFamily: "var(--ln-font-mono)",
-                            fontSize: 9,
-                            color: "var(--ln-ink-4)",
-                            letterSpacing: "0.08em",
-                            textTransform: "uppercase",
-                          }}
-                        >
-                          {catLabel}
-                        </span>
-                        <span className="ln-num" style={{ fontSize: 10, color: "var(--ln-ink-3)" }}>
-                          {d.dalys}M DALYs
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </aside>
+              REAL DATA · {coverage.rows.toLocaleString()} ROWS · {coverage.causes} CAUSES ·{" "}
+              {coverage.minYear}–{coverage.maxYear}
+            </span>
           )}
+        </div>
 
-          {/* Main content */}
-          <main>
-            {/* Disease header */}
-            <div style={{ padding: isMobile ? "16px 14px" : "24px 28px 18px", borderBottom: "1px solid var(--ln-line)" }}>
-              {isTabletDown && (
-                <select
-                  value={diseaseId}
-                  onChange={(e) => setDiseaseId(e.target.value)}
-                  style={{ ...selStyle, width: "100%", marginBottom: 12 }}
-                >
-                  {visibleDiseases.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-              <span className="ln-eyebrow">{GHI_CATEGORIES.find((c) => c.id === disease.cat)?.label}</span>
-              <h2
-                className="ln-display"
+        {/* Header */}
+        <div
+          style={{
+            padding: isMobile ? "16px 14px" : "24px 28px 18px",
+            borderBottom: "1px solid var(--ln-line)",
+          }}
+        >
+          <span className="ln-eyebrow">Country health snapshot</span>
+          <h2
+            className="ln-display"
+            style={{
+              fontSize: isMobile ? 26 : 38,
+              margin: "8px 0 6px",
+              letterSpacing: "-0.025em",
+            }}
+          >
+            {countryIso === "global"
+              ? "Global average"
+              : countries.find((c) => c.iso3 === countryIso)?.name || "—"}
+            <span style={{ color: "var(--ln-ink-4)" }}>,</span>{" "}
+            <span style={{ color: "var(--ln-ink-3)", fontStyle: "italic" }}>{year}</span>
+          </h2>
+          <p
+            style={{
+              fontSize: 13.5,
+              color: "var(--ln-ink-2)",
+              maxWidth: 720,
+              margin: "4px 0 0",
+              lineHeight: 1.5,
+            }}
+          >
+            Source: World Bank Open Data (life expectancy, vaccination, mortality, health
+            spending) and WHO Global Health Observatory (TB, HIV, malaria incidence). All
+            indicators imported via the public, no-signup APIs; refreshed via the
+            <code style={{ fontFamily: "var(--ln-font-mono)", fontSize: 12, color: ACCENT }}>
+              {" "}
+              import-public-health-data{" "}
+            </code>
+            edge function.
+          </p>
+        </div>
+
+        {/* 6 country-indicator cards */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: isMobile
+              ? "1fr 1fr"
+              : isTabletDown
+              ? "repeat(3, 1fr)"
+              : "repeat(6, 1fr)",
+            borderBottom: "1px solid var(--ln-line)",
+          }}
+        >
+          {COUNTRY_METRICS.map((m, i) => (
+            <CountryMetricCard
+              key={m.key}
+              indicator={m.key}
+              label={m.label}
+              unit={m.unit}
+              color={m.color}
+              countryIso={countryIso}
+              year={year}
+              border={i > 0}
+            />
+          ))}
+        </div>
+
+        {/* Disease incidence */}
+        <div style={{ padding: isMobile ? "16px 14px" : "20px 28px", borderBottom: "1px solid var(--ln-line)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+            <div>
+              <span className="ln-eyebrow">
+                Disease incidence · {disease?.name ?? "—"}
+              </span>
+              <h3 style={{ fontSize: 18, margin: "4px 0 0", fontWeight: 500 }}>
+                {hasIncidence
+                  ? `WHO-reported incidence rate, ${countryIso === "global" ? "global average" : countries.find((c) => c.iso3 === countryIso)?.name}`
+                  : "No WHO-reported series for this disease"}
+              </h3>
+            </div>
+            {!hasIncidence && (
+              <span
+                className="ln-chip"
                 style={{
-                  fontSize: isMobile ? 26 : 38,
-                  margin: "8px 0 6px",
-                  letterSpacing: "-0.025em",
+                  fontSize: 10,
+                  background: "color-mix(in oklab, var(--ln-warn) 16%, transparent)",
+                  color: "var(--ln-warn)",
+                  border: "1px solid color-mix(in oklab, var(--ln-warn) 40%, transparent)",
                 }}
               >
-                {disease.name}
-                <span style={{ color: "var(--ln-ink-4)" }}>,</span>{" "}
-                <span style={{ color: "var(--ln-ink-3)", fontStyle: "italic" }}>
-                  {country === "all" ? "global" : GHI_COUNTRIES.find((c) => c.code === country)?.name} · {year}
-                </span>
-              </h2>
-              <p
-                style={{
-                  fontSize: 13.5,
-                  color: "var(--ln-ink-2)",
-                  maxWidth: 720,
-                  margin: "4px 0 0",
-                  lineHeight: 1.5,
-                }}
-              >
-                Source: IHME Global Burden of Disease 2024 release · WHO Global Health Observatory · CDC NCHS.
-                All age-standardized rates per 100,000 unless noted.
-              </p>
-            </div>
-
-            {/* 4 metric cards */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: isMobile ? "1fr 1fr" : isTabletDown ? "repeat(2, 1fr)" : "repeat(4, 1fr)",
-                borderBottom: "1px solid var(--ln-line)",
-              }}
-            >
-              <MetricCard
-                label="Prevalence"
-                value={val(metricSeries.prevalence).toFixed(1)}
-                unit="per 100k"
-                trend={trend(metricSeries.prevalence)}
-                sparkline={metricSeries.prevalence}
-                color="#6ab7ff"
-              />
-              <MetricCard
-                label="Incidence"
-                value={val(metricSeries.incidence).toFixed(1)}
-                unit="new/year"
-                trend={trend(metricSeries.incidence)}
-                sparkline={metricSeries.incidence}
-                color={ACCENT}
-                border={!isMobile}
-              />
-              <MetricCard
-                label="Mortality"
-                value={(val(metricSeries.mortality) * 100).toFixed(2) + "%"}
-                unit="age-stand."
-                trend={trend(metricSeries.mortality)}
-                sparkline={metricSeries.mortality}
-                color="var(--ln-crit)"
-                border
-              />
-              <MetricCard
-                label="DALYs"
-                value={val(metricSeries.dalys).toFixed(1)}
-                unit="million yrs"
-                trend={trend(metricSeries.dalys)}
-                sparkline={metricSeries.dalys}
-                color="var(--ln-warn)"
-                border={!isMobile}
-              />
-            </div>
-
-            {/* Trend + country comparison */}
-            <div style={{ display: "grid", gridTemplateColumns: duoCols, borderBottom: "1px solid var(--ln-line)" }}>
-              <Panel
-                title="Time-series trend · 2020-2026"
-                eyebrow="Prevalence + DALYs"
-                right={<span className="ln-chip">{disease.name.split(" ")[0]}</span>}
-              >
-                <TrendChart
-                  seriesA={metricSeries.prevalence}
-                  seriesB={metricSeries.dalys.map((d) => d * 10)}
-                />
-              </Panel>
-              <Panel
-                title="Country comparison · top 8"
-                eyebrow="DALYs per 100k"
-                right={
-                  <span style={{ fontFamily: "var(--ln-font-mono)", fontSize: 11, color: "var(--ln-ink-3)" }}>
-                    {year}
-                  </span>
-                }
-                bordered={!isTabletDown}
-              >
-                <CountryBars disease={disease} />
-              </Panel>
-            </div>
-
-            {/* Histogram + bubble + radar */}
-            <div style={{ display: "grid", gridTemplateColumns: triCols, borderBottom: "1px solid var(--ln-line)" }}>
-              <Panel title="Distribution histogram" eyebrow="Cases per 100k by age">
-                <AgeHistogram />
-              </Panel>
-              <Panel title="Disease burden analysis" eyebrow="Prevalence × Mortality" bordered={!isMobile}>
-                <BubbleChart />
-              </Panel>
-              <Panel
-                title="Top risk factors"
-                eyebrow={`Attributed to ${disease.name.split(" ")[0]}`}
-                bordered={!isTabletDown}
-              >
-                <RadarChart disease={disease} />
-              </Panel>
-            </div>
-
-            {/* Top conditions + category stacked */}
-            <div style={{ display: "grid", gridTemplateColumns: leaderCols, borderBottom: "1px solid var(--ln-line)" }}>
-              <Panel title="Top 10 conditions by burden" eyebrow="DALYs (millions)">
-                <TopConditionsBars onPick={setDiseaseId} />
-              </Panel>
-              <Panel title="Category burden comparison" eyebrow="Stacked share by region" bordered={!isTabletDown}>
-                <CategoryStacked />
-              </Panel>
-            </div>
-
-            {/* Gender + YLDs/YLLs + gender split */}
-            <div style={{ display: "grid", gridTemplateColumns: triCols, borderBottom: "1px solid var(--ln-line)" }}>
-              <Panel title="Gender distribution by condition" eyebrow="Male vs. female · top 6">
-                <GenderByCondition />
-              </Panel>
-              <Panel title="YLDs vs YLLs" eyebrow="Disability vs. life lost" bordered={!isMobile}>
-                <YldsYlls />
-              </Panel>
-              <Panel title="Selected condition · gender split" eyebrow={disease.name} bordered={!isTabletDown}>
-                <GenderSplit disease={disease} />
-              </Panel>
-            </div>
-
-            {/* World map + side panel */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: isTabletDown ? "1fr" : "1.6fr 1fr",
-                borderBottom: "1px solid var(--ln-line)",
-              }}
-            >
-              <div style={{ padding: isMobile ? "14px 14px 18px" : "14px 22px 22px" }}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "flex-start",
-                    marginBottom: 10,
-                  }}
-                >
-                  <div>
-                    <span className="ln-eyebrow">Live regional risk · 30d</span>
-                    <h3 style={{ fontSize: 16, margin: "4px 0 0", fontWeight: 500 }}>
-                      Outbreak signal pressure today
-                    </h3>
-                  </div>
-                  <span className="ln-chip">{year}</span>
-                </div>
-                <div style={{ height: 280, position: "relative" }}>
-                  <WorldMap
-                    width={760}
-                    height={280}
-                    outbreaks={[]}
-                    regionRisk={regionRisk}
-                    showChoropleth
-                    pulse={false}
-                    dotSpacing={11}
-                  />
-                </div>
-              </div>
-              <div
-                style={{
-                  borderLeft: isTabletDown ? "none" : "1px solid var(--ln-line)",
-                  borderTop: isTabletDown ? "1px solid var(--ln-line)" : "none",
-                  padding: 20,
-                }}
-              >
-                <span className="ln-eyebrow">Data source</span>
-                <div style={{ fontSize: 12.5, color: "var(--ln-ink-2)", marginTop: 6 }}>
-                  IHME · WHO · CDC · NCPG
-                </div>
-                <div style={{ height: 1, background: "var(--ln-line)", margin: "16px 0" }} />
-                <span className="ln-eyebrow">Risk factors · {disease.name.split(" ")[0]}</span>
-                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 8 }}>
-                  {disease.riskFactors.map((rf) => (
-                    <span key={rf} className="ln-chip" style={{ fontSize: 10 }}>
-                      {rf}
-                    </span>
-                  ))}
-                </div>
-                <div style={{ height: 1, background: "var(--ln-line)", margin: "16px 0" }} />
-                <span className="ln-eyebrow">Methodology</span>
-                <p style={{ fontSize: 11.5, color: "var(--ln-ink-3)", lineHeight: 1.55, marginTop: 6 }}>
-                  Age-standardized rates apply the 2015 WHO world standard population. DALYs sum years lived
-                  with disability (YLDs) and years of life lost (YLLs). Confidence intervals available via the
-                  Methods button.
-                </p>
-                <button className="ln-btn" style={{ marginTop: 12, width: "100%", justifyContent: "center" }}>
-                  Methods note <Icon.ArrowR />
-                </button>
-              </div>
-            </div>
-
-            {/* Country table */}
-            <div style={{ borderBottom: "1px solid var(--ln-line)" }}>
-              <div
-                style={{
-                  padding: isMobile ? "14px 14px 8px" : "14px 22px 8px",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "flex-end",
-                  flexWrap: "wrap",
-                  gap: 8,
-                }}
-              >
-                <div>
-                  <span className="ln-eyebrow">Detailed country data</span>
-                  <h3 style={{ fontSize: 16, margin: "4px 0 0", fontWeight: 500 }}>
-                    {disease.name} · {year}
-                  </h3>
-                </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <button className="ln-btn">CSV</button>
-                  <button className="ln-btn">JSON</button>
-                  {!isMobile && <button className="ln-btn">Parquet</button>}
-                </div>
-              </div>
-              <CountryTable disease={disease} liveRiskByCountry={liveRiskByCountry} isTabletDown={isTabletDown} />
-            </div>
-
-            {/* Disclaimer */}
-            <div
-              style={{
-                background: "var(--ln-surface)",
-                padding: isMobile ? "18px 14px" : "22px 28px",
-                borderBottom: "1px solid var(--ln-line)",
-              }}
-            >
-              <span className="ln-eyebrow">Disclaimer</span>
-              <p style={{ fontSize: 12, color: "var(--ln-ink-3)", lineHeight: 1.6, marginTop: 8, maxWidth: 900 }}>
-                The burden-of-disease data shown is compiled from publicly available sources (IHME GBD 2024, WHO
-                GHO, CDC NCHS) for informational and reference purposes only. Live regional-risk chips on the
-                country table reflect current outbreak-signal activity from the LiveHealth+ surveillance feed.
-                For official statistics, refer to the publishing national health authorities.
-              </p>
-            </div>
-
-            {/* Sponsored */}
-            {ads.length > 0 && (
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: ads.length >= 2 && !isMobile ? "1fr 1fr" : "1fr",
-                }}
-              >
-                {ads.slice(0, 2).map((ad, i) => (
-                  <div
-                    key={ad.id}
-                    style={i === 0 && ads.length >= 2 && !isMobile ? { borderRight: "1px solid var(--ln-line)" } : {}}
-                  >
-                    <AdCard ad={ad} variant="inline" />
-                  </div>
-                ))}
-              </div>
+                WHO COVERAGE: TB · HIV · MALARIA
+              </span>
             )}
-          </main>
+          </div>
+          <div style={{ marginTop: 14 }}>
+            <DiseaseIncidenceChart
+              rows={incidenceRows}
+              countryIso={countryIso}
+              activeYear={year}
+            />
+          </div>
+        </div>
+
+        {/* Country comparison + live regional risk */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: isTabletDown ? "1fr" : "1fr 1fr",
+            borderBottom: "1px solid var(--ln-line)",
+          }}
+        >
+          <CountryComparison
+            disease={disease}
+            year={year}
+            rows={incidenceRows}
+            countries={countries}
+            isMobile={isMobile}
+          />
+          <div
+            style={{
+              borderLeft: isTabletDown ? "none" : "1px solid var(--ln-line)",
+              borderTop: isTabletDown ? "1px solid var(--ln-line)" : "none",
+              padding: isMobile ? "14px 14px" : "18px 22px",
+            }}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+              <div>
+                <span className="ln-eyebrow">Live regional risk · 30d</span>
+                <h3 style={{ fontSize: 16, margin: "4px 0 0", fontWeight: 500 }}>
+                  Outbreak pressure today
+                </h3>
+              </div>
+              <span
+                className="ln-chip"
+                style={{
+                  fontSize: 10,
+                  background: "color-mix(in oklab, var(--ln-brand) 14%, transparent)",
+                  color: "var(--ln-brand)",
+                  border: "1px solid color-mix(in oklab, var(--ln-brand) 40%, transparent)",
+                }}
+              >
+                LIVE · SUPABASE
+              </span>
+            </div>
+            <div style={{ height: 240, position: "relative", overflow: "hidden" }}>
+              <WorldMap
+                width={620}
+                height={240}
+                outbreaks={mapOutbreaks}
+                regionRisk={regionRisk}
+                showChoropleth
+                pulse
+                dotSpacing={11}
+              />
+            </div>
+            <div
+              style={{
+                marginTop: 10,
+                fontSize: 11.5,
+                color: "var(--ln-ink-3)",
+                lineHeight: 1.5,
+              }}
+            >
+              Continent fills come from `outbreak_signals` grouped by region risk level. Pulsing
+              dots are individual high-severity outbreak signals from the live surveillance feed.
+            </div>
+          </div>
+        </div>
+
+        {/* Country table */}
+        <div style={{ borderBottom: "1px solid var(--ln-line)" }}>
+          <div
+            style={{
+              padding: isMobile ? "14px 14px 8px" : "14px 28px 8px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "flex-end",
+              flexWrap: "wrap",
+              gap: 8,
+            }}
+          >
+            <div>
+              <span className="ln-eyebrow">Country detail · {year}</span>
+              <h3 style={{ fontSize: 16, margin: "4px 0 0", fontWeight: 500 }}>
+                {disease?.name} incidence + country indicators
+              </h3>
+            </div>
+          </div>
+          <CountryTable
+            disease={disease}
+            year={year}
+            incidenceRows={incidenceRows}
+            countries={countries}
+            liveRiskByCountry={liveRiskByCountry}
+            isTabletDown={isTabletDown}
+          />
+        </div>
+
+        {/* Methodology + disclaimer */}
+        <div
+          style={{
+            background: "var(--ln-surface)",
+            padding: isMobile ? "18px 14px" : "22px 28px",
+            borderBottom: "1px solid var(--ln-line)",
+          }}
+        >
+          <span className="ln-eyebrow">Data sources + methodology</span>
+          <ul
+            style={{
+              fontSize: 12.5,
+              color: "var(--ln-ink-3)",
+              lineHeight: 1.65,
+              marginTop: 10,
+              paddingLeft: 18,
+              maxWidth: 900,
+            }}
+          >
+            <li>
+              <b style={{ color: "var(--ln-ink-2)" }}>World Bank Open Data</b> — life
+              expectancy, DTP3/measles vaccine coverage, under-5 + maternal mortality, health
+              spending as % of GDP. Free, no signup, CC-BY 4.0.
+            </li>
+            <li>
+              <b style={{ color: "var(--ln-ink-2)" }}>WHO Global Health Observatory</b> —
+              tuberculosis, HIV/AIDS and malaria incidence per 100k. Free, no signup, CC-BY-NC-SA
+              3.0. Disease coverage is currently limited to these three because IHME GBD's
+              full disease catalog requires an agreement (covered separately under "future work").
+            </li>
+            <li>
+              <b style={{ color: "var(--ln-ink-2)" }}>LiveHealth+ surveillance feed</b> — the
+              choropleth fills and pulsing outbreak markers on the world map. Real-time from
+              `outbreak_signals` in Supabase.
+            </li>
+            <li>
+              The metric cards reflect the latest available value for the selected
+              country + year. When a country has no reported value for that year, the card
+              falls back to the most recent prior year.
+            </li>
+          </ul>
         </div>
       </div>
     </div>
   );
 }
 
-/* ─── Reusable Panel ─── */
-function Panel({
-  title,
-  eyebrow,
-  right,
-  children,
-  bordered,
-}: {
-  title: string;
-  eyebrow: string;
-  right?: React.ReactNode;
-  children: React.ReactNode;
-  bordered?: boolean;
-}) {
-  return (
-    <div style={{ padding: "14px 22px 18px", borderLeft: bordered ? "1px solid var(--ln-line)" : "none" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
-        <div>
-          <span className="ln-eyebrow">{eyebrow}</span>
-          <h3 style={{ fontSize: 16, margin: "4px 0 0", fontWeight: 500 }}>{title}</h3>
-        </div>
-        {right}
-      </div>
-      {children}
-    </div>
-  );
-}
-
-function MetricCard({
+// ─────────────────────────────────────────────────────────────────
+// Country metric card — real World Bank indicator value
+// ─────────────────────────────────────────────────────────────────
+function CountryMetricCard({
+  indicator,
   label,
-  value,
   unit,
-  trend,
-  sparkline,
   color,
+  countryIso,
+  year,
   border,
 }: {
+  indicator: string;
   label: string;
-  value: string;
   unit: string;
-  trend: number;
-  sparkline: number[];
   color: string;
-  border?: boolean;
+  countryIso: string;
+  year: number;
+  border: boolean;
 }) {
-  const up = trend > 0;
+  const { rows } = useGbdCountryIndicator(indicator);
+
+  // Filter to the active country (or compute global average across countries).
+  const { value, sparkline, yoy } = useMemo(() => {
+    if (!rows.length) return { value: null, sparkline: [], yoy: null };
+    const byYear = new Map<number, number[]>();
+    for (const r of rows) {
+      if (countryIso !== "global" && r.iso3 !== countryIso) continue;
+      const arr = byYear.get(r.year) || [];
+      arr.push(r.value);
+      byYear.set(r.year, arr);
+    }
+    if (byYear.size === 0) return { value: null, sparkline: [], yoy: null };
+    const years = Array.from(byYear.keys()).sort();
+    const yearAvg = (yr: number) => {
+      const arr = byYear.get(yr) || [];
+      if (!arr.length) return null;
+      return arr.reduce((a, b) => a + b, 0) / arr.length;
+    };
+    // Active value: requested year, or latest available before it.
+    let value: number | null = yearAvg(year);
+    if (value == null) {
+      for (let y = year - 1; y >= years[0]; y--) {
+        value = yearAvg(y);
+        if (value != null) break;
+      }
+    }
+    const spark = years.map((y) => yearAvg(y) ?? 0);
+    const yoy =
+      years.length > 1
+        ? (yearAvg(years[years.length - 1])! - yearAvg(years[years.length - 2])!) /
+          (yearAvg(years[years.length - 2]) || 1)
+        : 0;
+    return { value, sparkline: spark, yoy };
+  }, [rows, countryIso, year]);
+
   return (
-    <div style={{ padding: "18px 22px", borderLeft: border ? "1px solid var(--ln-line)" : "none", position: "relative" }}>
+    <div
+      style={{
+        padding: "18px 20px 16px",
+        borderLeft: border ? "1px solid var(--ln-line)" : "none",
+        position: "relative",
+      }}
+    >
       <div style={{ position: "absolute", top: 0, left: 0, width: 28, height: 2, background: color }} />
       <span className="ln-eyebrow">{label}</span>
       <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 8 }}>
-        <span className="ln-num" style={{ fontSize: 34, fontWeight: 500, letterSpacing: "-0.03em" }}>
-          {value}
+        <span className="ln-num" style={{ fontSize: 26, fontWeight: 500, letterSpacing: "-0.03em" }}>
+          {value == null ? "—" : value.toFixed(value > 100 ? 0 : 1)}
         </span>
-        <span className="ln-num" style={{ fontSize: 12, color: "var(--ln-ink-3)" }}>
+        <span style={{ fontSize: 11, color: "var(--ln-ink-3)", fontFamily: "var(--ln-font-mono)" }}>
           {unit}
         </span>
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 10 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-end",
+          marginTop: 8,
+          gap: 6,
+        }}
+      >
         <span
           style={{
             fontFamily: "var(--ln-font-mono)",
-            fontSize: 11,
-            color: up ? "var(--ln-crit)" : trend < 0 ? "var(--ln-brand)" : "var(--ln-ink-3)",
+            fontSize: 10,
+            color: yoy == null
+              ? "var(--ln-ink-4)"
+              : yoy > 0
+              ? "var(--ln-brand)"
+              : yoy < 0
+              ? "var(--ln-crit)"
+              : "var(--ln-ink-3)",
           }}
         >
-          {trend === 0 ? "◆" : up ? "▲" : "▼"} {trend > 0 ? "+" : ""}
-          {trend}% <span style={{ color: "var(--ln-ink-4)" }}>YoY</span>
+          {yoy == null ? "—" : yoy > 0 ? "▲" : yoy < 0 ? "▼" : "◆"} {yoy == null ? "" : (yoy * 100).toFixed(1) + "%"}
         </span>
-        <Sparkline data={sparkline} color={color} width={76} height={24} />
+        {sparkline.length > 1 && (
+          <Sparkline data={sparkline} color={color} width={56} height={18} />
+        )}
       </div>
     </div>
   );
 }
 
-function TrendChart({ seriesA, seriesB }: { seriesA: number[]; seriesB: number[] }) {
-  const W = 540;
+// ─────────────────────────────────────────────────────────────────
+// Disease incidence time-series chart (WHO data)
+// ─────────────────────────────────────────────────────────────────
+function DiseaseIncidenceChart({
+  rows,
+  countryIso,
+  activeYear,
+}: {
+  rows: { iso3: string; year: number; rate: number }[];
+  countryIso: string;
+  activeYear: number;
+}) {
+  const points = useMemo(() => {
+    const byYear = new Map<number, number[]>();
+    for (const r of rows) {
+      if (countryIso !== "global" && r.iso3 !== countryIso) continue;
+      const arr = byYear.get(r.year) || [];
+      arr.push(r.rate);
+      byYear.set(r.year, arr);
+    }
+    return Array.from(byYear.entries())
+      .sort(([a], [b]) => a - b)
+      .map(([year, arr]) => ({
+        year,
+        value: arr.reduce((a, b) => a + b, 0) / arr.length,
+      }));
+  }, [rows, countryIso]);
+
+  if (!points.length) {
+    return (
+      <div
+        style={{
+          height: 220,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "var(--ln-ink-3)",
+          fontSize: 13,
+          padding: "0 16px",
+          textAlign: "center",
+        }}
+      >
+        WHO doesn't publish open per-country incidence for this disease.
+        Try Tuberculosis, HIV/AIDS, or Malaria — those have full WHO GHO coverage.
+      </div>
+    );
+  }
+
+  const W = 760;
   const H = 220;
-  const padL = 36;
+  const padL = 44;
   const padB = 26;
-  const maxA = Math.max(...seriesA);
-  const maxB = Math.max(...seriesB);
-  const xAt = (i: number) => padL + (i / (seriesA.length - 1)) * (W - padL - 12);
-  const yA = (v: number) => 8 + (H - padB - 8) - (v / maxA) * (H - padB - 16);
-  const yB = (v: number) => 8 + (H - padB - 8) - (v / maxB) * (H - padB - 16);
-  const pathB = seriesB.map((v, i) => `${i ? "L" : "M"}${xAt(i)} ${yB(v)}`).join(" ");
-  const pathA = seriesA.map((v, i) => `${i ? "L" : "M"}${xAt(i)} ${yA(v)}`).join(" ");
+  const max = Math.max(...points.map((p) => p.value));
+  const xAt = (i: number) =>
+    padL + (i / Math.max(1, points.length - 1)) * (W - padL - 12);
+  const yAt = (v: number) =>
+    8 + (H - padB - 8) - (v / max) * (H - padB - 16);
+
+  const path = points
+    .map((p, i) => `${i ? "L" : "M"}${xAt(i).toFixed(1)} ${yAt(p.value).toFixed(1)}`)
+    .join(" ");
+
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: "block" }}>
-      {[0, 0.5, 1].map((p) => (
+      {[0, 0.25, 0.5, 0.75, 1].map((p) => (
         <g key={p}>
           <line
             x1={padL}
@@ -635,418 +598,197 @@ function TrendChart({ seriesA, seriesB }: { seriesA: number[]; seriesB: number[]
             fill="var(--ln-ink-4)"
             fontFamily="var(--ln-font-mono)"
           >
-            {Math.round(maxA * p)}
+            {Math.round(max * p)}
           </text>
         </g>
       ))}
-      {GHI_YEARS.map((y, i) => (
+      {points.map((p, i) => (
         <text
-          key={y}
+          key={p.year}
           x={xAt(i)}
           y={H - 6}
           fontSize="10"
           textAnchor="middle"
-          fill="var(--ln-ink-4)"
+          fill={p.year === activeYear ? "var(--ln-ink)" : "var(--ln-ink-4)"}
           fontFamily="var(--ln-font-mono)"
+          fontWeight={p.year === activeYear ? 600 : 400}
         >
-          {y}
+          {p.year}
         </text>
       ))}
       <path
-        d={`${pathB} L${xAt(seriesB.length - 1)} ${H - padB} L${padL} ${H - padB} Z`}
-        fill="var(--ln-warn)"
+        d={`${path} L${xAt(points.length - 1)} ${H - padB} L${padL} ${H - padB} Z`}
+        fill={ACCENT}
         opacity="0.12"
       />
-      <path d={pathB} fill="none" stroke="var(--ln-warn)" strokeWidth="1.5" strokeLinecap="round" />
-      <path d={pathA} fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round" />
-      {seriesA.map((v, i) => (
-        <circle key={i} cx={xAt(i)} cy={yA(v)} r="3" fill={ACCENT} />
-      ))}
-      <g transform={`translate(${W - 180} 10)`}>
-        <rect x="0" y="0" width="170" height="36" fill="var(--ln-overlay-bg)" stroke="var(--ln-line-2)" />
-        <line x1="8" y1="12" x2="20" y2="12" stroke={ACCENT} strokeWidth="2" />
-        <text x="24" y="15" fontSize="10" fill="var(--ln-ink-2)" fontFamily="var(--ln-font-mono)">
-          Prevalence (per 100k)
-        </text>
-        <rect x="8" y="22" width="12" height="3" fill="var(--ln-warn)" opacity="0.5" />
-        <text x="24" y="28" fontSize="10" fill="var(--ln-ink-2)" fontFamily="var(--ln-font-mono)">
-          DALYs (×10)
-        </text>
-      </g>
-    </svg>
-  );
-}
-
-function CountryBars({ disease }: { disease: GhiDisease }) {
-  const rows = GHI_COUNTRIES.slice()
-    .sort((a, b) => b.factor - a.factor)
-    .slice(0, 8)
-    .map((c) => ({ code: c.code, name: c.name, dalys: +(disease.dalys * c.factor).toFixed(1) }));
-  const max = Math.max(...rows.map((r) => r.dalys));
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      {rows.map((r) => (
-        <div key={r.code} style={{ display: "grid", gridTemplateColumns: "120px 1fr 50px", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 12, color: "var(--ln-ink-2)" }}>{r.name}</span>
-          <div style={{ height: 12, background: "rgba(255,255,255,0.04)", position: "relative" }}>
-            <div style={{ position: "absolute", inset: 0, width: `${(r.dalys / max) * 100}%`, background: "var(--ln-brand)", opacity: 0.75 }} />
-          </div>
-          <span className="ln-num" style={{ fontSize: 12, textAlign: "right" }}>
-            {r.dalys}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function AgeHistogram() {
-  const bins = ["0-4", "5-14", "15-24", "25-34", "35-44", "45-54", "55-64", "65-74", "75+"];
-  const vals = [42, 28, 52, 88, 128, 184, 234, 268, 312];
-  const max = Math.max(...vals);
-  return (
-    <div>
-      <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height: 140, padding: "0 0 4px" }}>
-        {vals.map((v, i) => (
-          <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
-            <span className="ln-num" style={{ fontSize: 9, color: "var(--ln-ink-3)" }}>
-              {v}
-            </span>
-            <div style={{ width: "100%", height: `${(v / max) * 100}%`, background: ACCENT, opacity: 0.7, minHeight: 2 }} />
-          </div>
-        ))}
-      </div>
-      <div style={{ display: "flex", gap: 4 }}>
-        {bins.map((b) => (
-          <span
-            key={b}
-            style={{ flex: 1, textAlign: "center", fontFamily: "var(--ln-font-mono)", fontSize: 9, color: "var(--ln-ink-4)" }}
-          >
-            {b}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function BubbleChart() {
-  const items = GHI_DISEASES.slice(0, 10).map((d) => ({
-    name: d.name.split(" ")[0],
-    prev: d.prevalence,
-    mort: d.mortality * 100,
-    dalys: d.dalys,
-    color: d.cat === "ncd" ? ACCENT : d.cat === "communicable" ? "#ff8b6b" : d.cat === "injuries" ? "#ffb547" : "#b07cff",
-  }));
-  const maxP = Math.max(...items.map((i) => i.prev));
-  const maxM = Math.max(...items.map((i) => i.mort));
-  const W = 320;
-  const H = 200;
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: "block" }}>
-      <line x1="30" y1={H - 22} x2={W} y2={H - 22} stroke="var(--ln-line-2)" />
-      <line x1="30" y1="0" x2="30" y2={H - 22} stroke="var(--ln-line-2)" />
-      <text x="30" y={H - 6} fontSize="9" fill="var(--ln-ink-4)" fontFamily="var(--ln-font-mono)">
-        → PREVALENCE
-      </text>
-      <text x="36" y="10" fontSize="9" fill="var(--ln-ink-4)" fontFamily="var(--ln-font-mono)">
-        ↑ MORTALITY
-      </text>
-      {items.map((i) => {
-        const x = 30 + (i.prev / maxP) * (W - 40);
-        const y = H - 22 - (i.mort / maxM) * (H - 32);
-        const r = 4 + (i.dalys / 200) * 14;
-        return (
-          <g key={i.name}>
-            <circle cx={x} cy={y} r={r} fill={i.color} opacity="0.45" />
-            <circle cx={x} cy={y} r="3" fill={i.color} />
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-function RadarChart({ disease }: { disease: GhiDisease }) {
-  const factors = disease.riskFactors.slice(0, 5).concat(Array(5).fill("—")).slice(0, 5);
-  const values = factors.map((_, i) => 0.4 + Math.abs(Math.sin(i * 1.7 + disease.name.length)) * 0.55);
-  const cx = 130;
-  const cy = 110;
-  const r = 80;
-  const points = values.map((v, i) => {
-    const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
-    return [cx + Math.cos(a) * r * v, cy + Math.sin(a) * r * v];
-  });
-  const polygon = points.map((p) => `${p[0]},${p[1]}`).join(" ");
-  return (
-    <svg viewBox="0 0 260 220" width="100%" style={{ display: "block" }}>
-      {[0.25, 0.5, 0.75, 1].map((p) => (
-        <polygon
-          key={p}
-          points={Array.from({ length: 5 }, (_, i) => {
-            const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
-            return `${cx + Math.cos(a) * r * p},${cy + Math.sin(a) * r * p}`;
-          }).join(" ")}
-          fill="none"
-          stroke="var(--ln-line)"
-          strokeDasharray="2 3"
+      <path
+        d={path}
+        fill="none"
+        stroke={ACCENT}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {points.map((p, i) => (
+        <circle
+          key={p.year}
+          cx={xAt(i)}
+          cy={yAt(p.value)}
+          r={p.year === activeYear ? 4 : 2.5}
+          fill={ACCENT}
         />
       ))}
-      {factors.map((f, i) => {
-        const a = (i / 5) * Math.PI * 2 - Math.PI / 2;
-        const lx = cx + Math.cos(a) * (r + 28);
-        const ly = cy + Math.sin(a) * (r + 14);
-        return (
-          <g key={i}>
-            <line x1={cx} y1={cy} x2={cx + Math.cos(a) * r} y2={cy + Math.sin(a) * r} stroke="var(--ln-line)" />
-            <text x={lx} y={ly} textAnchor="middle" fontSize="9" fill="var(--ln-ink-3)" fontFamily="var(--ln-font-mono)">
-              {f}
-            </text>
-          </g>
-        );
-      })}
-      <polygon points={polygon} fill={ACCENT} opacity="0.2" />
-      <polygon points={polygon} fill="none" stroke={ACCENT} strokeWidth="1.5" />
-      {points.map((p, i) => (
-        <circle key={i} cx={p[0]} cy={p[1]} r="3" fill={ACCENT} />
-      ))}
     </svg>
   );
 }
 
-function TopConditionsBars({ onPick }: { onPick: (id: string) => void }) {
-  const items = GHI_DISEASES.slice()
-    .sort((a, b) => b.dalys - a.dalys)
-    .slice(0, 10);
-  const max = Math.max(...items.map((d) => d.dalys));
+// ─────────────────────────────────────────────────────────────────
+// Country comparison — top countries by incidence (WHO data)
+// ─────────────────────────────────────────────────────────────────
+function CountryComparison({
+  disease,
+  year,
+  rows,
+  countries,
+  isMobile,
+}: {
+  disease: GbdCause | null;
+  year: number;
+  rows: { iso3: string; year: number; rate: number }[];
+  countries: { iso3: string; name: string }[];
+  isMobile: boolean;
+}) {
+  const top = useMemo(() => {
+    const byCountry = new Map<string, number>();
+    // Pick the row for the active year, fall back to the latest prior year.
+    const rowsByYear = new Map<number, { iso3: string; rate: number }[]>();
+    for (const r of rows) {
+      const arr = rowsByYear.get(r.year) || [];
+      arr.push({ iso3: r.iso3, rate: r.rate });
+      rowsByYear.set(r.year, arr);
+    }
+    const years = Array.from(rowsByYear.keys()).sort((a, b) => b - a);
+    const pickRows = rowsByYear.get(year) || (years.find((y) => y < year) != null ? rowsByYear.get(years.find((y) => y < year)!) || [] : []);
+    for (const r of pickRows) byCountry.set(r.iso3, r.rate);
+    return Array.from(byCountry.entries())
+      .map(([iso3, rate]) => ({
+        iso3,
+        rate,
+        name: countries.find((c) => c.iso3 === iso3)?.name ?? iso3,
+      }))
+      .sort((a, b) => b.rate - a.rate)
+      .slice(0, 10);
+  }, [rows, year, countries]);
+  const max = Math.max(1, ...top.map((t) => t.rate));
+
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      {items.map((d, i) => (
-        <button
-          key={d.id}
-          onClick={() => onPick(d.id)}
-          style={{
-            display: "grid",
-            gridTemplateColumns: "24px 1fr 40px",
-            alignItems: "center",
-            gap: 10,
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "inherit",
-            textAlign: "left",
-            padding: "5px 0",
-          }}
-        >
-          <span className="ln-num" style={{ fontSize: 11, color: "var(--ln-ink-4)" }}>
-            {String(i + 1).padStart(2, "0")}
-          </span>
-          <div style={{ position: "relative", height: 18, background: "rgba(255,255,255,0.04)" }}>
+    <div style={{ padding: isMobile ? "14px 14px 18px" : "18px 28px 22px" }}>
+      <span className="ln-eyebrow">Country comparison · {disease?.name ?? "—"}</span>
+      <h3 style={{ fontSize: 16, margin: "4px 0 14px", fontWeight: 500 }}>
+        Top 10 incidence (per 100k)
+      </h3>
+      {top.length === 0 ? (
+        <div style={{ padding: 20, fontSize: 12, color: "var(--ln-ink-3)" }}>
+          No country comparison available for this disease.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {top.map((row) => (
             <div
+              key={row.iso3}
               style={{
-                position: "absolute",
-                inset: 0,
-                width: `${(d.dalys / max) * 100}%`,
-                background:
-                  d.cat === "ncd"
-                    ? "var(--ln-info)"
-                    : d.cat === "communicable"
-                    ? "#ff8b6b"
-                    : d.cat === "injuries"
-                    ? "var(--ln-warn)"
-                    : "#b07cff",
-                opacity: 0.7,
-              }}
-            />
-            <span
-              style={{
-                position: "absolute",
-                left: 8,
-                top: "50%",
-                transform: "translateY(-50%)",
-                fontSize: 11.5,
-                color: "var(--ln-ink)",
-                whiteSpace: "nowrap",
+                display: "grid",
+                gridTemplateColumns: "140px 1fr 60px",
+                alignItems: "center",
+                gap: 10,
               }}
             >
-              {d.name}
-            </span>
-          </div>
-          <span className="ln-num" style={{ fontSize: 12, textAlign: "right" }}>
-            {d.dalys}
-          </span>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function CategoryStacked() {
-  const regions = ["Africa", "S. Asia", "SE Asia", "M. East", "S. Am.", "N. Am.", "Europe", "E. Asia"];
-  const rows = regions.map((r, i) => {
-    const com = [56, 41, 28, 24, 18, 9, 7, 12][i];
-    const ncd = [28, 38, 47, 52, 60, 71, 74, 64][i];
-    const inj = [10, 14, 17, 16, 14, 12, 10, 16][i];
-    const men = 100 - com - ncd - inj;
-    return { r, com, ncd, inj, men };
-  });
-  return (
-    <div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {rows.map((row) => (
-          <div key={row.r} style={{ display: "grid", gridTemplateColumns: "80px 1fr", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 11.5, color: "var(--ln-ink-2)" }}>{row.r}</span>
-            <div style={{ display: "flex", height: 14 }}>
-              <span style={{ width: `${row.com}%`, background: "#ff8b6b" }} />
-              <span style={{ width: `${row.ncd}%`, background: "var(--ln-info)" }} />
-              <span style={{ width: `${row.inj}%`, background: "var(--ln-warn)" }} />
-              <span style={{ width: `${row.men}%`, background: "#b07cff" }} />
+              <span
+                style={{
+                  fontSize: 12,
+                  color: "var(--ln-ink-2)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+                title={row.name}
+              >
+                {row.name}
+              </span>
+              <div style={{ height: 12, background: "rgba(255,255,255,0.04)", position: "relative" }}>
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    width: `${(row.rate / max) * 100}%`,
+                    background: "var(--ln-warn)",
+                    opacity: 0.75,
+                  }}
+                />
+              </div>
+              <span className="ln-num" style={{ fontSize: 12, textAlign: "right" }}>
+                {row.rate.toFixed(1)}
+              </span>
             </div>
-          </div>
-        ))}
-      </div>
-      <div style={{ display: "flex", gap: 14, marginTop: 12, flexWrap: "wrap" }}>
-        {[
-          { l: "Communicable", c: "#ff8b6b" },
-          { l: "NCD", c: "var(--ln-info)" },
-          { l: "Injuries", c: "var(--ln-warn)" },
-          { l: "Mental", c: "#b07cff" },
-        ].map((x) => (
-          <span key={x.l} style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--ln-ink-2)" }}>
-            <span style={{ width: 10, height: 10, background: x.c, borderRadius: 1 }} />
-            {x.l}
-          </span>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function GenderByCondition() {
-  const rows = GHI_DISEASES.slice(0, 6).map((d, i) => {
-    const m = 0.4 + ((i * 13) % 35) / 100;
-    return { name: d.name.split(" ")[0], m: Math.round(m * 100), f: Math.round((1 - m) * 100) };
-  });
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      {rows.map((r) => (
-        <div key={r.name}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--ln-ink-2)", marginBottom: 3 }}>
-            <span>{r.name}</span>
-            <span style={{ fontFamily: "var(--ln-font-mono)", color: "var(--ln-ink-3)" }}>
-              {r.m}% / {r.f}%
-            </span>
-          </div>
-          <div style={{ display: "flex", height: 10 }}>
-            <span style={{ width: `${r.m}%`, background: "var(--ln-info)" }} />
-            <span style={{ width: `${r.f}%`, background: "#ff8b6b" }} />
-          </div>
-        </div>
-      ))}
-      <div style={{ display: "flex", gap: 14, marginTop: 4 }}>
-        <span style={{ fontSize: 11, color: "var(--ln-ink-2)", display: "inline-flex", gap: 6, alignItems: "center" }}>
-          <span style={{ width: 10, height: 10, background: "var(--ln-info)" }} />
-          Male
-        </span>
-        <span style={{ fontSize: 11, color: "var(--ln-ink-2)", display: "inline-flex", gap: 6, alignItems: "center" }}>
-          <span style={{ width: 10, height: 10, background: "#ff8b6b" }} />
-          Female
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function YldsYlls() {
-  const rows = GHI_DISEASES.slice(0, 6).map((d) => ({
-    name: d.name.split(" ")[0],
-    ylds: d.dalys * 0.32,
-    ylls: d.dalys * 0.68,
-  }));
-  const max = Math.max(...rows.map((r) => r.ylds + r.ylls));
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      {rows.map((r) => (
-        <div key={r.name}>
-          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, marginBottom: 3 }}>
-            <span style={{ color: "var(--ln-ink-2)" }}>{r.name}</span>
-            <span className="ln-num" style={{ color: "var(--ln-ink-3)" }}>
-              {(r.ylds + r.ylls).toFixed(0)}M
-            </span>
-          </div>
-          <div style={{ display: "flex", height: 12, background: "rgba(255,255,255,0.04)" }}>
-            <span style={{ width: `${(r.ylds / max) * 100}%`, background: "var(--ln-warn)" }} />
-            <span style={{ width: `${(r.ylls / max) * 100}%`, background: "var(--ln-crit)" }} />
-          </div>
-        </div>
-      ))}
-      <div style={{ display: "flex", gap: 14, marginTop: 4, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 11, color: "var(--ln-ink-2)", display: "inline-flex", gap: 6, alignItems: "center" }}>
-          <span style={{ width: 10, height: 10, background: "var(--ln-warn)" }} />
-          YLDs · disability
-        </span>
-        <span style={{ fontSize: 11, color: "var(--ln-ink-2)", display: "inline-flex", gap: 6, alignItems: "center" }}>
-          <span style={{ width: 10, height: 10, background: "var(--ln-crit)" }} />
-          YLLs · life lost
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function GenderSplit({ disease }: { disease: GhiDisease }) {
-  const m = Math.round(45 + ((disease.name.length * 2.7) % 18));
-  const f = 100 - m;
-  return (
-    <div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 14 }}>
-        <div>
-          <span className="ln-eyebrow">Male</span>
-          <div className="ln-num" style={{ fontSize: 36, color: "var(--ln-info)", lineHeight: 1, marginTop: 4 }}>
-            {m}%
-          </div>
-        </div>
-        <div>
-          <span className="ln-eyebrow">Female</span>
-          <div className="ln-num" style={{ fontSize: 36, color: "#ff8b6b", lineHeight: 1, marginTop: 4 }}>
-            {f}%
-          </div>
-        </div>
-      </div>
-      <svg viewBox="0 0 240 100" width="100%">
-        <rect x="0" y="40" width={2.4 * m} height="20" fill="var(--ln-info)" />
-        <rect x={2.4 * m} y="40" width={2.4 * f} height="20" fill="#ff8b6b" />
-        {Array.from({ length: 10 }, (_, i) => (i < m / 10 ? "m" : "f")).map((g, i) => (
-          <g key={i} transform={`translate(${i * 24 + 4} 70)`}>
-            <circle cx="10" cy="6" r="4" fill={g === "m" ? "var(--ln-info)" : "#ff8b6b"} />
-            <rect x="6" y="11" width="8" height="14" fill={g === "m" ? "var(--ln-info)" : "#ff8b6b"} opacity="0.7" />
-          </g>
-        ))}
-      </svg>
-    </div>
-  );
-}
-
+// ─────────────────────────────────────────────────────────────────
+// Country table — incidence + live risk chip
+// ─────────────────────────────────────────────────────────────────
 function CountryTable({
   disease,
+  year,
+  incidenceRows,
+  countries,
   liveRiskByCountry,
   isTabletDown,
 }: {
-  disease: GhiDisease;
+  disease: GbdCause | null;
+  year: number;
+  incidenceRows: { iso3: string; year: number; rate: number }[];
+  countries: { iso3: string; name: string; who_region: string | null; population: number | null }[];
   liveRiskByCountry: Map<string, "low" | "medium" | "high" | "critical">;
   isTabletDown: boolean;
 }) {
-  const rows = GHI_COUNTRIES.map((c) => ({
-    ...c,
-    prevalence: +(disease.prevalence * c.factor).toFixed(1),
-    incidence: +(disease.incidence * c.factor).toFixed(1),
-    mortality: +(disease.mortality * c.factor * 100).toFixed(2),
-    dalys: +(disease.dalys * c.factor).toFixed(1),
-  })).sort((a, b) => b.dalys - a.dalys);
-  const cols = "50px 1.4fr 0.8fr 80px 90px 90px 90px 90px";
+  const rows = useMemo(() => {
+    // Map: iso3 → most recent incidence at or before active year.
+    const latestByIso = new Map<string, { year: number; rate: number }>();
+    for (const r of incidenceRows) {
+      if (r.year > year) continue;
+      const prev = latestByIso.get(r.iso3);
+      if (!prev || r.year > prev.year) latestByIso.set(r.iso3, r);
+    }
+    return countries
+      .map((c) => ({
+        ...c,
+        incidence: latestByIso.get(c.iso3)?.rate ?? null,
+        incidenceYear: latestByIso.get(c.iso3)?.year ?? null,
+      }))
+      .filter((c) => c.incidence != null)
+      .sort((a, b) => (b.incidence! - a.incidence!))
+      .slice(0, 25);
+  }, [incidenceRows, year, countries]);
+
+  if (!disease || rows.length === 0) {
+    return (
+      <div style={{ padding: 20, fontSize: 12, color: "var(--ln-ink-3)" }}>
+        No country-level WHO incidence series for this disease yet.
+      </div>
+    );
+  }
+
+  const cols = isTabletDown
+    ? "50px 1fr 70px 70px"
+    : "50px 1.4fr 1fr 90px 90px 90px";
+
   return (
     <div style={{ overflowX: "auto" }}>
-      <div style={{ minWidth: isTabletDown ? 720 : "auto" }}>
+      <div style={{ minWidth: isTabletDown ? 540 : "auto" }}>
         <div
           style={{
             display: "grid",
@@ -1063,18 +805,16 @@ function CountryTable({
         >
           <span>RANK</span>
           <span>COUNTRY</span>
-          <span>REGION</span>
-          <span style={{ textAlign: "right" }}>POP (M)</span>
-          <span style={{ textAlign: "right" }}>PREV</span>
+          {!isTabletDown && <span>REGION</span>}
+          {!isTabletDown && <span style={{ textAlign: "right" }}>POP (M)</span>}
           <span style={{ textAlign: "right" }}>INC</span>
-          <span style={{ textAlign: "right" }}>MORT %</span>
-          <span style={{ textAlign: "right" }}>DALYs</span>
+          <span style={{ textAlign: "right" }}>YEAR</span>
         </div>
         {rows.map((r, i) => {
           const liveRisk = liveRiskByCountry.get(r.name);
           return (
             <div
-              key={r.code}
+              key={r.iso3}
               style={{
                 display: "grid",
                 gridTemplateColumns: cols,
@@ -1086,7 +826,17 @@ function CountryTable({
               <span className="ln-num" style={{ fontSize: 11, color: "var(--ln-ink-4)" }}>
                 {String(i + 1).padStart(2, "0")}
               </span>
-              <span style={{ fontSize: 12.5, display: "inline-flex", alignItems: "center", gap: 8 }}>
+              <span
+                style={{
+                  fontSize: 12.5,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
                 {r.name}
                 {liveRisk && (
                   <span
@@ -1094,29 +844,27 @@ function CountryTable({
                       liveRisk === "critical" ? "is-crit" : liveRisk === "high" ? "is-warn" : "is-info"
                     }`}
                     style={{ fontSize: 9 }}
-                    title="Current live outbreak risk"
+                    title="Live outbreak risk from surveillance feed"
                   >
                     {liveRisk.toUpperCase()}
                   </span>
                 )}
               </span>
-              <span style={{ fontFamily: "var(--ln-font-mono)", fontSize: 11, color: "var(--ln-ink-3)" }}>
-                {r.region.toUpperCase()}
-              </span>
-              <span className="ln-num" style={{ fontSize: 12, textAlign: "right", color: "var(--ln-ink-3)" }}>
-                {r.pop}
-              </span>
-              <span className="ln-num" style={{ fontSize: 12, textAlign: "right" }}>
-                {r.prevalence}
-              </span>
-              <span className="ln-num" style={{ fontSize: 12, textAlign: "right" }}>
-                {r.incidence}
-              </span>
-              <span className="ln-num" style={{ fontSize: 12, textAlign: "right", color: "var(--ln-crit)" }}>
-                {r.mortality}%
-              </span>
+              {!isTabletDown && (
+                <span style={{ fontFamily: "var(--ln-font-mono)", fontSize: 11, color: "var(--ln-ink-3)" }}>
+                  {r.who_region ?? "—"}
+                </span>
+              )}
+              {!isTabletDown && (
+                <span className="ln-num" style={{ fontSize: 12, textAlign: "right", color: "var(--ln-ink-3)" }}>
+                  {r.population != null ? (r.population / 1_000_000).toFixed(1) : "—"}
+                </span>
+              )}
               <span className="ln-num" style={{ fontSize: 12, textAlign: "right", color: "var(--ln-warn)" }}>
-                {r.dalys}
+                {r.incidence!.toFixed(1)}
+              </span>
+              <span className="ln-num" style={{ fontSize: 11, textAlign: "right", color: "var(--ln-ink-4)" }}>
+                {r.incidenceYear}
               </span>
             </div>
           );
