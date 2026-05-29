@@ -1,11 +1,13 @@
 /**
- * Client-side utility to translate article text to English
- * Calls the Supabase Edge Function for translation
+ * Client-side utility to translate article text via the Supabase Edge Function.
+ * Target language is the active app language so users see articles in their
+ * chosen language instead of always-English.
  */
 
 export interface TranslateResponse {
   translatedText: string;
   originalLanguage: string;
+  targetLanguage?: string;
 }
 
 export interface TranslateError {
@@ -15,7 +17,8 @@ export interface TranslateError {
 
 export async function translateArticle(
   text: string,
-  language?: string // Optional, not passed to let DeepSeek auto-detect
+  sourceLanguage?: string,
+  targetLanguage: string = "en"
 ): Promise<TranslateResponse> {
   const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL;
   const supabaseKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
@@ -28,7 +31,6 @@ export async function translateArticle(
     throw new Error("Text is required for translation");
   }
 
-  // Don't pass language - let DeepSeek auto-detect
   const response = await fetch(`${supabaseUrl}/functions/v1/translate-article`, {
     method: "POST",
     headers: {
@@ -36,7 +38,11 @@ export async function translateArticle(
       Authorization: `Bearer ${supabaseKey}`,
       apikey: supabaseKey,
     },
-    body: JSON.stringify({ text }), // No language parameter
+    body: JSON.stringify({
+      text,
+      language: sourceLanguage,
+      targetLanguage,
+    }),
   });
 
   if (!response.ok) {

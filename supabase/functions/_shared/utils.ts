@@ -75,55 +75,83 @@ function getOpenAIClient(): OpenAI {
   return openaiInstance;
 }
 
+// ISO 639-1 → full language name. Used to build a DeepSeek prompt that
+// instructs the model to translate INTO the target language.
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: "English",
+  fr: "French",
+  es: "Spanish",
+  ar: "Arabic",
+  de: "German",
+  pt: "Portuguese",
+  it: "Italian",
+  ru: "Russian",
+  ja: "Japanese",
+  zh: "Chinese (Simplified)",
+};
+
+function nameForCode(code: string | undefined | null): string {
+  if (!code) return "English";
+  const lower = code.toLowerCase().split(/[-_]/)[0];
+  return LANGUAGE_NAMES[lower] || "English";
+}
+
 /**
- * Translates text to English using DeepSeek AI
- * Strips HTML tags before translating to get clean text
+ * Translates text to the requested target language using DeepSeek.
+ * Strips HTML tags before translating to get clean text.
  * @param text - The text to translate (may contain HTML)
- * @returns The translated English text (clean, no HTML)
+ * @param targetLanguage - ISO 639-1 code (en, fr, es, ar, de, pt, it, ru, ja, zh). Defaults to English.
  */
-export async function translateToEnglish(text: string): Promise<string> {
+export async function translateText(
+  text: string,
+  targetLanguage: string = "en"
+): Promise<string> {
   if (!text || text.trim() === "") {
     return text;
   }
 
   try {
     const openai = getOpenAIClient();
-    
-    // Strip HTML tags and extract clean text before translating
     const cleanText = stripHtmlTags(text);
-    
+
     if (!cleanText || cleanText.trim() === "") {
       console.warn("No text content found after stripping HTML");
-      return text; // Return original if no clean text found
+      return text;
     }
-    
-    // Limit text length to avoid token limits (already trimmed to 2000 chars before calling, but add safety limit)
-    const textToTranslate = cleanText.length > 2000 ? cleanText.substring(0, 2000) + "..." : cleanText;
+
+    const textToTranslate =
+      cleanText.length > 2000 ? cleanText.substring(0, 2000) + "..." : cleanText;
+    const targetName = nameForCode(targetLanguage);
 
     const completion = await openai.chat.completions.create({
       messages: [
         {
           role: "system",
-          content: "You are a professional translator. Translate the following text into clear, accurate English. Preserve the original meaning and context. Do not add commentary or explanations, just provide the translation. Return only the translated text, no HTML or formatting.",
+          content: `You are a professional translator. Translate the user's text into clear, accurate ${targetName}. Preserve the original meaning, names, and context. Do not add commentary or explanations. Return only the translated text, no HTML, markdown, or formatting.`,
         },
         {
           role: "user",
-          content: `Translate the following text into English:\n\n${textToTranslate}`,
+          content: `Translate the following text into ${targetName}:\n\n${textToTranslate}`,
         },
       ],
       model: "deepseek-chat",
-      temperature: 0.3, // Lower temperature for more consistent translations
+      temperature: 0.3,
     });
 
     const translatedText = completion.choices[0].message.content || cleanText;
-    // Ensure no HTML in translated text (strip again just in case AI adds formatting)
-    // This ensures we always return clean text
     const finalText = stripHtmlTags(translatedText);
     return finalText.trim();
   } catch (error) {
     console.error("Translation failed:", error);
-    // If translation fails, return clean text (without HTML) instead of original HTML
     return stripHtmlTags(text);
   }
+}
+
+/**
+ * Backwards-compatible English-only wrapper retained for callers that have not
+ * been updated to specify a target language.
+ */
+export async function translateToEnglish(text: string): Promise<string> {
+  return translateText(text, "en");
 }
 

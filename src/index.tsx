@@ -2,32 +2,34 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
-import { HomePageMap } from "./screens/HomePageMap";
-import { Dashboard } from "./screens/Dashboard";
 import { AppLayout } from "./layouts/AppLayout";
-import { MainPageLayout } from "./layouts/MainPageLayout";
 import { FullscreenProvider } from "./contexts/FullscreenContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
 import { SidebarProvider } from "./contexts/SidebarContext";
-import HomePage from "./screens/mainpage/pages/index";
-import Partnership from "./screens/mainpage/pages/Partnership";
-import PrivacyPolicy from "./screens/mainpage/pages/PrivacyPolicy";
 
-// Advertising pages
-import { 
-  PaymentPage, 
-  PaymentSuccess, 
+// New LiveHealth+ redesign
+import { LiveHealthHost } from "./livehealth/LiveHealthHost";
+import { AdminShell } from "./livehealth/AdminShell";
+import { LandingRoute } from "./livehealth/screens/LandingRoute";
+import { MapScreen } from "./livehealth/screens/Map";
+import { AnalyticsDashboardScreen } from "./livehealth/screens/AnalyticsDashboard";
+import { NewsScreen } from "./livehealth/screens/News";
+import { GlobalHealthIndexScreen } from "./livehealth/screens/GlobalHealthIndex";
+import { WeeklyReportScreen } from "./livehealth/screens/WeeklyReport";
+
+// Auxiliary pages kept from the existing app (still needed for payments, donations, admin, etc.)
+import PartnershipScreen from "./livehealth/screens/Partnership";
+import PrivacyPolicyScreen from "./livehealth/screens/PrivacyPolicy";
+import {
+  PaymentPage,
+  PaymentSuccess,
   PaymentCancelled,
   UserAdvertisingDashboard,
-  AdminAdvertisingPanel 
+  AdminAdvertisingPanel,
 } from "./screens/Advertising";
-
-// Donation pages
 import { DonationSuccess } from "./screens/Donate/DonationSuccess";
 import { DonationCancelled } from "./screens/Donate/DonationCancelled";
-
-// Admin pages
 import { AdminDashboard } from "./screens/Admin/AdminDashboard";
 import { AdminAlertReviewPanel } from "./screens/Admin/AdminAlertReviewPanel";
 import { AdminNotificationPanel } from "./screens/Admin/AdminNotificationPanel";
@@ -38,7 +40,6 @@ import { News } from "./screens/News";
 import { PageTracking } from "./components/PageTracking";
 import { initGA4 } from "./lib/analytics";
 
-// Initialize Google Analytics on app load
 initGA4();
 
 createRoot(document.getElementById("app") as HTMLElement).render(
@@ -50,64 +51,81 @@ createRoot(document.getElementById("app") as HTMLElement).render(
           <AuthProvider>
             <SidebarProvider>
               <FullscreenProvider>
-              <Routes>
-              {/* Main landing pages - no AppLayout (header/sidebar) */}
-              <Route path="/" element={<MainPageLayout />}>
-                <Route index element={<HomePage />} />
-                <Route path="partnership" element={<Partnership />} />
-                <Route path="privacy" element={<PrivacyPolicy />} />
-              </Route>
-              
-              {/* App pages - with AppLayout (header/sidebar) */}
-              <Route path="/app" element={<AppLayout />}>
-                <Route path="map" element={<HomePageMap />} />
-                <Route path="news" element={<News />} />
-                <Route path="dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-                <Route path="dashboard/weekly-report" element={<ProtectedRoute><WeeklyReport /></ProtectedRoute>} />
-              </Route>
-              
-              {/* Legacy routes - with AppLayout for backward compatibility */}
-              <Route path="/map" element={<AppLayout />}>
-                <Route index element={<HomePageMap />} />
-              </Route>
-              <Route path="/news" element={<AppLayout />}>
-                <Route index element={<News />} />
-              </Route>
-              <Route path="/dashboard" element={<AppLayout />}>
-                <Route index element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-              </Route>
+                <Routes>
+                  {/*
+                   * Auth model: landing surfaces (landing page, map, partnership,
+                   * privacy) are public so unauth visitors can browse and convert.
+                   * App surfaces (dashboard, news, GHI, admin) are gated — they
+                   * pop the AuthDialog and redirect to /map on cancel. Stripe
+                   * callback URLs stay public so checkout returns always land.
+                   */}
+                  <Route element={<LiveHealthHost />}>
+                    <Route path="/" element={<LandingRoute />} />
+                    <Route path="/map" element={<MapScreen />} />
+                    <Route
+                      path="/dashboard"
+                      element={<ProtectedRoute><AnalyticsDashboardScreen /></ProtectedRoute>}
+                    />
+                    <Route
+                      path="/dashboard/weekly-report"
+                      element={<ProtectedRoute><WeeklyReportScreen /></ProtectedRoute>}
+                    />
+                    <Route path="/news" element={<ProtectedRoute><NewsScreen /></ProtectedRoute>} />
+                    <Route
+                      path="/global-health-index"
+                      element={<ProtectedRoute><GlobalHealthIndexScreen /></ProtectedRoute>}
+                    />
+                  </Route>
 
-              {/* Advertising routes */}
-              <Route path="/advertising" element={<AppLayout />}>
-                <Route path="payment/:submissionId" element={<PaymentPage />} />
-                <Route path="payment/success" element={<PaymentSuccess />} />
-                <Route path="payment/cancelled" element={<PaymentCancelled />} />
-              </Route>
-              
-              {/* Legacy payment routes for backward compatibility */}
-              <Route path="/payment/:submissionId" element={<PaymentPage />} />
-              <Route path="/payment/success" element={<PaymentSuccess />} />
-              <Route path="/payment/cancelled" element={<PaymentCancelled />} />
-              
-              {/* Donation routes */}
-              <Route path="/donate/success" element={<DonationSuccess />} />
-              <Route path="/donate/cancelled" element={<DonationCancelled />} />
-              
-              {/* User advertising dashboard */}
-              <Route path="/dashboard/advertising" element={<AppLayout />}>
-                <Route index element={<ProtectedRoute><UserAdvertisingDashboard /></ProtectedRoute>} />
-              </Route>
-              
-              {/* Admin routes */}
-              <Route path="/admin" element={<AppLayout />}>
-                <Route index element={<AdminDashboard />} />
-                <Route path="advertising" element={<AdminAdvertisingPanel />} />
-                <Route path="alerts" element={<AdminAlertReviewPanel />} />
-                <Route path="feedback" element={<AdminFeedbackPanel />} />
-                <Route path="notifications" element={<AdminNotificationPanel />} />
-              </Route>
-              </Routes>
-            </FullscreenProvider>
+                  {/* Themed Partnership + Privacy pages — public landing-adjacent surfaces */}
+                  <Route path="/partnership" element={<PartnershipScreen />} />
+                  <Route path="/privacy" element={<PrivacyPolicyScreen />} />
+
+                  {/* Legacy /news/legacy retains the old experience for anyone with that URL */}
+                  <Route path="/news/legacy" element={<AppLayout />}>
+                    <Route index element={<ProtectedRoute><News /></ProtectedRoute>} />
+                  </Route>
+
+                  {/* Legacy weekly report kept for direct deep-links / printable view */}
+                  <Route path="/dashboard/weekly-report/legacy" element={<AppLayout />}>
+                    <Route index element={<ProtectedRoute><WeeklyReport /></ProtectedRoute>} />
+                  </Route>
+
+                  {/* Advertising routes — payment callbacks stay public for Stripe returns */}
+                  <Route path="/advertising" element={<AppLayout />}>
+                    <Route
+                      path="payment/:submissionId"
+                      element={<ProtectedRoute><PaymentPage /></ProtectedRoute>}
+                    />
+                    <Route path="payment/success" element={<PaymentSuccess />} />
+                    <Route path="payment/cancelled" element={<PaymentCancelled />} />
+                  </Route>
+                  <Route
+                    path="/payment/:submissionId"
+                    element={<ProtectedRoute><PaymentPage /></ProtectedRoute>}
+                  />
+                  <Route path="/payment/success" element={<PaymentSuccess />} />
+                  <Route path="/payment/cancelled" element={<PaymentCancelled />} />
+
+                  {/* Donation callbacks stay public so Stripe returns always land */}
+                  <Route path="/donate/success" element={<DonationSuccess />} />
+                  <Route path="/donate/cancelled" element={<DonationCancelled />} />
+
+                  {/* User advertising dashboard */}
+                  <Route path="/dashboard/advertising" element={<AppLayout />}>
+                    <Route index element={<ProtectedRoute><UserAdvertisingDashboard /></ProtectedRoute>} />
+                  </Route>
+
+                  {/* Admin routes — themed shell matching LiveHealth+ chrome */}
+                  <Route path="/admin" element={<ProtectedRoute><AdminShell /></ProtectedRoute>}>
+                    <Route index element={<AdminDashboard />} />
+                    <Route path="advertising" element={<AdminAdvertisingPanel />} />
+                    <Route path="alerts" element={<AdminAlertReviewPanel />} />
+                    <Route path="feedback" element={<AdminFeedbackPanel />} />
+                    <Route path="notifications" element={<AdminNotificationPanel />} />
+                  </Route>
+                </Routes>
+              </FullscreenProvider>
             </SidebarProvider>
           </AuthProvider>
         </LanguageProvider>

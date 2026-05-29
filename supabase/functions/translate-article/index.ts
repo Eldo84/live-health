@@ -1,5 +1,5 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { translateToEnglish } from "../_shared/utils.ts";
+import { translateText } from "../_shared/utils.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,7 +13,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { text, language } = await req.json();
+    const { text, language, targetLanguage } = await req.json();
 
     if (!text || typeof text !== "string") {
       return new Response(
@@ -35,14 +35,18 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    console.log(`Translating text (language: ${language || "unknown"}, length: ${text.length})`);
+    const target = (typeof targetLanguage === "string" && targetLanguage.trim()) || "en";
+    console.log(
+      `Translating text (source: ${language || "unknown"}, target: ${target}, length: ${text.length})`
+    );
 
-    const translatedText = await translateToEnglish(text);
+    const translatedText = await translateText(text, target);
 
     return new Response(
       JSON.stringify({
         translatedText,
         originalLanguage: language || "unknown",
+        targetLanguage: target,
       }),
       {
         status: 200,
@@ -52,9 +56,9 @@ Deno.serve(async (req: Request) => {
   } catch (error: any) {
     console.error("Translation error:", error);
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         error: error?.message || "Translation failed",
-        details: error?.toString() 
+        details: error?.toString(),
       }),
       {
         status: 500,

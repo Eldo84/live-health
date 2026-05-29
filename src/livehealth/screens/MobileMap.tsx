@@ -10,6 +10,7 @@ import { useLiveOutbreaks, type LiveOutbreak } from "../data/useLiveOutbreaks";
 import { useLiveAlerts } from "../data/useLiveAlerts";
 import { useLiveSponsored } from "../data/useLiveSponsored";
 import { useUserLocation } from "../../lib/useUserLocation";
+import { useT } from "../lib/useT";
 import { severityColor, timeAgo, haversineKm } from "../lib/utils";
 import { PREDICTIONS } from "../data/predictions";
 import { useMobileSize } from "../lib/useBreakpoint";
@@ -25,7 +26,7 @@ type Tab = "nearby" | "alerts" | "news";
 export function MobileMapScreen() {
   const mobileSize = useMobileSize();
   const isNarrow = mobileSize === "narrow";
-  const [sheetMode, setSheetMode] = useState<SheetMode>("half");
+  const [sheetMode, setSheetMode] = useState<SheetMode>("peek");
   const [tab, setTab] = useState<Tab>("nearby");
   const [chip, setChip] = useState<string>("all");
   const [search, setSearch] = useState("");
@@ -35,6 +36,23 @@ export function MobileMapScreen() {
   const { alerts } = useLiveAlerts(20, "24h");
   const { ads } = useLiveSponsored({ location: "map" });
   const { location: userLocation } = useUserLocation();
+
+  // Translated UI labels.
+  const tAll = useT("All");
+  const tCritical = useT("● Critical");
+  const tSearchPlaceholder = useT("Search countries, diseases, cities…");
+  const tLive = useT("LIVE");
+  const tLoading = useT("LOADING");
+  const tEvents = useT("EVENTS");
+  const tCountries = useT("COUNTRIES");
+  const tNearby = useT("Nearby");
+  const tAlertsTab = useT("Alerts");
+  const tNewsTab = useT("News");
+  const tNear = useT("Near");
+  const tByRecency = useT("By recency");
+  const tSignal = useT("signal");
+  const tSignals = useT("signals");
+  const tAIForecast = useT("AI FORECAST");
 
   // Build chips dynamically — All + Critical + top diseases by count
   const chips = useMemo(() => {
@@ -47,11 +65,11 @@ export function MobileMapScreen() {
       .slice(0, 6)
       .map(([name, count]) => ({ id: name, label: name.split(" ")[0], count }));
     return [
-      { id: "all", label: "All", count: outbreaks.length },
-      { id: "crit", label: "● Critical", count: outbreaks.filter((o) => o.severity >= 4).length },
+      { id: "all", label: tAll, count: outbreaks.length },
+      { id: "crit", label: tCritical, count: outbreaks.filter((o) => o.severity >= 4).length },
       ...top,
     ];
-  }, [outbreaks]);
+  }, [outbreaks, tAll, tCritical]);
 
   const filtered = useMemo(() => {
     return outbreaks
@@ -105,7 +123,7 @@ export function MobileMapScreen() {
       className="ln-app"
       style={{
         width: "100%",
-        height: "100vh",
+        height: "calc(100vh - 60px)",
         background: "var(--ln-bg)",
         color: "var(--ln-ink)",
         overflow: "hidden",
@@ -234,7 +252,7 @@ export function MobileMapScreen() {
           </span>
           <input
             className="ln-input"
-            placeholder="Search countries, diseases, cities…"
+            placeholder={tSearchPlaceholder}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -262,26 +280,31 @@ export function MobileMapScreen() {
               animation: "ln-pulse-soft 1.4s infinite",
             }}
           />
-          <span style={{ color: ACCENT }}>{loading ? "LOADING" : "LIVE"}</span>
+          <span style={{ color: ACCENT }}>{loading ? tLoading : tLive}</span>
           <span style={{ color: "var(--ln-ink-4)" }}>·</span>
           <span>
-            {filtered.length} EVENTS · {new Set(filtered.map((o) => o.country)).size} COUNTRIES
+            {filtered.length} {tEvents} · {new Set(filtered.map((o) => o.country)).size} {tCountries}
           </span>
         </div>
       </header>
 
-      {/* Filter chips */}
+      {/* Filter chips — float just below the header on top of the map */}
       <div
         className="ln-pane"
         style={{
-          flex: "0 0 auto",
+          position: "absolute",
+          left: 0,
+          right: 0,
+          top: 132,
+          zIndex: 595,
           display: "flex",
           gap: 6,
           padding: isNarrow ? "10px 12px" : "10px 14px",
           overflowX: "auto",
           WebkitOverflowScrolling: "touch",
           borderBottom: "1px solid var(--ln-line)",
-          background: "var(--ln-topbar)",
+          background: "color-mix(in oklab, var(--ln-topbar) 90%, transparent)",
+          backdropFilter: "blur(10px)",
         }}
       >
         {chips.map((c) => (
@@ -313,85 +336,65 @@ export function MobileMapScreen() {
         ))}
       </div>
 
-      {/* Map */}
-      <div
-        style={{
-          flex: 1,
-          position: "relative",
-          overflow: "hidden",
-          background: "var(--ln-map-bg)",
-        }}
-      >
-        <LiveMap
-          outbreaks={filtered}
-          selectedId={selected?.id ?? null}
-          pulse
-          cluster
-          onSelect={(o) => setSelected(o)}
-          focusOn={userLocation?.coordinates ? (userLocation.coordinates as [number, number]) : null}
-          focusRadiusKm={3000}
-        />
-
-        {/* AI signal banner — top */}
-        {topPrediction && (
+      {/* AI signal banner — floats over the map, just below the chips */}
+      {topPrediction && (
+        <div
+          style={{
+            position: "absolute",
+            top: 192,
+            left: 12,
+            right: 12,
+            background: "var(--ln-overlay-bg)",
+            backdropFilter: "blur(6px)",
+            border: "1px solid var(--ln-line-2)",
+            padding: "10px 12px",
+            display: "flex",
+            flexDirection: isNarrow ? "column" : "row",
+            gap: isNarrow ? 6 : 10,
+            alignItems: isNarrow ? "flex-start" : "center",
+            zIndex: 500,
+          }}
+        >
           <div
             style={{
-              position: "absolute",
-              top: 12,
-              left: 12,
-              right: 12,
-              background: "var(--ln-overlay-bg)",
-              backdropFilter: "blur(6px)",
-              border: "1px solid var(--ln-line-2)",
-              padding: "10px 12px",
               display: "flex",
-              flexDirection: isNarrow ? "column" : "row",
-              gap: isNarrow ? 6 : 10,
-              alignItems: isNarrow ? "flex-start" : "center",
-              zIndex: 500,
+              alignItems: "center",
+              gap: 8,
+              width: isNarrow ? "100%" : "auto",
+              justifyContent: "space-between",
             }}
           >
+            <Icon.Sparkles style={{ color: ACCENT, flex: "0 0 14px" }} />
+            {isNarrow && <Icon.ArrowR style={{ color: "var(--ln-ink-3)" }} />}
+          </div>
+          <div style={{ flex: 1, minWidth: 0, width: isNarrow ? "100%" : undefined }}>
             <div
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                width: isNarrow ? "100%" : "auto",
-                justifyContent: "space-between",
+                fontFamily: "var(--ln-font-mono)",
+                fontSize: 9,
+                color: "var(--ln-ink-3)",
+                letterSpacing: "0.1em",
               }}
             >
-              <Icon.Sparkles style={{ color: ACCENT, flex: "0 0 14px" }} />
-              {isNarrow && <Icon.ArrowR style={{ color: "var(--ln-ink-3)" }} />}
+              {tAIForecast} · {topPrediction.horizon}
             </div>
-            <div style={{ flex: 1, minWidth: 0, width: isNarrow ? "100%" : undefined }}>
-              <div
-                style={{
-                  fontFamily: "var(--ln-font-mono)",
-                  fontSize: 9,
-                  color: "var(--ln-ink-3)",
-                  letterSpacing: "0.1em",
-                }}
-              >
-                AI FORECAST · {topPrediction.horizon}
-              </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  lineHeight: 1.3,
-                  marginTop: 2,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: isNarrow ? "normal" : "nowrap",
-                  wordBreak: isNarrow ? "break-word" : undefined,
-                }}
-              >
-                {topPrediction.disease} surge · {topPrediction.region}
-              </div>
+            <div
+              style={{
+                fontSize: 12,
+                lineHeight: 1.3,
+                marginTop: 2,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: isNarrow ? "normal" : "nowrap",
+                wordBreak: isNarrow ? "break-word" : undefined,
+              }}
+            >
+              {topPrediction.disease} surge · {topPrediction.region}
             </div>
-            {!isNarrow && <Icon.ArrowR style={{ color: "var(--ln-ink-3)" }} />}
           </div>
-        )}
-      </div>
+          {!isNarrow && <Icon.ArrowR style={{ color: "var(--ln-ink-3)" }} />}
+        </div>
+      )}
 
       {/* Pull-up sheet */}
       <div
@@ -432,9 +435,9 @@ export function MobileMapScreen() {
         <div style={{ display: "flex", padding: "0 14px", borderBottom: "1px solid var(--ln-line)" }}>
           {(
             [
-              { id: "nearby", label: "Nearby", count: nearbySorted.length },
-              { id: "alerts", label: "Alerts", count: alerts.length },
-              { id: "news", label: "News", count: filtered.filter((o) => o.url).length },
+              { id: "nearby", label: tNearby, count: nearbySorted.length },
+              { id: "alerts", label: tAlertsTab, count: alerts.length },
+              { id: "news", label: tNewsTab, count: filtered.filter((o) => o.url).length },
             ] as { id: Tab; label: string; count: number }[]
           ).map((t) => (
             <button
@@ -482,10 +485,10 @@ export function MobileMapScreen() {
             }}
           >
             <span className="ln-eyebrow">
-              {userLocation?.country ? `Near ${userLocation.country}` : "By recency"}
+              {userLocation?.country ? `${tNear} ${userLocation.country}` : tByRecency}
             </span>
             <span style={{ fontSize: 11, color: "var(--ln-ink-3)" }}>
-              {nearbySorted.length} signal{nearbySorted.length === 1 ? "" : "s"}
+              {nearbySorted.length} {nearbySorted.length === 1 ? tSignal : tSignals}
             </span>
           </div>
         )}
@@ -537,48 +540,6 @@ export function MobileMapScreen() {
               ))}
         </div>
 
-        {sheetMode !== "full" && (
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-around",
-              borderTop: "1px solid var(--ln-line)",
-              padding: "8px 0 14px",
-              background: "var(--ln-bg)",
-            }}
-          >
-            {[
-              { to: "/map", icon: <Icon.Map />, label: "Map", active: true },
-              { to: "/dashboard", icon: <Icon.Chart />, label: "Trends" },
-              { to: "/news", icon: <Icon.News />, label: "Feed" },
-              { to: "/dashboard?tab=predictions", icon: <Icon.Bell />, label: "Alerts" },
-              { to: "/", icon: <Icon.Globe />, label: "Home" },
-            ].map((b) => (
-              <Link
-                key={b.label}
-                to={b.to}
-                aria-label={b.label}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 3,
-                  color: b.active ? ACCENT : "var(--ln-ink-3)",
-                  fontSize: 10,
-                  fontFamily: "var(--ln-font-mono)",
-                  letterSpacing: "0.08em",
-                  textDecoration: "none",
-                }}
-              >
-                {b.icon}
-                {!isNarrow && <span>{b.label.toUpperCase()}</span>}
-              </Link>
-            ))}
-          </div>
-        )}
       </div>
 
       {/* Selected outbreak quick-view modal */}
