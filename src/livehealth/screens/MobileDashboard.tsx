@@ -1477,6 +1477,22 @@ function DmTracking({ range }: { range: RangeKey }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = candidates.find((c) => c.id === selectedId) || candidates[0] || null;
 
+  // All translated strings hoisted to the top so hook call count is identical
+  // regardless of whether `selected` is null. (React's rules-of-hooks: same
+  // hook order every render.)
+  const tTrackingEyebrow = useT("Disease tracking · longitudinal");
+  const tThe = useT("The");
+  const tLife = useT("life");
+  const tOfOutbreak = useT("of an outbreak.");
+  const tNoOutbreaks = useT("No outbreaks in range");
+  const tStages = useT("Outbreak stages");
+  const tDetectContain = useT("Detection → containment");
+  const tCumulative = useT("Cumulative cases");
+  const tIndexToToday = useT("From index case to today");
+  const tMetrics = useT("Outbreak metrics");
+  const tKeyIndicators = useT("Key indicators");
+  const tEmpty = useT("No outbreaks in this range yet.");
+
   const fmtDate = (t: number) =>
     new Date(t).toLocaleDateString("en-US", { month: "short", day: "2-digit" });
   const stages = selected
@@ -1573,14 +1589,14 @@ function DmTracking({ range }: { range: RangeKey }) {
   return (
     <>
       <div style={{ padding: "16px 16px 12px", borderBottom: "1px solid var(--ln-line)" }}>
-        <span className="ln-eyebrow">{useT("Disease tracking · longitudinal")}</span>
+        <span className="ln-eyebrow">{tTrackingEyebrow}</span>
         <h2
           className="ln-display"
           style={{ fontSize: 24, margin: "6px 0 12px", letterSpacing: "-0.02em", lineHeight: 1.1 }}
         >
-          {useT("The")}{" "}
-          <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}>{useT("life")}</span>{" "}
-          {useT("of an outbreak.")}
+          {tThe}{" "}
+          <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}>{tLife}</span>{" "}
+          {tOfOutbreak}
         </h2>
         <select
           value={selectedId ?? selected?.id ?? ""}
@@ -1596,7 +1612,7 @@ function DmTracking({ range }: { range: RangeKey }) {
             borderRadius: 6,
           }}
         >
-          {candidates.length === 0 && <option>{useT("No outbreaks in range")}</option>}
+          {candidates.length === 0 && <option>{tNoOutbreaks}</option>}
           {candidates.map((c) => (
             <option key={c.id} value={c.id}>
               {c.disease} · {c.city || c.country}
@@ -1607,10 +1623,7 @@ function DmTracking({ range }: { range: RangeKey }) {
 
       {selected ? (
         <>
-          <DmSectionHead
-            eyebrow={useT("Outbreak stages")}
-            title={useT("Detection → containment")}
-          />
+          <DmSectionHead eyebrow={tStages} title={tDetectContain} />
           <div style={{ padding: "14px 16px 8px" }}>
             {stages.map((s, i) => {
               const col =
@@ -1660,10 +1673,7 @@ function DmTracking({ range }: { range: RangeKey }) {
             })}
           </div>
 
-          <DmSectionHead
-            eyebrow={useT("Cumulative cases")}
-            title={useT("From index case to today")}
-          />
+          <DmSectionHead eyebrow={tCumulative} title={tIndexToToday} />
           <div style={{ padding: "14px 16px 6px" }}>
             <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: "block" }}>
               {[0, 0.5, 1].map((p) => (
@@ -1682,7 +1692,7 @@ function DmTracking({ range }: { range: RangeKey }) {
             </svg>
           </div>
 
-          <DmSectionHead eyebrow={useT("Outbreak metrics")} title={useT("Key indicators")} />
+          <DmSectionHead eyebrow={tMetrics} title={tKeyIndicators} />
           <div
             style={{
               display: "grid",
@@ -1710,7 +1720,7 @@ function DmTracking({ range }: { range: RangeKey }) {
         </>
       ) : (
         <div style={{ padding: 32, textAlign: "center", color: "var(--ln-ink-3)", fontSize: 12.5 }}>
-          {useT("No outbreaks in this range yet.")}
+          {tEmpty}
         </div>
       )}
     </>
