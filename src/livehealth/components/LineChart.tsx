@@ -24,19 +24,20 @@ export function LineChart({
   const H = height - padding.t - padding.b;
   const N = series[0]?.data.length ?? 0;
   if (!N) return null;
-  // Robust Y-axis: an ancient spike used to swamp the visible curves (e.g. one
-  // 500K data point and the rest near 0 → everything looks empty). Cap the
-  // chart strictly at recent peak × 1.4 with a minimum floor; ignore historical
-  // outliers so today's signal is always visible. Display a small annotation
-  // when the historical peak exceeds the rendered range.
-  const allValues = series.flatMap((s) => s.data);
+  // Sanitize: replace null/undefined/NaN in incoming data with 0 so path coords
+  // never become NaN (which makes the entire <path> drop silently in browsers).
+  const cleanSeries = series.map((s) => ({
+    ...s,
+    data: s.data.map((v) => (typeof v === "number" && Number.isFinite(v) ? v : 0)),
+  }));
+  const allValues = cleanSeries.flatMap((s) => s.data);
   const recentSlice = (s: number[]) => s.slice(Math.max(0, s.length - Math.ceil(s.length * 0.3)));
-  const recentPeak = Math.max(0, ...series.flatMap((s) => recentSlice(s.data)));
+  const recentPeak = Math.max(0, ...cleanSeries.flatMap((s) => recentSlice(s.data)));
   const rawMax = Math.max(...allValues, 0);
   // Floor of 5 so we don't end up dividing by ~0 when everything is quiet.
   const max = Math.max(5, Math.ceil(recentPeak * 1.4));
   const cappedAtPercentile = rawMax > max * 1.5;
-  const xAt = (i: number) => padding.l + (i / (N - 1)) * W;
+  const xAt = (i: number) => padding.l + (N <= 1 ? W / 2 : (i / (N - 1)) * W);
   const yAt = (v: number) => padding.t + H - (Math.min(v, max) / max) * H;
   return (
     <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height}>
@@ -77,7 +78,8 @@ export function LineChart({
             </text>
           ) : null
         )}
-      {series.map((s) => {
+      {cleanSeries.map((s) => {
+        const color = s.color || "var(--ln-brand)";
         const path = s.data
           .map((v, i) => `${i ? "L" : "M"}${xAt(i).toFixed(1)} ${yAt(v).toFixed(1)}`)
           .join(" ");
@@ -86,12 +88,16 @@ export function LineChart({
             <path
               d={path}
               fill="none"
-              stroke={s.color}
-              strokeWidth="1.6"
+              stroke={color}
+              strokeWidth="2.2"
               strokeLinejoin="round"
               strokeLinecap="round"
             />
-            <circle cx={xAt(N - 1)} cy={yAt(s.data[N - 1])} r="3" fill={s.color} />
+            {/* A small dot at every data point — guarantees the series is visible
+                even when the line is degenerate (single point, all-zero data). */}
+            {s.data.map((v, i) => (
+              <circle key={i} cx={xAt(i)} cy={yAt(v)} r={i === N - 1 ? 3.5 : 1.6} fill={color} />
+            ))}
           </g>
         );
       })}
