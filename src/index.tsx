@@ -13,7 +13,7 @@ import { LiveHealthHost } from "./livehealth/LiveHealthHost";
 import { AdminShell } from "./livehealth/AdminShell";
 import { LandingRoute } from "./livehealth/screens/LandingRoute";
 import { MapScreen } from "./livehealth/screens/Map";
-import { AnalyticsDashboardScreen } from "./livehealth/screens/AnalyticsDashboard";
+import { DashboardScreen } from "./livehealth/screens/Dashboard";
 import { NewsScreen } from "./livehealth/screens/News";
 import { GlobalHealthIndexScreen } from "./livehealth/screens/GlobalHealthIndex";
 import { WeeklyReportScreen } from "./livehealth/screens/WeeklyReport";
@@ -64,7 +64,7 @@ createRoot(document.getElementById("app") as HTMLElement).render(
                     <Route path="/map" element={<MapScreen />} />
                     <Route
                       path="/dashboard"
-                      element={<ProtectedRoute><AnalyticsDashboardScreen /></ProtectedRoute>}
+                      element={<ProtectedRoute><DashboardScreen /></ProtectedRoute>}
                     />
                     <Route
                       path="/dashboard/weekly-report"
