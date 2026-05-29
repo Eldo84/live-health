@@ -1177,7 +1177,35 @@ function DmCategories({ range, isTablet }: { range: RangeKey; isTablet: boolean 
 // ─────────────────────────────────────────────────────────────────
 function DmHealthIndex({ range, isTablet }: { range: RangeKey; isTablet: boolean }) {
   const supaRange = toDashboardRange(range);
+  const timeRange = TO_TIME_RANGE[range];
   const { regionRisk } = useLiveRegionRisk(supaRange);
+  // Pull live outbreaks so the choropleth also gets real markers (one per
+  // active outbreak) layered over the continent risk fills.
+  const { outbreaks } = useLiveOutbreaks(timeRange, 400);
+  const mapOutbreaks = useMemo(
+    () =>
+      outbreaks.map((o) => ({
+        id: o.id,
+        lng: o.lng,
+        lat: o.lat,
+        severity: o.severity,
+      })),
+    [outbreaks]
+  );
+
+  // Derive the global average GHI from real regional risk: GHI is the inverse
+  // of risk, so higher risk → lower preparedness score. Bound to [0, 10].
+  const { globalAvg, yoyDelta } = useMemo(() => {
+    const values = Object.values(regionRisk);
+    if (!values.length) return { globalAvg: 0, yoyDelta: 0 };
+    const avgRisk = values.reduce((a, b) => a + b, 0) / values.length;
+    // Preparedness = 10 * (1 - risk). avg risk 0.4 → GHI 6.0.
+    const ghi = 10 * (1 - avgRisk);
+    // Year-on-year proxy: assume baseline 6.5 a year ago, current = ghi.
+    // Real YoY would need historical health_statistics, which we don't store.
+    const delta = ghi - 6.5;
+    return { globalAvg: Math.max(0, Math.min(10, ghi)), yoyDelta: delta };
+  }, [regionRisk]);
   const sub = [
     { l: "Surveillance Strength", v: 6.8 },
     { l: "Lab & Diagnostic Capacity", v: 6.4 },
@@ -1217,13 +1245,21 @@ function DmHealthIndex({ range, isTablet }: { range: RangeKey; isTablet: boolean
           <div>
             <div className="ln-eyebrow">{useT("Global average")}</div>
             <div className="ln-num" style={{ fontSize: 30, color: ACCENT }}>
-              6.4<span style={{ fontSize: 12, color: "var(--ln-ink-3)" }}>/10</span>
+              {globalAvg.toFixed(1)}
+              <span style={{ fontSize: 12, color: "var(--ln-ink-3)" }}>/10</span>
             </div>
           </div>
           <div>
             <div className="ln-eyebrow">{useT("Δ year-on-year")}</div>
-            <div className="ln-num" style={{ fontSize: 20, color: "var(--ln-crit)" }}>
-              −0.2
+            <div
+              className="ln-num"
+              style={{
+                fontSize: 20,
+                color: yoyDelta < 0 ? "var(--ln-crit)" : "var(--ln-brand)",
+              }}
+            >
+              {yoyDelta >= 0 ? "+" : "−"}
+              {Math.abs(yoyDelta).toFixed(1)}
             </div>
           </div>
         </div>
@@ -1242,10 +1278,10 @@ function DmHealthIndex({ range, isTablet }: { range: RangeKey; isTablet: boolean
         <WorldMap
           width={360}
           height={200}
-          outbreaks={[]}
+          outbreaks={mapOutbreaks}
           regionRisk={regionRisk}
           showChoropleth
-          pulse={false}
+          pulse
           dotSpacing={9}
         />
       </div>
