@@ -2,10 +2,11 @@ import { useBreakpoint } from "../lib/useBreakpoint";
 import { AnalyticsDashboardScreen } from "./AnalyticsDashboard";
 import { MobileDashboardScreen } from "./MobileDashboard";
 
-// Route shell: below ~720px renders the native-feeling MobileDashboardScreen
-// (matches the design's 03b · Analytics Dashboard · Mobile artboard).
-// Tablet and desktop continue to use the responsive AnalyticsDashboardScreen.
+// Route shell: below ~1100px (tablet + mobile) renders the single-column
+// MobileDashboardScreen which fits cleanly across narrow viewports. The wider
+// AnalyticsDashboardScreen is reserved for desktop where its multi-column
+// panels actually have room to breathe.
 export function DashboardScreen() {
   const bp = useBreakpoint();
-  return bp === "mobile" ? <MobileDashboardScreen /> : <AnalyticsDashboardScreen />;
+  return bp === "desktop" ? <AnalyticsDashboardScreen /> : <MobileDashboardScreen />;
 }

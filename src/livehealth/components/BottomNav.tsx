@@ -16,31 +16,40 @@ export function BottomNav() {
   const bp = useBreakpoint();
   const mobileSize = useMobileSize();
   const isNarrow = mobileSize === "narrow";
+
+  // useT() is a hook — call them all unconditionally before any early return,
+  // otherwise the hook count changes between breakpoints (rules-of-hooks).
+  const tHome = useT("Home");
+  const tMap = useT("Map");
+  const tTrends = useT("Trends");
+  const tFeed = useT("Feed");
+  const tAlerts = useT("Alerts");
+
   if (bp === "desktop") return null;
 
   const items = [
-    { to: "/", label: useT("Home"), icon: <Icon.Globe />, match: (p: string) => p === "/" },
+    { to: "/", label: tHome, icon: <Icon.Globe />, match: (p: string) => p === "/" },
     {
       to: "/map",
-      label: useT("Map"),
+      label: tMap,
       icon: <Icon.Map />,
       match: (p: string) => p === "/map" || p.startsWith("/map/"),
     },
     {
       to: "/dashboard",
-      label: useT("Trends"),
+      label: tTrends,
       icon: <Icon.Chart />,
       match: (p: string, s: string) => p === "/dashboard" && !s.includes("tab=predictions"),
     },
     {
       to: "/news",
-      label: useT("Feed"),
+      label: tFeed,
       icon: <Icon.News />,
       match: (p: string) => p === "/news" || p.startsWith("/news/"),
     },
     {
       to: "/dashboard?tab=predictions",
-      label: useT("Alerts"),
+      label: tAlerts,
       icon: <Icon.Bell />,
       match: (_p: string, s: string) => s.includes("tab=predictions"),
     },

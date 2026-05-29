@@ -18,6 +18,7 @@ import { useGroundedForecasts } from "../data/useGroundedForecasts";
 import { severityColor } from "../lib/utils";
 import { toDashboardRange, type TimeRange } from "../lib/timeRange";
 import { useT } from "../lib/useT";
+import { useBreakpoint } from "../lib/useBreakpoint";
 
 const ACCENT = "#4ee0c4";
 
@@ -205,7 +206,7 @@ function DmLineChart({
 // ─────────────────────────────────────────────────────────────────
 // OVERVIEW
 // ─────────────────────────────────────────────────────────────────
-function DmOverview({ range }: { range: RangeKey }) {
+function DmOverview({ range, isTablet }: { range: RangeKey; isTablet: boolean }) {
   const supaRange = toDashboardRange(range);
   const timeRange = TO_TIME_RANGE[range];
   const { kpis } = useDashboardKpis(timeRange);
@@ -326,15 +327,21 @@ function DmOverview({ range }: { range: RangeKey }) {
         <div style={{ fontSize: 12, color: "var(--ln-ink-3)", marginTop: 6 }}>{tElevated}</div>
       </div>
 
-      {/* KPI grid 2×2 */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", borderTop: "1px solid var(--ln-line)" }}>
-        {kpiCards.map((k, i) => (
+      {/* KPI grid — 2×2 on phone, 4×1 on tablet (extra horizontal room) */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isTablet ? "repeat(4, 1fr)" : "1fr 1fr",
+          borderTop: "1px solid var(--ln-line)",
+        }}
+      >
+        {kpiCards.map((k, i, arr) => (
           <div
             key={k.label}
             style={{
               padding: "14px 14px 12px",
-              borderRight: i % 2 === 0 ? "1px solid var(--ln-line)" : "none",
-              borderBottom: "1px solid var(--ln-line)",
+              borderRight: i !== arr.length - 1 ? "1px solid var(--ln-line)" : "none",
+              borderBottom: isTablet ? "1px solid var(--ln-line)" : "1px solid var(--ln-line)",
               position: "relative",
             }}
           >
@@ -473,7 +480,7 @@ function DmOverview({ range }: { range: RangeKey }) {
 // ─────────────────────────────────────────────────────────────────
 // ANALYTICS
 // ─────────────────────────────────────────────────────────────────
-function DmAnalytics({ range }: { range: RangeKey }) {
+function DmAnalytics({ range, isTablet }: { range: RangeKey; isTablet: boolean }) {
   const supaRange = toDashboardRange(range);
   const timeRange = TO_TIME_RANGE[range];
   const { diseases } = useLiveDiseases(supaRange);
@@ -783,7 +790,7 @@ function DmAnalytics({ range }: { range: RangeKey }) {
 // ─────────────────────────────────────────────────────────────────
 // AI PREDICTIONS
 // ─────────────────────────────────────────────────────────────────
-function DmPredictions() {
+function DmPredictions({ isTablet }: { isTablet: boolean }) {
   const { forecasts, loading } = useGroundedForecasts();
   const stats = [
     { l: "Hindcast F1", v: "0.83" },
@@ -814,14 +821,20 @@ function DmPredictions() {
           <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}>{useT("defend.")}</span>
         </h2>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", borderBottom: "1px solid var(--ln-line)" }}>
-        {stats.map((s, i) => (
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isTablet ? "repeat(4, 1fr)" : "1fr 1fr",
+          borderBottom: "1px solid var(--ln-line)",
+        }}
+      >
+        {stats.map((s, i, arr) => (
           <div
             key={s.l}
             style={{
               padding: "12px 14px",
-              borderRight: i % 2 === 0 ? "1px solid var(--ln-line)" : "none",
-              borderBottom: i < 2 ? "1px solid var(--ln-line)" : "none",
+              borderRight: i !== arr.length - 1 ? "1px solid var(--ln-line)" : "none",
+              borderBottom: isTablet ? "none" : i < 2 ? "1px solid var(--ln-line)" : "none",
             }}
           >
             <div className="ln-eyebrow">{s.l}</div>
@@ -995,7 +1008,7 @@ function DmPredictions() {
 // ─────────────────────────────────────────────────────────────────
 // CATEGORIES
 // ─────────────────────────────────────────────────────────────────
-function DmCategories({ range }: { range: RangeKey }) {
+function DmCategories({ range, isTablet }: { range: RangeKey; isTablet: boolean }) {
   const timeRange = TO_TIME_RANGE[range];
   const { categories, matchesCategory } = useOutbreakCategoriesLive();
   const { outbreaks } = useLiveOutbreaks(timeRange, 600);
@@ -1026,13 +1039,22 @@ function DmCategories({ range }: { range: RangeKey }) {
           </span>
         </h2>
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", borderBottom: "1px solid var(--ln-line)" }}>
-        {augmented.map((c, i) => (
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: isTablet ? "repeat(4, 1fr)" : "1fr 1fr",
+          borderBottom: "1px solid var(--ln-line)",
+        }}
+      >
+        {augmented.map((c, i) => {
+          const cols = isTablet ? 4 : 2;
+          const inLastCol = (i + 1) % cols === 0;
+          return (
           <div
             key={c.id}
             style={{
               padding: "14px 14px 12px",
-              borderRight: i % 2 === 0 ? "1px solid var(--ln-line)" : "none",
+              borderRight: inLastCol ? "none" : "1px solid var(--ln-line)",
               borderBottom: "1px solid var(--ln-line)",
               position: "relative",
             }}
@@ -1097,7 +1119,8 @@ function DmCategories({ range }: { range: RangeKey }) {
               />
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <DmSectionHead eyebrow={useT("Recent events")} title={useT("Roster · last 30 days")} />
@@ -1152,7 +1175,7 @@ function DmCategories({ range }: { range: RangeKey }) {
 // ─────────────────────────────────────────────────────────────────
 // GLOBAL HEALTH INDEX
 // ─────────────────────────────────────────────────────────────────
-function DmHealthIndex({ range }: { range: RangeKey }) {
+function DmHealthIndex({ range, isTablet }: { range: RangeKey; isTablet: boolean }) {
   const supaRange = toDashboardRange(range);
   const { regionRisk } = useLiveRegionRisk(supaRange);
   const sub = [
@@ -1303,7 +1326,7 @@ function DmHealthIndex({ range }: { range: RangeKey }) {
 // ─────────────────────────────────────────────────────────────────
 // DATA MANAGEMENT
 // ─────────────────────────────────────────────────────────────────
-function DmDataMgmt({ range }: { range: RangeKey }) {
+function DmDataMgmt({ range, isTablet }: { range: RangeKey; isTablet: boolean }) {
   const timeRange = TO_TIME_RANGE[range];
   const { outbreaks } = useLiveOutbreaks(timeRange, 600);
   const rows = useMemo(() => outbreaks.slice().sort((a, b) => b.cases - a.cases), [outbreaks]);
@@ -1462,7 +1485,7 @@ function DmDataMgmt({ range }: { range: RangeKey }) {
 // ─────────────────────────────────────────────────────────────────
 // DISEASE TRACKING
 // ─────────────────────────────────────────────────────────────────
-function DmTracking({ range }: { range: RangeKey }) {
+function DmTracking({ range, isTablet }: { range: RangeKey; isTablet: boolean }) {
   const timeRange = TO_TIME_RANGE[range];
   const { outbreaks } = useLiveOutbreaks(timeRange, 600);
   const candidates = useMemo(() => {
@@ -1696,7 +1719,7 @@ function DmTracking({ range }: { range: RangeKey }) {
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 1fr",
+              gridTemplateColumns: isTablet ? "repeat(3, 1fr)" : "1fr 1fr",
               padding: "12px 16px 16px",
               gap: 8,
             }}
@@ -1733,6 +1756,8 @@ function DmTracking({ range }: { range: RangeKey }) {
 export function MobileDashboardScreen() {
   const [tab, setTab] = useState<DashTab>("overview");
   const [range, setRange] = useState<RangeKey>("7d");
+  const bp = useBreakpoint();
+  const isTablet = bp === "tablet";
 
   const tEyebrow = useT("Outbreak Dashboard");
   const tHeadlineLead = useT("World health,");
@@ -1782,6 +1807,8 @@ export function MobileDashboardScreen() {
       className="ln-app"
       style={{
         width: "100%",
+        maxWidth: isTablet ? 920 : "100%",
+        margin: isTablet ? "0 auto" : undefined,
         minHeight: "100vh",
         background: "var(--ln-bg)",
         color: "var(--ln-ink)",
@@ -1917,13 +1944,13 @@ export function MobileDashboardScreen() {
 
       {/* Content */}
       <div style={{ flex: 1 }}>
-        {tab === "overview" && <DmOverview range={range} />}
-        {tab === "analytics" && <DmAnalytics range={range} />}
-        {tab === "predictions" && <DmPredictions />}
-        {tab === "categories" && <DmCategories range={range} />}
-        {tab === "health-index" && <DmHealthIndex range={range} />}
-        {tab === "data" && <DmDataMgmt range={range} />}
-        {tab === "tracking" && <DmTracking range={range} />}
+        {tab === "overview" && <DmOverview range={range} isTablet={isTablet} />}
+        {tab === "analytics" && <DmAnalytics range={range} isTablet={isTablet} />}
+        {tab === "predictions" && <DmPredictions isTablet={isTablet} />}
+        {tab === "categories" && <DmCategories range={range} isTablet={isTablet} />}
+        {tab === "health-index" && <DmHealthIndex range={range} isTablet={isTablet} />}
+        {tab === "data" && <DmDataMgmt range={range} isTablet={isTablet} />}
+        {tab === "tracking" && <DmTracking range={range} isTablet={isTablet} />}
       </div>
     </div>
   );
