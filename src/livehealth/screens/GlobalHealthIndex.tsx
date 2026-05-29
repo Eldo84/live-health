@@ -116,22 +116,26 @@ export function GlobalHealthIndexScreen() {
       <TopBar active="ghi" />
 
       <div className="ln-pane" style={{ overflowY: "auto" }}>
-        {/* Filter strip */}
+        {/* Filter strip: 1-col on mobile, wrap on tablet, single row on desktop */}
         <div
           style={{
-            display: "flex",
+            display: "grid",
+            gridTemplateColumns: isMobile
+              ? "1fr 1fr"
+              : isTabletDown
+              ? "minmax(180px,1fr) minmax(180px,1fr) minmax(130px,160px) minmax(200px,260px)"
+              : "minmax(180px,220px) minmax(200px,260px) minmax(130px,160px) auto 1fr auto",
             alignItems: "center",
-            gap: 10,
-            padding: isMobile ? "12px 14px" : "14px 28px",
+            gap: isMobile ? 8 : 10,
+            padding: isMobile ? "10px 12px" : "14px 28px",
             borderBottom: "1px solid var(--ln-line)",
             background: "var(--ln-topbar)",
-            flexWrap: "wrap",
           }}
         >
           <select
             value={countryIso}
             onChange={(e) => setCountryIso(e.target.value)}
-            style={{ ...selStyle, minWidth: 180 }}
+            style={{ ...selStyle, width: "100%" }}
           >
             <option value="global">Global average</option>
             {countries.map((c) => (
@@ -141,7 +145,7 @@ export function GlobalHealthIndexScreen() {
           <select
             value={diseaseId}
             onChange={(e) => setDiseaseId(e.target.value)}
-            style={{ ...selStyle, minWidth: 200 }}
+            style={{ ...selStyle, width: "100%" }}
           >
             {causes.map((c) => (
               <option key={c.id} value={c.id}>{c.name}</option>
@@ -150,15 +154,24 @@ export function GlobalHealthIndexScreen() {
           <select
             value={measure}
             onChange={(e) => setMeasure(e.target.value as Measure)}
-            style={{ ...selStyle, minWidth: 130 }}
+            style={{ ...selStyle, width: "100%", gridColumn: isMobile ? "1 / 2" : "auto" }}
             title="Choose what to measure: mortality, total burden, disability, or case counts"
           >
             {MEASURES.map((m) => (
               <option key={m} value={m}>{m}</option>
             ))}
           </select>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontSize: 12, color: "var(--ln-ink-3)", fontFamily: "var(--ln-font-mono)" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              gridColumn: isMobile ? "2 / 3" : "auto",
+              justifyContent: isMobile ? "flex-end" : "flex-start",
+              minWidth: 0,
+            }}
+          >
+            <span style={{ fontSize: 11, color: "var(--ln-ink-3)", fontFamily: "var(--ln-font-mono)" }}>
               YEAR
             </span>
             <input
@@ -167,18 +180,20 @@ export function GlobalHealthIndexScreen() {
               max={2023}
               value={year}
               onChange={(e) => setYear(+e.target.value)}
-              style={{ width: isMobile ? 100 : 140 }}
+              style={{ flex: 1, minWidth: 60, maxWidth: isMobile ? 110 : 160 }}
             />
-            <span className="ln-num" style={{ fontSize: 16, color: ACCENT, width: 48 }}>{year}</span>
+            <span className="ln-num" style={{ fontSize: 14, color: ACCENT, width: 40, textAlign: "right" }}>{year}</span>
           </div>
-          <div style={{ flex: 1 }} />
-          {coverage && (
+          {!isMobile && <div />}
+          {!isMobile && coverage && (
             <span
               style={{
                 fontFamily: "var(--ln-font-mono)",
                 fontSize: 10,
                 color: "var(--ln-ink-3)",
                 letterSpacing: "0.08em",
+                textAlign: "right",
+                whiteSpace: "nowrap",
               }}
             >
               REAL DATA · {coverage.rows.toLocaleString()} ROWS · {coverage.causes} CAUSES ·{" "}
@@ -241,7 +256,9 @@ export function GlobalHealthIndexScreen() {
               color={m.color}
               countryIso={countryIso}
               year={year}
-              border={i > 0}
+              border={isMobile ? i % 2 !== 0 : i > 0}
+              borderTop={isMobile ? i >= 2 : false}
+              isMobile={isMobile}
             />
           ))}
         </div>
@@ -253,7 +270,7 @@ export function GlobalHealthIndexScreen() {
               <span className="ln-eyebrow">
                 {measure} · {disease?.name ?? "—"}
               </span>
-              <h3 style={{ fontSize: 18, margin: "4px 0 0", fontWeight: 500 }}>
+              <h3 style={{ fontSize: isMobile ? 15 : 18, margin: "4px 0 0", fontWeight: 500, lineHeight: 1.35 }}>
                 {MEASURE_DESC[measure]} ·{" "}
                 {countryIso === "global"
                   ? "global mean across 204 countries"
@@ -277,7 +294,7 @@ export function GlobalHealthIndexScreen() {
             </span>
           </div>
           <div style={{ marginTop: 14 }}>
-            <DiseaseTrendChart rows={estRows} countryIso={countryIso} activeYear={year} />
+            <DiseaseTrendChart rows={estRows} countryIso={countryIso} activeYear={year} isMobile={isMobile} />
           </div>
         </div>
 
@@ -307,7 +324,7 @@ export function GlobalHealthIndexScreen() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
               <div>
                 <span className="ln-eyebrow">Live regional risk · 30d</span>
-                <h3 style={{ fontSize: 16, margin: "4px 0 0", fontWeight: 500 }}>Outbreak pressure today</h3>
+                <h3 style={{ fontSize: isMobile ? 15 : 16, margin: "4px 0 0", fontWeight: 500, lineHeight: 1.35 }}>Outbreak pressure today</h3>
               </div>
               <span
                 className="ln-chip"
@@ -321,7 +338,15 @@ export function GlobalHealthIndexScreen() {
                 LIVE · SUPABASE
               </span>
             </div>
-            <div style={{ height: 240, position: "relative", overflow: "hidden" }}>
+            <div
+              style={{
+                width: "100%",
+                aspectRatio: "620 / 240",
+                position: "relative",
+                overflow: "hidden",
+                maxHeight: isMobile ? 220 : 320,
+              }}
+            >
               <WorldMap
                 width={620}
                 height={240}
@@ -329,7 +354,7 @@ export function GlobalHealthIndexScreen() {
                 regionRisk={regionRisk}
                 showChoropleth
                 pulse
-                dotSpacing={11}
+                dotSpacing={isMobile ? 13 : 11}
               />
             </div>
             <div style={{ marginTop: 10, fontSize: 11.5, color: "var(--ln-ink-3)", lineHeight: 1.5 }}>
@@ -343,8 +368,8 @@ export function GlobalHealthIndexScreen() {
         <div style={{ borderBottom: "1px solid var(--ln-line)" }}>
           <div style={{ padding: isMobile ? "14px 14px 4px" : "18px 28px 4px" }}>
             <span className="ln-eyebrow">Cause burden · {measure}</span>
-            <h3 style={{ fontSize: 16, margin: "4px 0 4px", fontWeight: 500 }}>
-              10 tracked causes ranked,{" "}
+            <h3 style={{ fontSize: isMobile ? 15 : 16, margin: "4px 0 4px", fontWeight: 500, lineHeight: 1.35 }}>
+              {causes.length} tracked causes ranked,{" "}
               {countryIso === "global"
                 ? "global mean"
                 : countries.find((c) => c.iso3 === countryIso)?.name}{" "}
@@ -365,7 +390,7 @@ export function GlobalHealthIndexScreen() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
             <div>
               <span className="ln-eyebrow">Burden split · {disease?.name ?? "—"}</span>
-              <h3 style={{ fontSize: 16, margin: "4px 0 0", fontWeight: 500 }}>
+              <h3 style={{ fontSize: isMobile ? 15 : 16, margin: "4px 0 0", fontWeight: 500, lineHeight: 1.35 }}>
                 Years of life lost vs years lived with disability
               </h3>
             </div>
@@ -380,7 +405,7 @@ export function GlobalHealthIndexScreen() {
         <div style={{ borderBottom: "1px solid var(--ln-line)" }}>
           <div style={{ padding: isMobile ? "14px 14px 4px" : "18px 28px 4px" }}>
             <span className="ln-eyebrow">Trajectory · {disease?.name ?? "—"} · {measure}</span>
-            <h3 style={{ fontSize: 16, margin: "4px 0 4px", fontWeight: 500 }}>
+            <h3 style={{ fontSize: isMobile ? 15 : 16, margin: "4px 0 4px", fontWeight: 500, lineHeight: 1.35 }}>
               Biggest country swings, 2017 → 2023
             </h3>
           </div>
@@ -401,7 +426,7 @@ export function GlobalHealthIndexScreen() {
           >
             <div>
               <span className="ln-eyebrow">Country detail · {year}</span>
-              <h3 style={{ fontSize: 16, margin: "4px 0 0", fontWeight: 500 }}>
+              <h3 style={{ fontSize: isMobile ? 15 : 16, margin: "4px 0 0", fontWeight: 500, lineHeight: 1.35 }}>
                 {disease?.name} {measure.toLowerCase()} + live outbreak risk
               </h3>
             </div>
@@ -480,6 +505,8 @@ function CountryMetricCard({
   countryIso,
   year,
   border,
+  borderTop,
+  isMobile,
 }: {
   indicator: string;
   label: string;
@@ -488,6 +515,8 @@ function CountryMetricCard({
   countryIso: string;
   year: number;
   border: boolean;
+  borderTop: boolean;
+  isMobile: boolean;
 }) {
   const { rows } = useGbdCountryIndicator(indicator);
 
@@ -524,14 +553,30 @@ function CountryMetricCard({
   }, [rows, countryIso, year]);
 
   return (
-    <div style={{ padding: "18px 20px 16px", borderLeft: border ? "1px solid var(--ln-line)" : "none", position: "relative" }}>
+    <div
+      style={{
+        padding: isMobile ? "14px 12px 12px" : "18px 20px 16px",
+        borderLeft: border ? "1px solid var(--ln-line)" : "none",
+        borderTop: borderTop ? "1px solid var(--ln-line)" : "none",
+        position: "relative",
+        minWidth: 0,
+      }}
+    >
       <div style={{ position: "absolute", top: 0, left: 0, width: 28, height: 2, background: color }} />
-      <span className="ln-eyebrow">{label}</span>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginTop: 8 }}>
-        <span className="ln-num" style={{ fontSize: 26, fontWeight: 500, letterSpacing: "-0.03em" }}>
+      <span className="ln-eyebrow" style={{ fontSize: isMobile ? 10 : undefined }}>{label}</span>
+      <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
+        <span
+          className="ln-num"
+          style={{
+            fontSize: isMobile ? 22 : 26,
+            fontWeight: 500,
+            letterSpacing: "-0.03em",
+            lineHeight: 1.1,
+          }}
+        >
           {value == null ? "—" : value.toFixed(value > 100 ? 0 : 1)}
         </span>
-        <span style={{ fontSize: 11, color: "var(--ln-ink-3)", fontFamily: "var(--ln-font-mono)" }}>{unit}</span>
+        <span style={{ fontSize: isMobile ? 10 : 11, color: "var(--ln-ink-3)", fontFamily: "var(--ln-font-mono)" }}>{unit}</span>
       </div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginTop: 8, gap: 6 }}>
         <span
@@ -543,7 +588,7 @@ function CountryMetricCard({
         >
           {yoy == null ? "—" : yoy > 0 ? "▲" : yoy < 0 ? "▼" : "◆"} {yoy == null ? "" : (yoy * 100).toFixed(1) + "%"}
         </span>
-        {sparkline.length > 1 && <Sparkline data={sparkline} color={color} width={56} height={18} />}
+        {sparkline.length > 1 && <Sparkline data={sparkline} color={color} width={isMobile ? 44 : 56} height={isMobile ? 14 : 18} />}
       </div>
     </div>
   );
@@ -556,10 +601,12 @@ function DiseaseTrendChart({
   rows,
   countryIso,
   activeYear,
+  isMobile,
 }: {
   rows: GbdEstimate[];
   countryIso: string;
   activeYear: number;
+  isMobile: boolean;
 }) {
   const points = useMemo(() => {
     const byYear = new Map<number, { rates: number[]; lows: number[]; highs: number[] }>();
@@ -586,16 +633,19 @@ function DiseaseTrendChart({
 
   if (!points.length) {
     return (
-      <div style={{ height: 220, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ln-ink-3)", fontSize: 13 }}>
+      <div style={{ height: isMobile ? 180 : 220, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ln-ink-3)", fontSize: 13, textAlign: "center", padding: "0 16px" }}>
         No data for this disease + measure combination yet.
       </div>
     );
   }
 
-  const W = 760;
-  const H = 240;
-  const padL = 48;
-  const padB = 28;
+  // Mobile uses a more-square viewBox so axis labels render larger.
+  const W = isMobile ? 420 : 760;
+  const H = isMobile ? 260 : 240;
+  const padL = isMobile ? 44 : 48;
+  const padB = isMobile ? 30 : 28;
+  const axisFontSize = isMobile ? 14 : 11;
+  const dotR = isMobile ? 5 : 4;
   const max = Math.max(...points.map((p) => p.hi ?? p.value));
   const min = 0;
   const span = Math.max(1, max - min);
@@ -619,7 +669,7 @@ function DiseaseTrendChart({
     : null;
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: "block" }}>
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" preserveAspectRatio="xMidYMid meet" style={{ display: "block" }}>
       {[0, 0.25, 0.5, 0.75, 1].map((p) => (
         <g key={p}>
           <line
@@ -632,8 +682,8 @@ function DiseaseTrendChart({
           />
           <text
             x={padL - 6}
-            y={8 + (H - padB - 8) * (1 - p) + 3}
-            fontSize="10"
+            y={8 + (H - padB - 8) * (1 - p) + axisFontSize / 3}
+            fontSize={axisFontSize}
             textAnchor="end"
             fill="var(--ln-ink-4)"
             fontFamily="var(--ln-font-mono)"
@@ -647,7 +697,7 @@ function DiseaseTrendChart({
           key={p.year}
           x={xAt(i)}
           y={H - 8}
-          fontSize="10"
+          fontSize={axisFontSize}
           textAnchor="middle"
           fill={p.year === activeYear ? "var(--ln-ink)" : "var(--ln-ink-4)"}
           fontFamily="var(--ln-font-mono)"
@@ -657,13 +707,13 @@ function DiseaseTrendChart({
         </text>
       ))}
       {ciPath && <path d={ciPath} fill={ACCENT} opacity="0.14" />}
-      <path d={linePath} fill="none" stroke={ACCENT} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d={linePath} fill="none" stroke={ACCENT} strokeWidth={isMobile ? 2.5 : 2} strokeLinecap="round" strokeLinejoin="round" />
       {points.map((p, i) => (
         <circle
           key={p.year}
           cx={xAt(i)}
           cy={yAt(p.value)}
-          r={p.year === activeYear ? 4 : 2.5}
+          r={p.year === activeYear ? dotR : dotR * 0.6}
           fill={ACCENT}
         />
       ))}
@@ -729,19 +779,55 @@ function CountryComparison({
           No country comparison available for this combination yet.
         </div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 8 : 6 }}>
           {top.map((row) => (
             <div
               key={row.iso3}
-              style={{ display: "grid", gridTemplateColumns: "140px 1fr 60px", alignItems: "center", gap: 10 }}
+              style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "minmax(0, 1fr) 60px" : "140px 1fr 60px",
+                gridTemplateRows: isMobile ? "auto auto" : "auto",
+                alignItems: "center",
+                gap: isMobile ? "2px 8px" : "0 10px",
+              }}
             >
-              <span style={{ fontSize: 12, color: "var(--ln-ink-2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.name}>
+              <span
+                style={{
+                  fontSize: isMobile ? 13 : 12,
+                  color: "var(--ln-ink-2)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  gridColumn: isMobile ? "1 / 2" : "auto",
+                  gridRow: isMobile ? "1 / 2" : "auto",
+                }}
+                title={row.name}
+              >
                 {row.name}
               </span>
-              <div style={{ height: 12, background: "rgba(255,255,255,0.04)", position: "relative" }}>
+              <div
+                style={{
+                  height: isMobile ? 8 : 12,
+                  background: "rgba(255,255,255,0.04)",
+                  position: "relative",
+                  gridColumn: isMobile ? "1 / 2" : "auto",
+                  gridRow: isMobile ? "2 / 3" : "auto",
+                }}
+              >
                 <div style={{ position: "absolute", inset: 0, width: `${(row.rate / max) * 100}%`, background: "var(--ln-warn)", opacity: 0.75 }} />
               </div>
-              <span className="ln-num" style={{ fontSize: 12, textAlign: "right" }}>{row.rate.toFixed(1)}</span>
+              <span
+                className="ln-num"
+                style={{
+                  fontSize: isMobile ? 13 : 12,
+                  textAlign: "right",
+                  gridColumn: isMobile ? "2 / 3" : "auto",
+                  gridRow: isMobile ? "1 / 3" : "auto",
+                  alignSelf: "center",
+                }}
+              >
+                {row.rate.toFixed(1)}
+              </span>
             </div>
           ))}
         </div>
@@ -804,30 +890,76 @@ function CauseBurdenRanking({
   const max = Math.max(1, ranking[0].rate);
 
   return (
-    <div style={{ padding: isMobile ? "4px 14px 18px" : "4px 28px 22px", display: "flex", flexDirection: "column", gap: 6 }}>
+    <div style={{ padding: isMobile ? "4px 14px 18px" : "4px 28px 22px", display: "flex", flexDirection: "column", gap: isMobile ? 10 : 6 }}>
       {ranking.map((row, i) => (
         <div
           key={row.id}
-          style={{ display: "grid", gridTemplateColumns: isMobile ? "30px 1fr 60px" : "30px 220px 1fr 80px", alignItems: "center", gap: 10 }}
+          style={{
+            display: "grid",
+            gridTemplateColumns: isMobile
+              ? "26px minmax(0,1fr) 60px"
+              : "30px minmax(160px, 260px) 1fr 80px",
+            gridTemplateRows: isMobile ? "auto auto" : "auto",
+            alignItems: "center",
+            gap: isMobile ? "2px 8px" : "0 10px",
+          }}
         >
-          <span className="ln-num" style={{ fontSize: 11, color: "var(--ln-ink-4)" }}>{String(i + 1).padStart(2, "0")}</span>
-          <span style={{ fontSize: 12.5, color: "var(--ln-ink-2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={row.name}>
+          <span
+            className="ln-num"
+            style={{
+              fontSize: 11,
+              color: "var(--ln-ink-4)",
+              gridRow: isMobile ? "1 / 3" : "auto",
+              alignSelf: "center",
+            }}
+          >
+            {String(i + 1).padStart(2, "0")}
+          </span>
+          <span
+            style={{
+              fontSize: isMobile ? 13 : 12.5,
+              color: "var(--ln-ink-2)",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              gridColumn: isMobile ? "2 / 3" : "auto",
+              gridRow: isMobile ? "1 / 2" : "auto",
+            }}
+            title={row.name}
+          >
             {row.name}
           </span>
-          {!isMobile && (
-            <div style={{ height: 12, background: "rgba(255,255,255,0.04)", position: "relative" }}>
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  width: `${(row.rate / max) * 100}%`,
-                  background: measure === "Deaths" || measure === "YLLs" ? "var(--ln-crit)" : ACCENT,
-                  opacity: 0.65,
-                }}
-              />
-            </div>
-          )}
-          <span className="ln-num" style={{ fontSize: 12, textAlign: "right" }}>{row.rate.toFixed(1)}</span>
+          <div
+            style={{
+              height: isMobile ? 6 : 12,
+              background: "rgba(255,255,255,0.04)",
+              position: "relative",
+              gridColumn: isMobile ? "2 / 3" : "auto",
+              gridRow: isMobile ? "2 / 3" : "auto",
+            }}
+          >
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: `${(row.rate / max) * 100}%`,
+                background: measure === "Deaths" || measure === "YLLs" ? "var(--ln-crit)" : ACCENT,
+                opacity: 0.65,
+              }}
+            />
+          </div>
+          <span
+            className="ln-num"
+            style={{
+              fontSize: isMobile ? 13 : 12,
+              textAlign: "right",
+              gridColumn: isMobile ? "3 / 4" : "auto",
+              gridRow: isMobile ? "1 / 3" : "auto",
+              alignSelf: "center",
+            }}
+          >
+            {row.rate.toFixed(1)}
+          </span>
         </div>
       ))}
     </div>
@@ -871,18 +1003,20 @@ function BurdenSplitStack({
   }
 
   const max = Math.max(1, ...data.map((d) => d.yll + d.yld));
-  const W = 760;
-  const H = 200;
-  const padL = 48;
-  const padB = 28;
+  const W = isMobile ? 420 : 760;
+  const H = isMobile ? 240 : 200;
+  const padL = isMobile ? 44 : 48;
+  const padB = isMobile ? 30 : 28;
+  const axisFontSize = isMobile ? 14 : 11;
+  const legendFontSize = isMobile ? 14 : 12;
   const bw = Math.max(8, (W - padL - 16) / data.length - 8);
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: "block", marginTop: 12 }}>
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" preserveAspectRatio="xMidYMid meet" style={{ display: "block", marginTop: 12 }}>
       {[0, 0.25, 0.5, 0.75, 1].map((p) => (
         <g key={p}>
           <line x1={padL} y1={8 + (H - padB - 8) * (1 - p)} x2={W - 16} y2={8 + (H - padB - 8) * (1 - p)} stroke="var(--ln-line)" strokeDasharray="2 4" />
-          <text x={padL - 6} y={8 + (H - padB - 8) * (1 - p) + 3} fontSize="10" textAnchor="end" fill="var(--ln-ink-4)" fontFamily="var(--ln-font-mono)">
+          <text x={padL - 6} y={8 + (H - padB - 8) * (1 - p) + axisFontSize / 3} fontSize={axisFontSize} textAnchor="end" fill="var(--ln-ink-4)" fontFamily="var(--ln-font-mono)">
             {fmtAxis(max * p)}
           </text>
         </g>
@@ -896,17 +1030,17 @@ function BurdenSplitStack({
           <g key={d.year}>
             <rect x={x} y={yBaseTop - yllH} width={bw} height={yllH} fill="var(--ln-crit)" opacity="0.85" />
             <rect x={x} y={yBaseTop - yllH - yldH} width={bw} height={yldH} fill={ACCENT} opacity="0.85" />
-            <text x={x + bw / 2} y={H - 8} fontSize="10" textAnchor="middle" fill="var(--ln-ink-4)" fontFamily="var(--ln-font-mono)">
+            <text x={x + bw / 2} y={H - 8} fontSize={axisFontSize} textAnchor="middle" fill="var(--ln-ink-4)" fontFamily="var(--ln-font-mono)">
               {d.year}
             </text>
           </g>
         );
       })}
-      <g transform={`translate(${padL}, 16)`}>
-        <rect x={0} y={0} width={10} height={10} fill="var(--ln-crit)" />
-        <text x={14} y={9} fontSize="11" fill="var(--ln-ink-2)" fontFamily="var(--ln-font-mono)">YLLs</text>
-        <rect x={isMobile ? 60 : 80} y={0} width={10} height={10} fill={ACCENT} />
-        <text x={isMobile ? 74 : 94} y={9} fontSize="11" fill="var(--ln-ink-2)" fontFamily="var(--ln-font-mono)">YLDs</text>
+      <g transform={`translate(${padL}, 12)`}>
+        <rect x={0} y={0} width={legendFontSize} height={legendFontSize} fill="var(--ln-crit)" />
+        <text x={legendFontSize + 4} y={legendFontSize - 2} fontSize={legendFontSize} fill="var(--ln-ink-2)" fontFamily="var(--ln-font-mono)">YLLs</text>
+        <rect x={legendFontSize * 5} y={0} width={legendFontSize} height={legendFontSize} fill={ACCENT} />
+        <text x={legendFontSize * 5 + legendFontSize + 4} y={legendFontSize - 2} fontSize={legendFontSize} fill="var(--ln-ink-2)" fontFamily="var(--ln-font-mono)">YLDs</text>
       </g>
     </svg>
   );
@@ -965,15 +1099,49 @@ function YoyLeaderboard({
         items.map((it) => (
           <div
             key={it.iso3}
-            style={{ display: "grid", gridTemplateColumns: "1fr 70px 70px", gap: 10, alignItems: "center", padding: "6px 0", borderBottom: "1px solid var(--ln-line)" }}
+            style={{
+              display: "grid",
+              gridTemplateColumns: isMobile ? "minmax(0,1fr) 70px" : "minmax(0,1fr) 100px 70px",
+              gap: isMobile ? 8 : 10,
+              alignItems: "center",
+              padding: "8px 0",
+              borderBottom: "1px solid var(--ln-line)",
+            }}
           >
-            <span style={{ fontSize: 12.5, color: "var(--ln-ink-2)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={it.name}>
-              {it.name}
-            </span>
-            <span className="ln-num" style={{ fontSize: 12, textAlign: "right", color: "var(--ln-ink-3)" }}>
-              {it.first.toFixed(1)} → {it.last.toFixed(1)}
-            </span>
-            <span className="ln-num" style={{ fontSize: 13, textAlign: "right", color, fontWeight: 500 }}>
+            <div style={{ minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: isMobile ? 13 : 12.5,
+                  color: "var(--ln-ink-2)",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+                title={it.name}
+              >
+                {it.name}
+              </div>
+              {isMobile && (
+                <div
+                  className="ln-num"
+                  style={{ fontSize: 11, color: "var(--ln-ink-4)", marginTop: 2 }}
+                >
+                  {it.first.toFixed(1)} → {it.last.toFixed(1)}
+                </div>
+              )}
+            </div>
+            {!isMobile && (
+              <span
+                className="ln-num"
+                style={{ fontSize: 12, textAlign: "right", color: "var(--ln-ink-3)", whiteSpace: "nowrap" }}
+              >
+                {it.first.toFixed(1)} → {it.last.toFixed(1)}
+              </span>
+            )}
+            <span
+              className="ln-num"
+              style={{ fontSize: isMobile ? 14 : 13, textAlign: "right", color, fontWeight: 500 }}
+            >
               {it.pct > 0 ? "+" : ""}{(it.pct * 100).toFixed(0)}%
             </span>
           </div>
@@ -983,7 +1151,7 @@ function YoyLeaderboard({
   );
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 24, padding: isMobile ? "10px 14px 18px" : "10px 28px 22px" }}>
+    <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: isMobile ? 18 : 24, padding: isMobile ? "10px 14px 18px" : "10px 28px 22px" }}>
       <Section title="LARGEST INCREASES" items={swings.up} color="var(--ln-crit)" />
       <Section title="LARGEST DECREASES" items={swings.down} color="var(--ln-brand)" />
     </div>
