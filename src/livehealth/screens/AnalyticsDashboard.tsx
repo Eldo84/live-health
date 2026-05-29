@@ -105,6 +105,27 @@ export function AnalyticsDashboardScreen() {
   const tFilters = useT("Filters");
   const tExport = useT("Export");
   const tWeeklyReport = useT("Weekly Report");
+  // Overview tab labels
+  const tActiveOutbreaks = useT("Active Outbreaks");
+  const tCountriesAffected = useT("Countries Affected");
+  const tCasesLabel = useT("Cases");
+  const tCriticalEvents = useT("Critical Events");
+  const tAIRiskIndex = useT("AI Risk Index");
+  const tDiseaseIncidence = useT("Disease incidence");
+  const tCaseCurves = useT("Reported case curves by pathogen");
+  const tChoroplethEyebrow = useT("Choropleth · regional risk");
+  const tSignalLoudest = useT("Where the signal is loudest");
+  const tOpenMap = useT("Open map");
+  const tTopPathogens = useT("Top pathogens");
+  const tPathogenLeaderboard = useT("Pathogen leaderboard");
+  const tForesight = useT("Foresight");
+  const tAIForecast = useT("AI forecast");
+  const tRegionalVolume = useT("Regional volume");
+  const tCasesByRegion = useT("Cases by region");
+  const tLatest = useT("Latest");
+  const tCriticalAlertsLive = useT("Critical alerts · live");
+  const tHotspots = useT("Hotspots");
+  const tOutbreakRoster = useT("Outbreak roster");
   const dashLabels: Record<DashboardTab, string> = {
     overview: tOverview,
     analytics: tAnalytics,
@@ -316,7 +337,7 @@ export function AnalyticsDashboardScreen() {
         >
           {[
             {
-              label: "Active Outbreaks",
+              label: tActiveOutbreaks,
               value: kpis ? kpis.activeOutbreaks.toLocaleString() : "—",
               delta: kpis?.activeOutbreaksDelta ?? "—",
               spark: kpis?.outbreaksSpark ?? [],
@@ -324,7 +345,7 @@ export function AnalyticsDashboardScreen() {
               tone: "crit" as const,
             },
             {
-              label: "Countries Affected",
+              label: tCountriesAffected,
               value: kpis ? kpis.countries.toLocaleString() : "—",
               delta: kpis?.countriesDelta ?? "—",
               spark: kpis?.countriesSpark ?? [],
@@ -332,7 +353,7 @@ export function AnalyticsDashboardScreen() {
               tone: "warn" as const,
             },
             {
-              label: `Cases · ${range}`,
+              label: `${tCasesLabel} · ${range}`,
               value: kpis ? compactNumber(kpis.cases) : "—",
               delta: kpis?.casesDelta ?? "—",
               spark: kpis?.casesSpark ?? [],
@@ -340,7 +361,7 @@ export function AnalyticsDashboardScreen() {
               tone: "crit" as const,
             },
             {
-              label: "Critical Events",
+              label: tCriticalEvents,
               value: kpis ? kpis.critical.toLocaleString() : "—",
               delta: kpis?.criticalDelta ?? "—",
               spark: kpis?.criticalSpark ?? [],
@@ -348,7 +369,7 @@ export function AnalyticsDashboardScreen() {
               tone: "crit" as const,
             },
             {
-              label: "AI Risk Index",
+              label: tAIRiskIndex,
               value: kpis ? kpis.aiRiskIndex.toFixed(1) : "—",
               unit: "/10",
               delta: kpis?.aiRiskDelta ?? "—",
@@ -439,9 +460,9 @@ export function AnalyticsDashboardScreen() {
               }}
             >
               <div style={{ minWidth: 0 }}>
-                <span className="ln-eyebrow">Disease incidence · {range}</span>
+                <span className="ln-eyebrow">{tDiseaseIncidence} · {range}</span>
                 <h2 style={{ fontSize: isMobile ? 16 : 18, margin: "4px 0 0", fontWeight: 500 }}>
-                  Reported case curves by pathogen
+                  {tCaseCurves}
                 </h2>
               </div>
               <div
@@ -578,13 +599,13 @@ export function AnalyticsDashboardScreen() {
           <div style={{ padding: sectionPad }}>
             <div style={{ display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
               <div>
-                <span className="ln-eyebrow">Choropleth · regional risk</span>
-                <h2 style={{ fontSize: 18, margin: "4px 0 0", fontWeight: 500 }}>
-                  Where the signal is loudest
+                <span className="ln-eyebrow">{tChoroplethEyebrow}</span>
+                <h2 style={{ fontSize: isMobile ? 16 : 18, margin: "4px 0 0", fontWeight: 500 }}>
+                  {tSignalLoudest}
                 </h2>
               </div>
               <Link to="/map" className="ln-btn">
-                <Icon.Map /> Open map
+                <Icon.Map /> {tOpenMap}
               </Link>
             </div>
             <div
@@ -663,8 +684,8 @@ export function AnalyticsDashboardScreen() {
             }}
           >
             <PaneHead
-              eyebrow="Top pathogens"
-              title={`Pathogen leaderboard · ${range}`}
+              eyebrow={tTopPathogens}
+              title={`${tPathogenLeaderboard} · ${range}`}
               right={
                 <button className="ln-btn" style={{ fontSize: 11 }}>
                   Sort: Cases ▾
@@ -716,8 +737,8 @@ export function AnalyticsDashboardScreen() {
 
           <div>
             <PaneHead
-              eyebrow="Foresight"
-              title="AI forecast"
+              eyebrow={tForesight}
+              title={tAIForecast}
               right={
                 <span className="ln-chip is-info">
                   <Icon.Sparkles /> Model v3.2
@@ -828,7 +849,7 @@ export function AnalyticsDashboardScreen() {
               borderBottom: isMobile ? "1px solid var(--ln-line)" : "none",
             }}
           >
-            <PaneHead eyebrow="Regional volume" title="Cases by region" />
+            <PaneHead eyebrow={tRegionalVolume} title={tCasesByRegion} />
             <div style={{ padding: "12px 14px" }}>
               {regionBreakdown.length ? (
                 regionBreakdown.map((row) => (
@@ -883,8 +904,8 @@ export function AnalyticsDashboardScreen() {
             }}
           >
             <PaneHead
-              eyebrow="Latest"
-              title="Critical alerts · live"
+              eyebrow={tLatest}
+              title={tCriticalAlertsLive}
               right={
                 <span className="ln-chip is-crit">
                   <span className="ln-blink">●</span> LIVE
@@ -895,7 +916,7 @@ export function AnalyticsDashboardScreen() {
           </div>
 
           <div>
-            <PaneHead eyebrow="Hotspots" title="Outbreak roster" />
+            <PaneHead eyebrow={tHotspots} title={tOutbreakRoster} />
             <div style={{ overflow: "hidden" }}>
               <div
                 style={{
