@@ -43,7 +43,7 @@ const DASH_TABS: Array<{ id: DashboardTab; label: string; icon: keyof typeof Ico
   { id: "analytics", label: "Analytics", icon: "Pulse" },
   { id: "predictions", label: "AI Predictions", icon: "Sparkles" },
   { id: "categories", label: "Outbreak Categories", icon: "Layers" },
-  { id: "health-index", label: "Global Health Index", icon: "Globe" },
+  { id: "health-index", label: "Regional Risk", icon: "Globe" },
   { id: "data", label: "Data Management", icon: "News" },
   { id: "tracking", label: "Disease Tracking", icon: "Map" },
 ];
@@ -93,7 +93,7 @@ export function AnalyticsDashboardScreen() {
   const tAnalytics = useT("Analytics");
   const tAIPredictions = useT("AI Predictions");
   const tOutbreakCategories = useT("Outbreak Categories");
-  const tGlobalHealthIndex = useT("Global Health Index");
+  const tGlobalHealthIndex = useT("Regional Risk");
   const tDataManagement = useT("Data Management");
   const tDiseaseTracking = useT("Disease Tracking");
   const tEyebrow = useT("Analytics · Global outlook");

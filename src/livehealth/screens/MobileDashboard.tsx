@@ -13,7 +13,6 @@ import { useLiveDiseases } from "../data/useLiveDiseases";
 import { useLiveSeries } from "../data/useLiveSeries";
 import { useLiveAlerts } from "../data/useLiveAlerts";
 import { useLiveRegionRisk } from "../data/useLiveRegionRisk";
-import { useRegionalRiskLevels } from "../../lib/useRegionalRiskLevels";
 import { useOutbreakCategoriesLive } from "../data/useOutbreakCategoriesLive";
 import { useGroundedForecasts } from "../data/useGroundedForecasts";
 import { severityColor } from "../lib/utils";
@@ -30,7 +29,7 @@ const DASH_TABS: { id: DashTab; label: string; icon: keyof typeof Icon }[] = [
   { id: "analytics", label: "Analytics", icon: "Pulse" },
   { id: "predictions", label: "AI Predictions", icon: "Sparkles" },
   { id: "categories", label: "Outbreak Categories", icon: "Layers" },
-  { id: "health-index", label: "Global Health Index", icon: "Globe" },
+  { id: "health-index", label: "Regional Risk", icon: "Globe" },
   { id: "data", label: "Data Management", icon: "News" },
   { id: "tracking", label: "Disease Tracking", icon: "Map" },
 ];
@@ -1194,84 +1193,37 @@ function DmHealthIndex({ range, isTablet }: { range: RangeKey; isTablet: boolean
     [outbreaks]
   );
 
-  // Derive the global average GHI from real regional risk: GHI is the inverse
-  // of risk, so higher risk → lower preparedness score. Bound to [0, 10].
+  // Global preparedness derived from the live regional risk distribution.
+  // The full per-country / sub-index breakdown lives on /global-health-index.
   const { globalAvg, yoyDelta } = useMemo(() => {
     const values = Object.values(regionRisk);
     if (!values.length) return { globalAvg: 0, yoyDelta: 0 };
     const avgRisk = values.reduce((a, b) => a + b, 0) / values.length;
-    // Preparedness = 10 * (1 - risk). avg risk 0.4 → GHI 6.0.
     const ghi = 10 * (1 - avgRisk);
-    // Year-on-year proxy: assume baseline 6.5 a year ago, current = ghi.
-    // Real YoY would need historical health_statistics, which we don't store.
-    const delta = ghi - 6.5;
-    return { globalAvg: Math.max(0, Math.min(10, ghi)), yoyDelta: delta };
+    return { globalAvg: Math.max(0, Math.min(10, ghi)), yoyDelta: ghi - 6.5 };
   }, [regionRisk]);
-  const sub = [
-    { l: "Surveillance Strength", v: 6.8 },
-    { l: "Lab & Diagnostic Capacity", v: 6.4 },
-    { l: "Vaccine Coverage", v: 7.1 },
-    { l: "Sanitation & WaSH", v: 5.9 },
-    { l: "Healthcare Access", v: 6.2 },
-    { l: "Risk Communication", v: 5.5 },
-  ];
 
-  // Real country GHI computed from outbreak burden in the current range.
-  // GHI score: starts at 10, penalised for outbreak count, total cases and
-  // the worst-case severity in that country. Higher = better preparedness.
-  const { data: regionalData } = useRegionalRiskLevels(supaRange);
-  const countries = useMemo(() => {
-    const flat: { name: string; outbreaks: number; cases: number; risk: string }[] = [];
-    for (const region of regionalData) {
-      for (const c of region.countries) {
-        flat.push({
-          name: c.name,
-          outbreaks: c.outbreakCount,
-          cases: c.totalCases,
-          risk: c.riskLevel,
-        });
-      }
-    }
-    // Compute a 0-10 preparedness score per country.
-    const scored = flat.map((c) => {
-      const severityPenalty =
-        c.risk === "critical" ? 2.5 : c.risk === "high" ? 1.5 : c.risk === "medium" ? 0.7 : 0;
-      const outbreakPenalty = Math.min(4, c.outbreaks * 0.4);
-      const casePenalty = c.cases > 0 ? Math.min(3, Math.log10(c.cases + 1) * 0.7) : 0;
-      const ghi = Math.max(1, Math.min(10, 10 - severityPenalty - outbreakPenalty - casePenalty));
-      return { name: c.name, ghi, outbreaks: c.outbreaks, cases: c.cases };
-    });
-    // Sort: top 7 (highest GHI) + bottom 7 (lowest GHI) so users see both ends.
-    const sorted = scored.slice().sort((a, b) => b.ghi - a.ghi);
-    const top = sorted.slice(0, 7);
-    const bottom = sorted.slice(-7).reverse();
-    const merged = [...top];
-    for (const b of bottom) {
-      if (!merged.find((x) => x.name === b.name)) merged.push(b);
-    }
-    return merged;
-  }, [regionalData]);
   return (
     <>
       <div style={{ padding: "16px 16px 14px", borderBottom: "1px solid var(--ln-line)" }}>
-        <span className="ln-eyebrow">{useT("Global Health Index")}</span>
+        <span className="ln-eyebrow">{useT("Regional Risk")}</span>
         <h2
           className="ln-display"
           style={{ fontSize: 24, margin: "6px 0 12px", letterSpacing: "-0.02em", lineHeight: 1.1 }}
         >
-          {useT("How prepared is")}{" "}
-          <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}>{useT("each country?")}</span>
+          {useT("Where the world is")}{" "}
+          <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}>{useT("under pressure.")}</span>
         </h2>
-        <div style={{ display: "flex", gap: 28, alignItems: "baseline" }}>
+        <div style={{ display: "flex", gap: 28, alignItems: "baseline", flexWrap: "wrap" }}>
           <div>
-            <div className="ln-eyebrow">{useT("Global average")}</div>
+            <div className="ln-eyebrow">{useT("Global preparedness")}</div>
             <div className="ln-num" style={{ fontSize: 30, color: ACCENT }}>
               {globalAvg.toFixed(1)}
               <span style={{ fontSize: 12, color: "var(--ln-ink-3)" }}>/10</span>
             </div>
           </div>
           <div>
-            <div className="ln-eyebrow">{useT("Δ year-on-year")}</div>
+            <div className="ln-eyebrow">{useT("Δ vs baseline")}</div>
             <div
               className="ln-num"
               style={{
@@ -1288,7 +1240,7 @@ function DmHealthIndex({ range, isTablet }: { range: RangeKey; isTablet: boolean
 
       <div
         style={{
-          height: 200,
+          height: 220,
           borderBottom: "1px solid var(--ln-line)",
           position: "relative",
           background: "var(--ln-map-bg)",
@@ -1298,7 +1250,7 @@ function DmHealthIndex({ range, isTablet }: { range: RangeKey; isTablet: boolean
       >
         <WorldMap
           width={360}
-          height={200}
+          height={220}
           outbreaks={mapOutbreaks}
           regionRisk={regionRisk}
           showChoropleth
@@ -1307,76 +1259,22 @@ function DmHealthIndex({ range, isTablet }: { range: RangeKey; isTablet: boolean
         />
       </div>
 
-      <DmSectionHead eyebrow={useT("Sub-indices · global")} title={useT("Pulling the index up & down")} />
-      <div style={{ padding: "6px 16px 14px" }}>
-        {sub.map((s) => (
-          <DmBar
-            key={s.l}
-            label={s.l}
-            value={s.v}
-            max={10}
-            color={s.v >= 7 ? "var(--ln-brand)" : s.v >= 5.5 ? "var(--ln-warn)" : "var(--ln-crit)"}
-          />
-        ))}
-      </div>
-
-      <DmSectionHead eyebrow={useT("Country rankings")} title={useT("GHI · top & bottom")} />
-      <div style={{ padding: "4px 16px 16px" }}>
-        {countries.length === 0 && (
-          <div style={{ padding: 16, fontSize: 12, color: "var(--ln-ink-3)" }}>
-            {useT("Loading country data…")}
-          </div>
-        )}
-        {countries.map((c, i) => (
-          <div
-            key={c.name}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "26px 1fr 56px 56px",
-              alignItems: "center",
-              gap: 8,
-              padding: "9px 0",
-              borderBottom: "1px solid var(--ln-line)",
-            }}
-          >
-            <span className="ln-num" style={{ fontSize: 11, color: "var(--ln-ink-4)" }}>
-              {String(i + 1).padStart(2, "0")}
-            </span>
-            <span
-              style={{
-                fontSize: 13,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-              title={c.name}
-            >
-              {c.name}
-            </span>
-            <span
-              className="ln-num"
-              style={{
-                fontSize: 14,
-                textAlign: "right",
-                color: c.ghi >= 7 ? "var(--ln-brand)" : c.ghi >= 5 ? "var(--ln-warn)" : "var(--ln-crit)",
-              }}
-            >
-              {c.ghi.toFixed(1)}
-            </span>
-            <span
-              className="ln-num"
-              style={{
-                fontSize: 11,
-                textAlign: "right",
-                color: "var(--ln-ink-4)",
-                fontFamily: "var(--ln-font-mono)",
-              }}
-              title={`${c.outbreaks} outbreaks, ${c.cases.toLocaleString()} cases`}
-            >
-              {c.outbreaks} · {c.cases >= 1000 ? `${(c.cases / 1000).toFixed(1)}k` : c.cases}
-            </span>
-          </div>
-        ))}
+      <div style={{ padding: "12px 16px 18px", fontSize: 12, color: "var(--ln-ink-3)", lineHeight: 1.55 }}>
+        {useT(
+          "Continent fills reflect outbreak severity in the active range; pulsing dots mark high-severity events. For per-country GHI, sub-indices and the full ranking table, open"
+        )}{" "}
+        <a
+          href="/global-health-index"
+          style={{
+            color: ACCENT,
+            textDecoration: "none",
+            fontFamily: "var(--ln-font-mono)",
+            fontSize: 11,
+          }}
+        >
+          /global-health-index
+        </a>
+        .
       </div>
     </>
   );
