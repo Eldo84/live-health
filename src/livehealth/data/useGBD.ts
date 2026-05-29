@@ -3,10 +3,12 @@ import { supabase } from "../../lib/supabase";
 
 // Real public-data hooks for the Global Health Index page.
 // Backed by gbd_countries / gbd_causes / gbd_estimates / gbd_country_indicators
-// which are populated from:
+// populated from:
 //   - World Bank Open Data API   (population, life expectancy, vaccination, mortality)
-//   - WHO Global Health Observatory (TB, HIV, malaria incidence)
-// All open / no-signup sources. See edge function import-public-health-data.
+//   - WHO Global Health Observatory (malaria incidence)
+//   - IHME GBD 2023 (Deaths/DALYs/YLDs/YLLs/Prevalence/Incidence for 10 causes,
+//                    204 countries, 2017-2023, age-standardized rate, both sexes,
+//                    with 95% CI lower/upper bounds)
 
 export interface GbdCountry {
   iso3: string;
@@ -37,9 +39,15 @@ export interface GbdEstimate {
   cause_id: string;
   year: number;
   measure: string;
-  rate: number;
+  rate: number | null;
+  lower: number | null;
+  upper: number | null;
   source: string;
 }
+
+// Canonical measure strings used in gbd_estimates.
+export const MEASURES = ["Deaths", "DALYs", "YLLs", "YLDs", "Incidence", "Prevalence"] as const;
+export type Measure = (typeof MEASURES)[number];
 
 export function useGbdCountries() {
   const [countries, setCountries] = useState<GbdCountry[]>([]);
@@ -113,10 +121,11 @@ export function useGbdCountryIndicator(indicator: string) {
 }
 
 // Fetch all per-disease estimates for a single cause + measure across years.
-// Used for the metric cards' time series and the country comparison bars.
+// Returns IHME data (with CI bounds) plus any WHO fallback. Canonical Measure
+// strings use title case ("Deaths", "Incidence", ...).
 export function useGbdDiseaseEstimates(
   causeId: string | null,
-  measure: string
+  measure: Measure | string
 ) {
   const [rows, setRows] = useState<GbdEstimate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,7 +139,7 @@ export function useGbdDiseaseEstimates(
     setLoading(true);
     supabase
       .from("gbd_estimates")
-      .select("iso3, cause_id, year, measure, rate, source")
+      .select("iso3, cause_id, year, measure, rate, lower, upper, source")
       .eq("cause_id", causeId)
       .eq("measure", measure)
       .order("year")
@@ -144,6 +153,91 @@ export function useGbdDiseaseEstimates(
       cancelled = true;
     };
   }, [causeId, measure]);
+  return { rows, loading };
+}
+
+// All cause-level rows for ONE country at ONE measure — powers the
+// "burden ranking across all causes" chart.
+export function useGbdCountryAllCauses(
+  iso3: string | null,
+  measure: Measure | string
+) {
+  const [rows, setRows] = useState<GbdEstimate[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    if (!iso3 || iso3 === "global") {
+      // Global average: pull all rows for the measure, average per cause+year.
+      let cancelled = false;
+      setLoading(true);
+      supabase
+        .from("gbd_estimates")
+        .select("iso3, cause_id, year, measure, rate, lower, upper, source")
+        .eq("measure", measure)
+        .order("year")
+        .then(({ data }) => {
+          if (!cancelled) {
+            setRows(data || []);
+            setLoading(false);
+          }
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
+    let cancelled = false;
+    setLoading(true);
+    supabase
+      .from("gbd_estimates")
+      .select("iso3, cause_id, year, measure, rate, lower, upper, source")
+      .eq("iso3", iso3)
+      .eq("measure", measure)
+      .order("year")
+      .then(({ data }) => {
+        if (!cancelled) {
+          setRows(data || []);
+          setLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [iso3, measure]);
+  return { rows, loading };
+}
+
+// Both YLLs and YLDs for one country + cause across years, so a chart can
+// stack mortality-burden vs disability-burden over time.
+export function useGbdCountryBurdenSplit(
+  iso3: string | null,
+  causeId: string | null
+) {
+  const [rows, setRows] = useState<GbdEstimate[]>([]);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    if (!iso3 || !causeId) {
+      setRows([]);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    let query = supabase
+      .from("gbd_estimates")
+      .select("iso3, cause_id, year, measure, rate, lower, upper, source")
+      .eq("cause_id", causeId)
+      .in("measure", ["YLLs", "YLDs"])
+      .order("year");
+    if (iso3 !== "global") query = query.eq("iso3", iso3);
+    query.then(({ data }) => {
+      if (!cancelled) {
+        setRows(data || []);
+        setLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [iso3, causeId]);
   return { rows, loading };
 }
 
