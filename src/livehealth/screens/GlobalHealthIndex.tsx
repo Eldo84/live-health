@@ -50,7 +50,7 @@ export function GlobalHealthIndexScreen() {
   // Country & disease selection — both default to a country/disease with real data.
   const [countryIso, setCountryIso] = useState<string>("global");
   const [diseaseId, setDiseaseId] = useState<string>("tuberculosis");
-  const [year, setYear] = useState<number>(2022);
+  const [year, setYear] = useState<number>(2024);
 
   const disease = useMemo<GbdCause | null>(
     () => causes.find((c) => c.id === diseaseId) || causes[0] || null,
@@ -139,7 +139,7 @@ export function GlobalHealthIndexScreen() {
             <input
               type="range"
               min={2017}
-              max={2023}
+              max={2024}
               value={year}
               onChange={(e) => setYear(+e.target.value)}
               style={{ width: isMobile ? 110 : 160 }}
