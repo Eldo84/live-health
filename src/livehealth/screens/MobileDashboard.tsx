@@ -13,6 +13,7 @@ import { useLiveDiseases } from "../data/useLiveDiseases";
 import { useLiveSeries } from "../data/useLiveSeries";
 import { useLiveAlerts } from "../data/useLiveAlerts";
 import { useLiveRegionRisk } from "../data/useLiveRegionRisk";
+import { useRegionalRiskLevels } from "../../lib/useRegionalRiskLevels";
 import { useOutbreakCategoriesLive } from "../data/useOutbreakCategoriesLive";
 import { useGroundedForecasts } from "../data/useGroundedForecasts";
 import { severityColor } from "../lib/utils";
@@ -1214,22 +1215,42 @@ function DmHealthIndex({ range, isTablet }: { range: RangeKey; isTablet: boolean
     { l: "Healthcare Access", v: 6.2 },
     { l: "Risk Communication", v: 5.5 },
   ];
-  const countries = [
-    { name: "Norway", ghi: 8.9, change: -0.1 },
-    { name: "Switzerland", ghi: 8.7, change: 0 },
-    { name: "Singapore", ghi: 8.6, change: 0.1 },
-    { name: "Australia", ghi: 8.4, change: -0.1 },
-    { name: "Canada", ghi: 8.2, change: 0 },
-    { name: "Germany", ghi: 8.1, change: -0.2 },
-    { name: "Japan", ghi: 8.0, change: 0.1 },
-    { name: "United Kingdom", ghi: 7.6, change: -0.3 },
-    { name: "United States", ghi: 7.4, change: -0.4 },
-    { name: "Brazil", ghi: 6.2, change: -0.5 },
-    { name: "India", ghi: 5.4, change: 0.2 },
-    { name: "Nigeria", ghi: 4.2, change: -0.3 },
-    { name: "DR Congo", ghi: 3.6, change: -0.4 },
-    { name: "Yemen", ghi: 2.9, change: -0.5 },
-  ];
+
+  // Real country GHI computed from outbreak burden in the current range.
+  // GHI score: starts at 10, penalised for outbreak count, total cases and
+  // the worst-case severity in that country. Higher = better preparedness.
+  const { data: regionalData } = useRegionalRiskLevels(supaRange);
+  const countries = useMemo(() => {
+    const flat: { name: string; outbreaks: number; cases: number; risk: string }[] = [];
+    for (const region of regionalData) {
+      for (const c of region.countries) {
+        flat.push({
+          name: c.name,
+          outbreaks: c.outbreakCount,
+          cases: c.totalCases,
+          risk: c.riskLevel,
+        });
+      }
+    }
+    // Compute a 0-10 preparedness score per country.
+    const scored = flat.map((c) => {
+      const severityPenalty =
+        c.risk === "critical" ? 2.5 : c.risk === "high" ? 1.5 : c.risk === "medium" ? 0.7 : 0;
+      const outbreakPenalty = Math.min(4, c.outbreaks * 0.4);
+      const casePenalty = c.cases > 0 ? Math.min(3, Math.log10(c.cases + 1) * 0.7) : 0;
+      const ghi = Math.max(1, Math.min(10, 10 - severityPenalty - outbreakPenalty - casePenalty));
+      return { name: c.name, ghi, outbreaks: c.outbreaks, cases: c.cases };
+    });
+    // Sort: top 7 (highest GHI) + bottom 7 (lowest GHI) so users see both ends.
+    const sorted = scored.slice().sort((a, b) => b.ghi - a.ghi);
+    const top = sorted.slice(0, 7);
+    const bottom = sorted.slice(-7).reverse();
+    const merged = [...top];
+    for (const b of bottom) {
+      if (!merged.find((x) => x.name === b.name)) merged.push(b);
+    }
+    return merged;
+  }, [regionalData]);
   return (
     <>
       <div style={{ padding: "16px 16px 14px", borderBottom: "1px solid var(--ln-line)" }}>
@@ -1301,12 +1322,17 @@ function DmHealthIndex({ range, isTablet }: { range: RangeKey; isTablet: boolean
 
       <DmSectionHead eyebrow={useT("Country rankings")} title={useT("GHI · top & bottom")} />
       <div style={{ padding: "4px 16px 16px" }}>
+        {countries.length === 0 && (
+          <div style={{ padding: 16, fontSize: 12, color: "var(--ln-ink-3)" }}>
+            {useT("Loading country data…")}
+          </div>
+        )}
         {countries.map((c, i) => (
           <div
             key={c.name}
             style={{
               display: "grid",
-              gridTemplateColumns: "26px 1fr 50px 48px",
+              gridTemplateColumns: "26px 1fr 56px 56px",
               alignItems: "center",
               gap: 8,
               padding: "9px 0",
@@ -1323,6 +1349,7 @@ function DmHealthIndex({ range, isTablet }: { range: RangeKey; isTablet: boolean
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
               }}
+              title={c.name}
             >
               {c.name}
             </span>
@@ -1339,18 +1366,14 @@ function DmHealthIndex({ range, isTablet }: { range: RangeKey; isTablet: boolean
             <span
               className="ln-num"
               style={{
-                fontSize: 11.5,
+                fontSize: 11,
                 textAlign: "right",
-                color:
-                  c.change > 0
-                    ? "var(--ln-brand)"
-                    : c.change < 0
-                    ? "var(--ln-crit)"
-                    : "var(--ln-ink-3)",
+                color: "var(--ln-ink-4)",
+                fontFamily: "var(--ln-font-mono)",
               }}
+              title={`${c.outbreaks} outbreaks, ${c.cases.toLocaleString()} cases`}
             >
-              {c.change > 0 ? "+" : ""}
-              {c.change.toFixed(1)}
+              {c.outbreaks} · {c.cases >= 1000 ? `${(c.cases / 1000).toFixed(1)}k` : c.cases}
             </span>
           </div>
         ))}
