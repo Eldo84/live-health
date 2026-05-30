@@ -24,7 +24,7 @@ export function useDashboardDiseases(timeRange: string, countryId?: string | nul
         const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
         if (!supabaseUrl || !supabaseKey) {
-          throw new Error("Missing Supabase configuration");
+          throw new Error("Missing LiveHealth+ database configuration");
         }
 
         // Calculate date range

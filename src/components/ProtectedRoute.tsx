@@ -27,7 +27,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     if (!open) {
       setAuthDialogOpen(false);
       if (!user) {
-        navigate("/app/map");
+        navigate("/map");
       }
     } else {
       setAuthDialogOpen(open);

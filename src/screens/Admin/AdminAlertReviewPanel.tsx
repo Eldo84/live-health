@@ -1,18 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  Dialog, DialogContent, DialogDescription, DialogFooter, 
-  DialogHeader, DialogTitle 
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter,
+  DialogHeader, DialogTitle
 } from '@/components/ui/dialog';
-import { 
+import {
   Loader2, Eye, CheckCircle, XCircle, AlertCircle, ArrowLeft,
-  Search, Shield, MapPin, Calendar, Link as LinkIcon, User, Trash2
+  Search, MapPin, Calendar, Link as LinkIcon, User, Trash2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
@@ -42,10 +37,10 @@ interface AlertSubmission {
   created_at: string;
 }
 
-const statusConfig: Record<string, { label: string; color: string }> = {
-  pending_review: { label: 'Pending Review', color: 'bg-yellow-500' },
-  approved: { label: 'Approved', color: 'bg-green-500' },
-  rejected: { label: 'Rejected', color: 'bg-red-500' },
+const statusConfig: Record<string, { label: string; chip: string }> = {
+  pending_review: { label: 'Pending Review', chip: 'ln-chip is-warn' },
+  approved: { label: 'Approved', chip: 'ln-chip is-ok' },
+  rejected: { label: 'Rejected', chip: 'ln-chip is-crit' },
 };
 
 export const AdminAlertReviewPanel: React.FC = () => {
@@ -461,8 +456,16 @@ export const AdminAlertReviewPanel: React.FC = () => {
 
   if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div
+        style={{
+          minHeight: 'calc(100vh - 140px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--ln-bg)',
+        }}
+      >
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--ln-brand)' }} />
       </div>
     );
   }
@@ -471,220 +474,307 @@ export const AdminAlertReviewPanel: React.FC = () => {
     return null;
   }
 
+  const reviewTabs: { id: string; label: string; count: number }[] = [
+    { id: 'pending', label: 'Pending', count: pendingCount },
+    { id: 'approved', label: 'Approved', count: approvedCount },
+    { id: 'rejected', label: 'Rejected', count: rejectedCount },
+  ];
+
+  const reviewStats: { label: string; value: number; color: string }[] = [
+    { label: 'Pending Review', value: pendingCount, color: 'var(--ln-warn)' },
+    { label: 'Approved', value: approvedCount, color: 'var(--ln-brand)' },
+    { label: 'Rejected', value: rejectedCount, color: 'var(--ln-crit)' },
+  ];
+
   return (
-    <div className="min-h-screen bg-background">
+    <div style={{ background: 'var(--ln-bg)', color: 'var(--ln-ink)', minHeight: 'calc(100vh - 140px)' }}>
       {/* Header */}
-      <div className="border-b bg-card">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" onClick={() => navigate('/admin')}>
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Admin Dashboard
-              </Button>
-              <div className="flex items-center gap-2">
-                <Shield className="w-6 h-6 text-primary" />
-                <div>
-                  <h1 className="text-2xl font-bold">Alert Review Panel</h1>
-                  <p className="text-muted-foreground">Review and approve user-submitted alerts</p>
-                </div>
-              </div>
-            </div>
-            <Badge variant="outline" className="text-primary border-primary">
-              Admin Access
-            </Badge>
+      <div
+        style={{
+          padding: '22px 28px',
+          borderBottom: '1px solid var(--ln-line)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 12,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <button className="ln-btn" onClick={() => navigate('/admin')}>
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </button>
+          <div>
+            <span className="ln-eyebrow">Moderation</span>
+            <h1 className="ln-display" style={{ fontSize: 26, margin: '4px 0 0', letterSpacing: '-0.02em' }}>
+              Alert review panel
+            </h1>
+            <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '4px 0 0' }}>
+              Review and approve user-submitted alerts
+            </p>
           </div>
         </div>
+        <span className="ln-chip is-ok">Admin access</span>
       </div>
 
-      <div className="container mx-auto px-4 py-6">
+      <div style={{ padding: '22px 28px 40px' }}>
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Pending Review</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">{pendingCount}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Approved</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{approvedCount}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Rejected</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">{rejectedCount}</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Tabs */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Alert Submissions</CardTitle>
-              <div className="flex items-center gap-2">
-                <Search className="w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search alerts..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-64"
-                />
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: 14,
+            marginBottom: 22,
+          }}
+        >
+          {reviewStats.map((s) => (
+            <div
+              key={s.label}
+              style={{
+                border: '1px solid var(--ln-line)',
+                background: 'var(--ln-surface)',
+                padding: '14px 16px',
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+            >
+              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 2, background: s.color }} />
+              <div className="ln-eyebrow">{s.label}</div>
+              <div className="ln-num" style={{ fontSize: 26, color: s.color, marginTop: 6, fontWeight: 500 }}>
+                {s.value}
               </div>
             </div>
-          </CardHeader>
-          <CardContent>
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList>
-                <TabsTrigger value="pending">
-                  Pending ({pendingCount})
-                </TabsTrigger>
-                <TabsTrigger value="approved">
-                  Approved ({approvedCount})
-                </TabsTrigger>
-                <TabsTrigger value="rejected">
-                  Rejected ({rejectedCount})
-                </TabsTrigger>
-              </TabsList>
+          ))}
+        </div>
 
-              <TabsContent value={activeTab} className="mt-4">
-                {filteredSubmissions.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No alerts found
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {filteredSubmissions.map((submission) => (
-                      <Card key={submission.id} className="hover:shadow-md transition-shadow">
-                        <CardContent className="pt-6">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1 space-y-2">
-                              <div className="flex items-center gap-2">
-                                <h3 className="font-semibold text-lg">{submission.headline}</h3>
-                                <Badge className={statusConfig[submission.status].color}>
-                                  {statusConfig[submission.status].label}
-                                </Badge>
-                              </div>
-                              
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-muted-foreground">
-                                <div className="flex items-center gap-2">
-                                  <User className="w-4 h-4" />
-                                  <span>{submission.user_email}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <MapPin className="w-4 h-4" />
-                                  <span>{submission.location}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Calendar className="w-4 h-4" />
-                                  <span>{new Date(submission.date).toLocaleDateString()}</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <AlertCircle className="w-4 h-4" />
-                                  <span>{submission.disease_name}</span>
-                                </div>
-                              </div>
+        {/* List */}
+        <div style={{ border: '1px solid var(--ln-line)', background: 'var(--ln-surface)' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              padding: '16px 18px',
+              borderBottom: '1px solid var(--ln-line)',
+              flexWrap: 'wrap',
+            }}
+          >
+            <span className="ln-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}>Alert submissions</span>
+            <div style={{ position: 'relative', width: 260, maxWidth: '100%' }}>
+              <span
+                style={{
+                  position: 'absolute',
+                  left: 10,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--ln-ink-4)',
+                  display: 'inline-flex',
+                }}
+              >
+                <Search className="w-4 h-4" />
+              </span>
+              <input
+                className="ln-input"
+                style={{ paddingLeft: 32 }}
+                placeholder="Search alerts..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
 
-                              <p className="text-sm text-muted-foreground line-clamp-2">
-                                {submission.description}
-                              </p>
+          {/* Tab nav */}
+          <div style={{ display: 'flex', gap: 4, padding: '10px 18px 0', borderBottom: '1px solid var(--ln-line)' }}>
+            {reviewTabs.map((t) => {
+              const active = activeTab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setActiveTab(t.id)}
+                  style={{
+                    padding: '8px 12px',
+                    fontSize: 12.5,
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: active ? 'var(--ln-ink)' : 'var(--ln-ink-3)',
+                    borderBottom: active ? '1.5px solid var(--ln-brand)' : '1.5px solid transparent',
+                  }}
+                >
+                  {t.label}{' '}
+                  <span className="ln-num" style={{ color: 'var(--ln-ink-4)' }}>({t.count})</span>
+                </button>
+              );
+            })}
+          </div>
 
-                              {submission.url && (
-                                <a
-                                  href={submission.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center gap-2 text-sm text-primary hover:underline"
-                                >
-                                  <LinkIcon className="w-4 h-4" />
-                                  View Source
-                                </a>
-                              )}
+          <div style={{ padding: 18 }}>
+            {filteredSubmissions.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--ln-ink-3)', fontSize: 13 }}>
+                No alerts found
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {filteredSubmissions.map((submission) => (
+                  <div
+                    key={submission.id}
+                    style={{ border: '1px solid var(--ln-line)', background: 'var(--ln-surface-2)', padding: 16 }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+                      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                          <h3 style={{ fontSize: 15, fontWeight: 600, margin: 0, color: 'var(--ln-ink)' }}>
+                            {submission.headline}
+                          </h3>
+                          <span className={statusConfig[submission.status].chip}>
+                            {statusConfig[submission.status].label}
+                          </span>
+                        </div>
 
-                              {submission.admin_notes && (
-                                <div className="mt-2 p-2 bg-muted rounded text-sm">
-                                  <strong>Admin Notes:</strong> {submission.admin_notes}
-                                </div>
-                              )}
-
-                              {submission.rejection_reason && (
-                                <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 rounded text-sm text-red-600 dark:text-red-400">
-                                  <strong>Rejection Reason:</strong> {submission.rejection_reason}
-                                </div>
-                              )}
-
-                              <div className="text-xs text-muted-foreground">
-                                Submitted: {new Date(submission.created_at).toLocaleString()}
-                                {submission.reviewed_at && (
-                                  <> • Reviewed: {new Date(submission.reviewed_at).toLocaleString()}</>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="flex flex-col items-end gap-2 ml-4">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => setViewingSubmission(submission)}
-                              >
-                                <Eye className="w-4 h-4 mr-1" />
-                                View
-                              </Button>
-                              {submission.status === 'pending_review' && (
-                                <div className="flex gap-2">
-                                  <Button
-                                    size="sm"
-                                    variant="default"
-                                    onClick={() => {
-                                      setReviewingSubmission(submission);
-                                      setReviewAction('approve');
-                                    }}
-                                  >
-                                    <CheckCircle className="w-4 h-4 mr-1" />
-                                    Approve
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={() => {
-                                      setReviewingSubmission(submission);
-                                      setReviewAction('reject');
-                                    }}
-                                  >
-                                    <XCircle className="w-4 h-4 mr-1" />
-                                    Reject
-                                  </Button>
-                                </div>
-                              )}
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-destructive"
-                                onClick={() => setDeletingSubmission(submission)}
-                              >
-                                <Trash2 className="w-4 h-4 mr-1" />
-                                Delete
-                              </Button>
-                            </div>
+                        <div
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                            gap: 8,
+                            fontSize: 12.5,
+                            color: 'var(--ln-ink-3)',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <User className="w-4 h-4" />
+                            <span>{submission.user_email}</span>
                           </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <MapPin className="w-4 h-4" />
+                            <span>{submission.location}</span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <Calendar className="w-4 h-4" />
+                            <span>{new Date(submission.date).toLocaleDateString()}</span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <AlertCircle className="w-4 h-4" />
+                            <span>{submission.disease_name}</span>
+                          </div>
+                        </div>
+
+                        <p
+                          style={{
+                            fontSize: 12.5,
+                            color: 'var(--ln-ink-3)',
+                            margin: 0,
+                            overflow: 'hidden',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                          }}
+                        >
+                          {submission.description}
+                        </p>
+
+                        {submission.url && (
+                          <a
+                            href={submission.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 8,
+                              fontSize: 12.5,
+                              color: 'var(--ln-brand)',
+                              textDecoration: 'none',
+                            }}
+                          >
+                            <LinkIcon className="w-4 h-4" />
+                            View Source
+                          </a>
+                        )}
+
+                        {submission.admin_notes && (
+                          <div
+                            style={{
+                              padding: 10,
+                              background: 'var(--ln-surface-3)',
+                              border: '1px solid var(--ln-line-2)',
+                              fontSize: 12.5,
+                              color: 'var(--ln-ink-2)',
+                            }}
+                          >
+                            <strong>Admin Notes:</strong> {submission.admin_notes}
+                          </div>
+                        )}
+
+                        {submission.rejection_reason && (
+                          <div
+                            style={{
+                              padding: 10,
+                              background: 'color-mix(in oklab, var(--ln-crit) 10%, transparent)',
+                              border: '1px solid color-mix(in oklab, var(--ln-crit) 35%, transparent)',
+                              fontSize: 12.5,
+                              color: 'var(--ln-crit)',
+                            }}
+                          >
+                            <strong>Rejection Reason:</strong> {submission.rejection_reason}
+                          </div>
+                        )}
+
+                        <div style={{ fontSize: 11, color: 'var(--ln-ink-4)', fontFamily: 'var(--ln-font-mono)' }}>
+                          Submitted: {new Date(submission.created_at).toLocaleString()}
+                          {submission.reviewed_at && (
+                            <> • Reviewed: {new Date(submission.reviewed_at).toLocaleString()}</>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flex: '0 0 auto' }}>
+                        <button className="ln-btn" onClick={() => setViewingSubmission(submission)}>
+                          <Eye className="w-4 h-4" />
+                          View
+                        </button>
+                        {submission.status === 'pending_review' && (
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button
+                              className="ln-btn is-primary"
+                              onClick={() => {
+                                setReviewingSubmission(submission);
+                                setReviewAction('approve');
+                              }}
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                              Approve
+                            </button>
+                            <button
+                              className="ln-btn"
+                              style={{ color: 'var(--ln-crit)', borderColor: 'color-mix(in oklab, var(--ln-crit) 35%, transparent)' }}
+                              onClick={() => {
+                                setReviewingSubmission(submission);
+                                setReviewAction('reject');
+                              }}
+                            >
+                              <XCircle className="w-4 h-4" />
+                              Reject
+                            </button>
+                          </div>
+                        )}
+                        <button
+                          className="ln-btn"
+                          style={{ color: 'var(--ln-crit)' }}
+                          onClick={() => setDeletingSubmission(submission)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Delete
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                )}
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* View Details Dialog */}
@@ -702,9 +792,9 @@ export const AdminAlertReviewPanel: React.FC = () => {
                   <p className="text-sm text-muted-foreground">Headline</p>
                   <p className="text-lg font-semibold">{viewingSubmission.headline}</p>
                 </div>
-                <Badge className={statusConfig[viewingSubmission.status].color}>
+                <span className={statusConfig[viewingSubmission.status].chip}>
                   {statusConfig[viewingSubmission.status].label}
-                </Badge>
+                </span>
               </div>
 
               <div className="grid sm:grid-cols-2 gap-4 text-sm">
@@ -768,9 +858,9 @@ export const AdminAlertReviewPanel: React.FC = () => {
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setViewingSubmission(null)}>
+            <button className="ln-btn" onClick={() => setViewingSubmission(null)}>
               Close
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -823,35 +913,36 @@ export const AdminAlertReviewPanel: React.FC = () => {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={closeReviewDialog} disabled={isProcessing}>
+            <button className="ln-btn" onClick={closeReviewDialog} disabled={isProcessing}>
               Cancel
-            </Button>
-            <Button
+            </button>
+            <button
+              className={reviewAction === 'approve' ? 'ln-btn is-primary' : 'ln-btn'}
+              style={reviewAction === 'reject' ? { color: 'var(--ln-crit)', borderColor: 'color-mix(in oklab, var(--ln-crit) 35%, transparent)' } : undefined}
               onClick={handleReview}
               disabled={isProcessing || (reviewAction === 'reject' && !rejectionReason.trim())}
-              variant={reviewAction === 'approve' ? 'default' : 'destructive'}
             >
               {isProcessing ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   Processing...
                 </>
               ) : (
                 <>
                   {reviewAction === 'approve' ? (
                     <>
-                      <CheckCircle className="w-4 h-4 mr-2" />
+                      <CheckCircle className="w-4 h-4" />
                       Approve
                     </>
                   ) : (
                     <>
-                      <XCircle className="w-4 h-4 mr-2" />
+                      <XCircle className="w-4 h-4" />
                       Reject
                     </>
                   )}
                 </>
               )}
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -873,22 +964,27 @@ export const AdminAlertReviewPanel: React.FC = () => {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeletingSubmission(null)} disabled={isDeleting}>
+            <button className="ln-btn" onClick={() => setDeletingSubmission(null)} disabled={isDeleting}>
               Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteSubmission} disabled={isDeleting}>
+            </button>
+            <button
+              className="ln-btn"
+              style={{ color: 'var(--ln-crit)', borderColor: 'color-mix(in oklab, var(--ln-crit) 35%, transparent)' }}
+              onClick={handleDeleteSubmission}
+              disabled={isDeleting}
+            >
               {isDeleting ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   Deleting...
                 </>
               ) : (
                 <>
-                  <Trash2 className="w-4 h-4 mr-2" />
+                  <Trash2 className="w-4 h-4" />
                   Delete
                 </>
               )}
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

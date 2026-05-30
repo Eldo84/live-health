@@ -21,7 +21,7 @@ export function useDashboardStatsWithFilter(timeRange: string, searchQuery?: str
         const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
         if (!supabaseUrl || !supabaseKey) {
-          throw new Error("Missing Supabase configuration");
+          throw new Error("Missing LiveHealth+ database configuration");
         }
 
         // Calculate date range

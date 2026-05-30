@@ -26,7 +26,7 @@ export function useRecentAlerts(limit: number = 10, countryId?: string | null) {
         const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
         if (!supabaseUrl || !supabaseKey) {
-          throw new Error("Missing Supabase configuration");
+          throw new Error("Missing LiveHealth+ database configuration");
         }
 
         // Fetch recent outbreak signals with related data

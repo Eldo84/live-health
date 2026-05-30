@@ -543,7 +543,7 @@ export function useSupabaseOutbreakSignals(filters?: FilterState | null) {
         const supabaseKey = envVars?.VITE_SUPABASE_ANON_KEY;
 
         if (!supabaseUrl || !supabaseKey) {
-          throw new Error("Missing Supabase configuration. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY");
+          throw new Error("Missing LiveHealth+ database configuration. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY");
         }
 
         // When searching for a disease, find matching disease_ids to filter server-side

@@ -1,16 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
-import { 
-  Loader2, ArrowLeft, Bell, Send, Users, Search, CheckCircle2, XCircle, Mail, MessageSquare
+import {
+  Loader2, ArrowLeft, Bell, Send, Search, CheckCircle2, XCircle, Mail, MessageSquare
 } from 'lucide-react';
-import { 
+import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -245,8 +240,16 @@ export const AdminNotificationPanel: React.FC = () => {
 
   if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div
+        style={{
+          minHeight: 'calc(100vh - 140px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--ln-bg)',
+        }}
+      >
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--ln-brand)' }} />
       </div>
     );
   }
@@ -255,48 +258,60 @@ export const AdminNotificationPanel: React.FC = () => {
     return null;
   }
 
+  const labelStyle: React.CSSProperties = {
+    display: 'block',
+    fontSize: 12,
+    fontWeight: 500,
+    color: 'var(--ln-ink-2)',
+    marginBottom: 6,
+  };
+
   return (
-    <div className="min-h-screen bg-background">
+    <div style={{ background: 'var(--ln-bg)', color: 'var(--ln-ink)', minHeight: 'calc(100vh - 140px)' }}>
       {/* Header */}
-      <div className="border-b bg-card">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center gap-4">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/admin')}
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <div className="flex items-center gap-3">
-              <Bell className="w-8 h-8 text-primary" />
-              <div>
-                <h1 className="text-3xl font-bold text-foreground">
-                  Send Notification
-                </h1>
-                <p className="text-sm font-medium text-foreground/70 mt-1">
-                  Send notifications to users (in-app and email)
-                </p>
-              </div>
-            </div>
+      <div
+        style={{
+          padding: '22px 28px',
+          borderBottom: '1px solid var(--ln-line)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+        }}
+      >
+        <button className="ln-btn" style={{ padding: 8 }} onClick={() => navigate('/admin')} aria-label="Back">
+          <ArrowLeft className="w-4 h-4" />
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Bell className="w-6 h-6" style={{ color: 'var(--ln-brand)' }} />
+          <div>
+            <span className="ln-eyebrow">Outreach</span>
+            <h1 className="ln-display" style={{ fontSize: 26, margin: '4px 0 0', letterSpacing: '-0.02em' }}>
+              Send notification
+            </h1>
+            <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '4px 0 0' }}>
+              Send notifications to users (in-app and email)
+            </p>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <Card>
-          <CardHeader>
-            <CardTitle>Create Notification</CardTitle>
-            <CardDescription>
-              Send a notification to users. They will receive it both in-app and via email.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
+      <div style={{ padding: '22px 28px 40px', maxWidth: 860, margin: '0 auto' }}>
+        <div style={{ border: '1px solid var(--ln-line)', background: 'var(--ln-surface)', padding: 22 }}>
+          <span className="ln-eyebrow">Compose</span>
+          <h2 className="ln-display" style={{ fontSize: 20, margin: '6px 0 4px', letterSpacing: '-0.01em' }}>
+            Create notification
+          </h2>
+          <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '0 0 20px' }}>
+            Send a notification to users. They will receive it both in-app and via email.
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {/* Title */}
-            <div className="space-y-2">
-              <Label htmlFor="title">Title *</Label>
-              <Input
+            <div>
+              <label htmlFor="title" style={labelStyle}>Title *</label>
+              <input
                 id="title"
+                className="ln-input"
                 placeholder="Enter notification title"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -305,81 +320,97 @@ export const AdminNotificationPanel: React.FC = () => {
             </div>
 
             {/* Message */}
-            <div className="space-y-2">
-              <Label htmlFor="message">Message *</Label>
-              <Textarea
+            <div>
+              <label htmlFor="message" style={labelStyle}>Message *</label>
+              <textarea
                 id="message"
+                className="ln-input"
                 placeholder="Enter notification message"
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 disabled={isSending}
                 rows={6}
+                style={{ resize: 'vertical', minHeight: 120, fontFamily: 'var(--ln-font-sans)' }}
               />
             </div>
 
             {/* Target Selection */}
-            <div className="space-y-4">
-              <Label>Send To *</Label>
+            <div>
+              <span style={labelStyle}>Send To *</span>
               <RadioGroup value={target} onValueChange={(value) => setTarget(value as 'all' | 'selected')}>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2" style={{ marginBottom: 8 }}>
                   <RadioGroupItem value="all" id="all" disabled={isSending} />
-                  <Label htmlFor="all" className="font-normal cursor-pointer">
+                  <label htmlFor="all" style={{ fontSize: 13, color: 'var(--ln-ink)', cursor: 'pointer' }}>
                     All Users
-                  </Label>
+                  </label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="selected" id="selected" disabled={isSending} />
-                  <Label htmlFor="selected" className="font-normal cursor-pointer">
+                  <label htmlFor="selected" style={{ fontSize: 13, color: 'var(--ln-ink)', cursor: 'pointer' }}>
                     Select Users
-                  </Label>
+                  </label>
                 </div>
               </RadioGroup>
             </div>
 
             {/* User Selection */}
             {target === 'selected' && (
-              <div className="space-y-4 border rounded-lg p-4">
-                <div className="flex items-center justify-between">
-                  <Label>Select Users</Label>
-                  <Button
-                    variant="outline"
-                    size="sm"
+              <div style={{ border: '1px solid var(--ln-line-2)', background: 'var(--ln-surface-2)', padding: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <span className="ln-eyebrow">Select users</span>
+                  <button
+                    className="ln-btn"
+                    style={{ padding: '5px 10px', fontSize: 11 }}
                     onClick={handleSelectAll}
                     disabled={isLoadingUsers || isSending}
                   >
                     {selectedUserIds.length === filteredUsers.length ? 'Deselect All' : 'Select All'}
-                  </Button>
+                  </button>
                 </div>
 
                 {isLoadingUsers ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 0' }}>
+                    <Loader2 className="w-6 h-6 animate-spin" style={{ color: 'var(--ln-brand)' }} />
                   </div>
                 ) : (
                   <>
                     {/* Search */}
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
+                    <div style={{ position: 'relative', marginBottom: 12 }}>
+                      <span
+                        style={{
+                          position: 'absolute',
+                          left: 10,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          color: 'var(--ln-ink-4)',
+                          display: 'inline-flex',
+                        }}
+                      >
+                        <Search className="w-4 h-4" />
+                      </span>
+                      <input
+                        className="ln-input"
+                        style={{ paddingLeft: 32 }}
                         placeholder="Search users by email..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
                         disabled={isSending}
                       />
                     </div>
 
                     {/* User List */}
-                    <div className="max-h-64 overflow-y-auto space-y-2">
+                    <div style={{ maxHeight: 256, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
                       {filteredUsers.length === 0 ? (
-                        <p className="text-sm text-muted-foreground text-center py-4">
+                        <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', textAlign: 'center', padding: '16px 0' }}>
                           {searchTerm ? 'No users found' : 'No users available'}
                         </p>
                       ) : (
                         filteredUsers.map((user) => (
-                          <div
+                          <label
                             key={user.id}
-                            className="flex items-center space-x-2 p-2 hover:bg-muted rounded"
+                            htmlFor={user.id}
+                            className="flex items-center space-x-2"
+                            style={{ padding: '8px', cursor: 'pointer', borderRadius: 4 }}
                           >
                             <Checkbox
                               id={user.id}
@@ -387,19 +418,16 @@ export const AdminNotificationPanel: React.FC = () => {
                               onCheckedChange={() => handleUserToggle(user.id)}
                               disabled={isSending}
                             />
-                            <Label
-                              htmlFor={user.id}
-                              className="font-normal cursor-pointer flex-1"
-                            >
+                            <span style={{ fontSize: 13, color: 'var(--ln-ink)', flex: 1 }}>
                               {user.email}
-                            </Label>
-                          </div>
+                            </span>
+                          </label>
                         ))
                       )}
                     </div>
 
                     {selectedUserIds.length > 0 && (
-                      <p className="text-sm text-muted-foreground">
+                      <p style={{ fontSize: 12, color: 'var(--ln-ink-3)', marginTop: 10 }}>
                         {selectedUserIds.length} user{selectedUserIds.length !== 1 ? 's' : ''} selected
                       </p>
                     )}
@@ -409,11 +437,11 @@ export const AdminNotificationPanel: React.FC = () => {
             )}
 
             {/* Send Button */}
-            <div className="flex items-center gap-4 pt-4">
-              <Button
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 4 }}>
+              <button
+                className="ln-btn is-primary"
                 onClick={handleSend}
                 disabled={isSending || !title.trim() || !message.trim() || (target === 'selected' && selectedUserIds.length === 0)}
-                className="flex items-center gap-2"
               >
                 {isSending ? (
                   <>
@@ -426,17 +454,13 @@ export const AdminNotificationPanel: React.FC = () => {
                     Send Notification
                   </>
                 )}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => navigate('/admin')}
-                disabled={isSending}
-              >
+              </button>
+              <button className="ln-btn" onClick={() => navigate('/admin')} disabled={isSending}>
                 Cancel
-              </Button>
+              </button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
       {/* Success Dialog */}
@@ -444,8 +468,11 @@ export const AdminNotificationPanel: React.FC = () => {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/20">
-                <CheckCircle2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+              <div
+                className="flex h-12 w-12 items-center justify-center rounded-full"
+                style={{ background: 'rgba(78,224,196,0.12)' }}
+              >
+                <CheckCircle2 className="h-6 w-6" style={{ color: 'var(--ln-brand)' }} />
               </div>
               <div>
                 <DialogTitle className="text-xl">
@@ -457,41 +484,68 @@ export const AdminNotificationPanel: React.FC = () => {
               </div>
             </div>
           </DialogHeader>
-          
+
           {successDetails && (
-            <div className="space-y-3 py-4">
-              <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
-                <MessageSquare className="h-5 w-5 text-blue-600 dark:text-blue-400 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '16px 0' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  border: '1px solid var(--ln-line-2)',
+                  background: 'var(--ln-surface-2)',
+                  padding: 12,
+                }}
+              >
+                <MessageSquare className="h-5 w-5 flex-shrink-0" style={{ color: 'var(--ln-info, #6ab7ff)' }} />
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 13, fontWeight: 500, margin: 0, color: 'var(--ln-ink)' }}>
                     {successDetails.notificationsCreated} in-app notification{successDetails.notificationsCreated !== 1 ? 's' : ''}
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p style={{ fontSize: 11.5, color: 'var(--ln-ink-3)', margin: '2px 0 0' }}>
                     Users will see this in their notification bell
                   </p>
                 </div>
               </div>
-              
-              <div className="flex items-center gap-3 rounded-lg bg-muted/50 p-3">
-                <Mail className="h-5 w-5 text-green-600 dark:text-green-400 flex-shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium">
+
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  border: '1px solid var(--ln-line-2)',
+                  background: 'var(--ln-surface-2)',
+                  padding: 12,
+                }}
+              >
+                <Mail className="h-5 w-5 flex-shrink-0" style={{ color: 'var(--ln-brand)' }} />
+                <div style={{ flex: 1 }}>
+                  <p style={{ fontSize: 13, fontWeight: 500, margin: 0, color: 'var(--ln-ink)' }}>
                     {successDetails.emailsSent} email{successDetails.emailsSent !== 1 ? 's' : ''} sent
                   </p>
-                  <p className="text-xs text-muted-foreground">
+                  <p style={{ fontSize: 11.5, color: 'var(--ln-ink-3)', margin: '2px 0 0' }}>
                     Email notifications delivered via Resend
                   </p>
                 </div>
               </div>
 
               {successDetails.errors.length > 0 && (
-                <div className="flex items-center gap-3 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-3">
-                  <XCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 flex-shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    border: '1px solid color-mix(in oklab, var(--ln-warn) 40%, transparent)',
+                    background: 'color-mix(in oklab, var(--ln-warn) 12%, transparent)',
+                    padding: 12,
+                  }}
+                >
+                  <XCircle className="h-5 w-5 flex-shrink-0" style={{ color: 'var(--ln-warn)' }} />
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontSize: 13, fontWeight: 500, margin: 0, color: 'var(--ln-warn)' }}>
                       {successDetails.errors.length} email{successDetails.errors.length !== 1 ? 's' : ''} failed
                     </p>
-                    <p className="text-xs text-amber-700 dark:text-amber-300">
+                    <p style={{ fontSize: 11.5, color: 'var(--ln-ink-3)', margin: '2px 0 0' }}>
                       Check console logs for details
                     </p>
                   </div>
@@ -501,9 +555,9 @@ export const AdminNotificationPanel: React.FC = () => {
           )}
 
           <DialogFooter>
-            <Button onClick={() => setShowSuccessDialog(false)} className="w-full">
+            <button className="ln-btn is-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setShowSuccessDialog(false)}>
               Done
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

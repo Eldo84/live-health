@@ -27,6 +27,7 @@ dist-ssr
 
 # Environment variables
 .env*
+!.env.example
 
 # Python virtual environment
 venv/
@@ -55,3 +56,4 @@ __pycache__/
 # Build artifacts
 *.tsbuildinfo
 .cache/
+/data/

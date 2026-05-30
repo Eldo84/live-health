@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, CreditCard, CheckCircle, XCircle, ArrowLeft, Clock, Shield } from 'lucide-react';
+import { Loader2, CreditCard, XCircle, ArrowLeft, Clock, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -22,6 +20,19 @@ interface Submission {
   payment_status: string;
   ad_title: string | null;
 }
+
+const PAGE_STYLE: React.CSSProperties = {
+  minHeight: '100vh',
+  background: 'var(--ln-bg)',
+  color: 'var(--ln-ink)',
+};
+
+const SummaryRow: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, fontSize: 13 }}>
+    <span style={{ color: 'var(--ln-ink-3)' }}>{label}</span>
+    <span style={{ color: 'var(--ln-ink)', fontWeight: 500, textAlign: 'right' }}>{children}</span>
+  </div>
+);
 
 export const PaymentPage: React.FC = () => {
   const { submissionId } = useParams<{ submissionId: string }>();
@@ -104,7 +115,7 @@ export const PaymentPage: React.FC = () => {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session) {
         throw new Error("Not authenticated");
       }
@@ -144,10 +155,10 @@ export const PaymentPage: React.FC = () => {
 
   if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-muted-foreground">Loading payment details...</p>
+      <div className="ln-app" style={{ ...PAGE_STYLE, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ textAlign: 'center' }}>
+          <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--ln-brand)', margin: '0 auto 16px' }} />
+          <p style={{ color: 'var(--ln-ink-3)', fontSize: 13 }}>Loading payment details...</p>
         </div>
       </div>
     );
@@ -155,36 +166,60 @@ export const PaymentPage: React.FC = () => {
 
   if (error) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="max-w-md w-full">
-          <CardContent className="pt-6 text-center">
-            <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Payment Error</h2>
-            <p className="text-muted-foreground mb-6">{error}</p>
-            <Button onClick={() => navigate('/')} variant="outline">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Home
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="ln-app" style={{ ...PAGE_STYLE, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+        <div style={{ maxWidth: 440, width: '100%', border: '1px solid var(--ln-line)', background: 'var(--ln-surface)', padding: '32px 28px', textAlign: 'center' }}>
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              margin: '0 auto 18px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'color-mix(in oklab, var(--ln-crit) 12%, transparent)',
+              border: '1px solid color-mix(in oklab, var(--ln-crit) 35%, transparent)',
+            }}
+          >
+            <XCircle className="w-7 h-7" style={{ color: 'var(--ln-crit)' }} />
+          </div>
+          <h2 className="ln-display" style={{ fontSize: 20, margin: '0 0 8px' }}>Payment Error</h2>
+          <p style={{ color: 'var(--ln-ink-3)', fontSize: 13, margin: '0 0 24px' }}>{error}</p>
+          <button onClick={() => navigate('/')} className="ln-btn" style={{ display: 'inline-flex' }}>
+            <ArrowLeft className="w-4 h-4" />
+            Back to Home
+          </button>
+        </div>
       </div>
     );
   }
 
   if (!submission) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="max-w-md w-full">
-          <CardContent className="pt-6 text-center">
-            <XCircle className="w-12 h-12 text-red-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Submission Not Found</h2>
-            <p className="text-muted-foreground mb-6">Unable to load submission details.</p>
-            <Button onClick={() => navigate('/dashboard/advertising')} variant="outline">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="ln-app" style={{ ...PAGE_STYLE, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+        <div style={{ maxWidth: 440, width: '100%', border: '1px solid var(--ln-line)', background: 'var(--ln-surface)', padding: '32px 28px', textAlign: 'center' }}>
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              margin: '0 auto 18px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'color-mix(in oklab, var(--ln-crit) 12%, transparent)',
+              border: '1px solid color-mix(in oklab, var(--ln-crit) 35%, transparent)',
+            }}
+          >
+            <XCircle className="w-7 h-7" style={{ color: 'var(--ln-crit)' }} />
+          </div>
+          <h2 className="ln-display" style={{ fontSize: 20, margin: '0 0 8px' }}>Submission Not Found</h2>
+          <p style={{ color: 'var(--ln-ink-3)', fontSize: 13, margin: '0 0 24px' }}>Unable to load submission details.</p>
+          <button onClick={() => navigate('/dashboard/advertising')} className="ln-btn" style={{ display: 'inline-flex' }}>
+            <ArrowLeft className="w-4 h-4" />
+            Back to Dashboard
+          </button>
+        </div>
       </div>
     );
   }
@@ -192,106 +227,122 @@ export const PaymentPage: React.FC = () => {
   const planInfo = PLAN_INFO[submission.selected_plan];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/30 py-12 px-4">
-      <div className="max-w-lg mx-auto">
+    <div className="ln-app" style={{ ...PAGE_STYLE, padding: '48px 16px' }}>
+      <div style={{ maxWidth: 560, margin: '0 auto' }}>
         {/* Back Button */}
-        <Button
-          variant="ghost"
-          className="mb-6"
+        <button
+          className="ln-btn"
+          style={{ marginBottom: 24 }}
           onClick={() => navigate('/dashboard/advertising')}
         >
-          <ArrowLeft className="w-4 h-4 mr-2" />
+          <ArrowLeft className="w-4 h-4" />
           Back to Dashboard
-        </Button>
+        </button>
 
         {/* Payment Card */}
-        <Card className="shadow-lg">
-          <CardHeader className="text-center border-b pb-6">
-            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-              <CreditCard className="w-8 h-8 text-primary" />
+        <div style={{ border: '1px solid var(--ln-line)', background: 'var(--ln-surface)' }}>
+          {/* Header */}
+          <div style={{ textAlign: 'center', borderBottom: '1px solid var(--ln-line)', padding: '32px 28px' }}>
+            <div
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: '50%',
+                margin: '0 auto 16px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: 'color-mix(in oklab, var(--ln-brand) 12%, transparent)',
+                border: '1px solid color-mix(in oklab, var(--ln-brand) 35%, transparent)',
+              }}
+            >
+              <CreditCard className="w-8 h-8" style={{ color: 'var(--ln-brand)' }} />
             </div>
-            <CardTitle className="text-2xl">Complete Your Payment</CardTitle>
-            <CardDescription>
+            <span className="ln-eyebrow">Approved · ready for payment</span>
+            <h1 className="ln-display" style={{ fontSize: 26, margin: '6px 0 6px', letterSpacing: '-0.02em' }}>
+              Complete Your Payment
+            </h1>
+            <p style={{ color: 'var(--ln-ink-3)', fontSize: 13, margin: 0 }}>
               Your advertising application has been approved!
-            </CardDescription>
-          </CardHeader>
+            </p>
+          </div>
 
-          <CardContent className="pt-6 space-y-6">
+          {/* Body */}
+          <div style={{ padding: '24px 28px', display: 'flex', flexDirection: 'column', gap: 24 }}>
             {/* Order Summary */}
-            <div className="bg-muted/50 rounded-lg p-4 space-y-3">
-              <h3 className="font-semibold">Order Summary</h3>
-              
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Company</span>
-                <span className="font-medium">{submission.company_name}</span>
-              </div>
-              
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Plan</span>
-                <span className="font-medium">{planInfo.name}</span>
-              </div>
-              
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Duration</span>
-                <span className="font-medium flex items-center gap-1">
+            <div style={{ border: '1px solid var(--ln-line)', background: 'var(--ln-surface-2)', padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                <h3 style={{ fontSize: 14, fontWeight: 600, margin: 0, color: 'var(--ln-ink)' }}>Order Summary</h3>
+                <span className="ln-chip is-warn">
                   <Clock className="w-3 h-3" />
-                  {planInfo.duration}
+                  <span style={{ marginLeft: 4 }}>Awaiting Payment</span>
                 </span>
               </div>
 
+              <SummaryRow label="Company">{submission.company_name}</SummaryRow>
+              <SummaryRow label="Plan">{planInfo.name}</SummaryRow>
+              <SummaryRow label="Duration">
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <Clock className="w-3 h-3" style={{ color: 'var(--ln-ink-4)' }} />
+                  {planInfo.duration}
+                </span>
+              </SummaryRow>
+
               {submission.ad_title && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Ad Title</span>
-                  <span className="font-medium truncate max-w-[150px]">{submission.ad_title}</span>
-                </div>
+                <SummaryRow label="Ad Title">
+                  <span style={{ display: 'inline-block', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {submission.ad_title}
+                  </span>
+                </SummaryRow>
               )}
 
-              <div className="border-t pt-3 mt-3">
-                <div className="flex justify-between">
-                  <span className="font-semibold">Total</span>
-                  <span className="text-2xl font-bold text-primary">{planInfo.price}</span>
+              <div style={{ borderTop: '1px solid var(--ln-line)', paddingTop: 12, marginTop: 4 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ln-ink)' }}>Total</span>
+                  <span className="ln-num" style={{ fontSize: 28, fontWeight: 600, color: 'var(--ln-brand)' }}>{planInfo.price}</span>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">One-time payment</p>
+                <p style={{ fontSize: 11, color: 'var(--ln-ink-4)', margin: '4px 0 0' }}>One-time payment</p>
               </div>
             </div>
 
             {/* Security Notice */}
-            <div className="flex items-start gap-3 text-sm text-muted-foreground">
-              <Shield className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-              <p>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 12.5, color: 'var(--ln-ink-3)' }}>
+              <Shield className="w-5 h-5" style={{ color: 'var(--ln-brand)', flexShrink: 0, marginTop: 1 }} />
+              <p style={{ margin: 0 }}>
                 Your payment is secured by Stripe. We never store your card details.
               </p>
             </div>
 
             {/* Payment Button */}
-            <Button
+            <button
               onClick={handlePayment}
               disabled={isProcessing}
-              className="w-full h-12 text-lg"
+              className="ln-btn is-primary"
+              style={{ width: '100%', height: 48, fontSize: 15, justifyContent: 'center', opacity: isProcessing ? 0.7 : 1 }}
             >
               {isProcessing ? (
                 <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  <Loader2 className="w-5 h-5 animate-spin" />
                   Redirecting to Stripe...
                 </>
               ) : (
                 <>
-                  <CreditCard className="w-5 h-5 mr-2" />
+                  <CreditCard className="w-5 h-5" />
                   Pay {planInfo.price}
                 </>
               )}
-            </Button>
+            </button>
 
-            <p className="text-xs text-center text-muted-foreground">
+            <p style={{ fontSize: 11, textAlign: 'center', color: 'var(--ln-ink-4)', margin: 0 }}>
               By completing this payment, you agree to our Terms of Service.
             </p>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Features Reminder */}
-        <div className="mt-6 text-center text-sm text-muted-foreground">
-          <p className="mb-2">What you'll get:</p>
-          <ul className="space-y-1">
+        <div style={{ marginTop: 24, textAlign: 'center', fontSize: 12.5, color: 'var(--ln-ink-3)' }}>
+          <p style={{ margin: '0 0 8px', color: 'var(--ln-ink-2)' }}>What you'll get:</p>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
             {submission.selected_plan === 'basic' && (
               <>
                 <li>✓ Map sponsored section placement</li>
@@ -323,4 +374,3 @@ export const PaymentPage: React.FC = () => {
 };
 
 export default PaymentPage;
-

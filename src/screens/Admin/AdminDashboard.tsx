@@ -1,11 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Loader2, Shield, AlertCircle, Megaphone, 
-  Users, Settings, BarChart3, FileText, ArrowRight, Bell, MessageSquare
+import { useNavigate } from 'react-router-dom';
+import {
+  Loader2, AlertCircle, Megaphone,
+  FileText, ArrowRight, Bell, MessageSquare
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
@@ -161,9 +158,7 @@ export const AdminDashboard: React.FC = () => {
       description: 'Review and approve user-submitted alerts',
       icon: AlertCircle,
       path: '/admin/alerts',
-      color: 'text-blue-600',
-      bgColor: 'bg-blue-50 dark:bg-blue-900/20',
-      borderColor: 'border-blue-200 dark:border-blue-800',
+      accent: 'var(--ln-brand)',
       stats: {
         label: 'Pending Reviews',
         value: stats.pendingAlerts,
@@ -175,9 +170,7 @@ export const AdminDashboard: React.FC = () => {
       description: 'Manage advertising submissions and sponsored content',
       icon: Megaphone,
       path: '/admin/advertising',
-      color: 'text-purple-600',
-      bgColor: 'bg-purple-50 dark:bg-purple-900/20',
-      borderColor: 'border-purple-200 dark:border-purple-800',
+      accent: 'var(--ln-info, #6ab7ff)',
       stats: {
         label: 'Pending Submissions',
         value: stats.pendingAds,
@@ -189,9 +182,7 @@ export const AdminDashboard: React.FC = () => {
       description: 'View and manage user feedback, bug reports, and suggestions',
       icon: MessageSquare,
       path: '/admin/feedback',
-      color: 'text-orange-600',
-      bgColor: 'bg-orange-50 dark:bg-orange-900/20',
-      borderColor: 'border-orange-200 dark:border-orange-800',
+      accent: 'var(--ln-warn)',
       stats: {
         label: 'New Feedback',
         value: stats.newFeedback,
@@ -203,9 +194,7 @@ export const AdminDashboard: React.FC = () => {
       description: 'Send notifications to users (in-app and email)',
       icon: Bell,
       path: '/admin/notifications',
-      color: 'text-green-600',
-      bgColor: 'bg-green-50 dark:bg-green-900/20',
-      borderColor: 'border-green-200 dark:border-green-800',
+      accent: 'var(--ln-brand)',
     },
     // TODO: Implement in future
     // {
@@ -246,8 +235,16 @@ export const AdminDashboard: React.FC = () => {
 
   if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div
+        style={{
+          minHeight: 'calc(100vh - 140px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--ln-bg)',
+        }}
+      >
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--ln-brand)' }} />
       </div>
     );
   }
@@ -256,197 +253,188 @@ export const AdminDashboard: React.FC = () => {
     return null;
   }
 
+  const quickStats: { label: string; value: number; sub: string; color: string }[] = [
+    {
+      label: 'Pending Alert Reviews',
+      value: stats.pendingAlerts,
+      sub: `${stats.pendingAlerts === 1 ? 'alert' : 'alerts'} awaiting review`,
+      color: 'var(--ln-warn)',
+    },
+    { label: 'Approved Alerts', value: stats.approvedAlerts, sub: 'alerts on the map', color: 'var(--ln-brand)' },
+    { label: 'Pending Ad Reviews', value: stats.pendingAds, sub: 'advertising submissions', color: 'var(--ln-info, #6ab7ff)' },
+    { label: 'Active Ads', value: stats.activeAds, sub: 'sponsored content active', color: 'var(--ln-brand)' },
+  ];
+
   return (
-    <div className="min-h-screen bg-background">
+    <div style={{ background: 'var(--ln-bg)', color: 'var(--ln-ink)', minHeight: 'calc(100vh - 140px)' }}>
       {/* Header */}
-      <div className="border-b bg-card">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-3">
-                <Shield className="w-8 h-8 text-primary dark:text-primary" />
-                <div>
-                  <h1 className="text-3xl font-bold text-foreground dark:text-foreground">
-                    Admin Dashboard
-                  </h1>
-                  <p className="text-sm font-medium text-foreground/70 dark:text-foreground/70 mt-1">
-                    Manage your platform
-                  </p>
-                </div>
-              </div>
-            </div>
-            <Badge variant="outline" className="text-primary border-primary text-base font-semibold px-4 py-2 bg-primary/10 dark:bg-primary/20">
-              Admin Access
-            </Badge>
-          </div>
+      <div
+        style={{
+          padding: '22px 28px',
+          borderBottom: '1px solid var(--ln-line)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-end',
+          flexWrap: 'wrap',
+          gap: 12,
+        }}
+      >
+        <div>
+          <span className="ln-eyebrow">Control center</span>
+          <h1 className="ln-display" style={{ fontSize: 30, margin: '6px 0 0', letterSpacing: '-0.02em' }}>
+            Admin{' '}
+            <span style={{ fontStyle: 'italic', color: 'var(--ln-ink-3)' }}>overview.</span>
+          </h1>
+          <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '6px 0 0' }}>Manage your platform</p>
         </div>
+        <span className="ln-chip is-ok">Admin access</span>
       </div>
 
-      <div className="container mx-auto px-4 py-8">
+      <div style={{ padding: '22px 28px 40px' }}>
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Card className="bg-card">
-            <CardHeader className="pb-3">
-              <CardDescription className="text-sm font-medium text-foreground/80">
-                Pending Alert Reviews
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold text-yellow-600 dark:text-yellow-500 mb-2">
-                {stats.pendingAlerts}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gap: 14,
+            marginBottom: 28,
+          }}
+        >
+          {quickStats.map((s) => (
+            <div
+              key={s.label}
+              style={{
+                border: '1px solid var(--ln-line)',
+                background: 'var(--ln-surface)',
+                padding: '16px 18px',
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+            >
+              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 2, background: s.color }} />
+              <div className="ln-eyebrow">{s.label}</div>
+              <div className="ln-num" style={{ fontSize: 34, color: s.color, margin: '8px 0 4px', fontWeight: 500 }}>
+                {s.value}
               </div>
-              <p className="text-sm font-medium text-foreground/70 dark:text-foreground/60">
-                {stats.pendingAlerts === 1 ? 'alert' : 'alerts'} awaiting review
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="bg-card">
-            <CardHeader className="pb-3">
-              <CardDescription className="text-sm font-medium text-foreground/80">
-                Approved Alerts
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold text-green-600 dark:text-green-500 mb-2">
-                {stats.approvedAlerts}
-              </div>
-              <p className="text-sm font-medium text-foreground/70 dark:text-foreground/60">
-                alerts on the map
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="bg-card">
-            <CardHeader className="pb-3">
-              <CardDescription className="text-sm font-medium text-foreground/80">
-                Pending Ad Reviews
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold text-blue-600 dark:text-blue-500 mb-2">
-                {stats.pendingAds}
-              </div>
-              <p className="text-sm font-medium text-foreground/70 dark:text-foreground/60">
-                advertising submissions
-              </p>
-            </CardContent>
-          </Card>
-          <Card className="bg-card">
-            <CardHeader className="pb-3">
-              <CardDescription className="text-sm font-medium text-foreground/80">
-                Active Ads
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold text-purple-600 dark:text-purple-500 mb-2">
-                {stats.activeAds}
-              </div>
-              <p className="text-sm font-medium text-foreground/70 dark:text-foreground/60">
-                sponsored content active
-              </p>
-            </CardContent>
-          </Card>
+              <p style={{ fontSize: 12, color: 'var(--ln-ink-3)', margin: 0 }}>{s.sub}</p>
+            </div>
+          ))}
         </div>
 
         {/* Admin Sections */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+            gap: 16,
+          }}
+        >
           {adminSections.map((section) => {
             const Icon = section.icon;
             return (
-              <Card
+              <div
                 key={section.id}
-                className={`hover:shadow-lg transition-all cursor-pointer group ${section.borderColor} border-2 bg-card`}
                 onClick={() => navigate(section.path)}
+                style={{
+                  border: '1px solid var(--ln-line)',
+                  background: 'var(--ln-surface)',
+                  padding: 18,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
               >
-                <CardHeader className="pb-4 bg-card">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className={`p-3 rounded-lg ${section.bgColor}`}>
-                      <Icon className={`w-6 h-6 ${section.color} dark:text-opacity-90`} />
-                    </div>
-                    <ArrowRight className={`w-5 h-5 ${section.color} dark:text-opacity-90 opacity-0 group-hover:opacity-100 transition-opacity`} />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                  <div
+                    style={{
+                      width: 42,
+                      height: 42,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '1px solid var(--ln-line-2)',
+                      background: 'var(--ln-surface-2)',
+                      color: section.accent,
+                    }}
+                  >
+                    <Icon className="w-5 h-5" />
                   </div>
-                  <CardTitle className="text-xl font-bold text-foreground dark:text-foreground">
-                    {section.title}
-                  </CardTitle>
-                  <CardDescription className="text-sm text-foreground/80 dark:text-foreground/70 mt-2 leading-relaxed">
-                    {section.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="bg-card">
-                  {section.stats && (
-                    <div className="flex items-center justify-between pt-3 border-t border-border">
-                      <span className="text-sm font-medium text-foreground/80 dark:text-foreground/70">
-                        {section.stats.label}
-                      </span>
-                      <span className={`text-xl font-bold ${section.color} dark:text-opacity-90`}>
-                        {section.stats.value}
-                      </span>
-                    </div>
-                  )}
-                  {!section.stats && (
-                    <Button
-                      variant="outline"
-                      className="w-full mt-3 font-medium"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(section.path);
-                      }}
-                    >
-                      Open Section <ArrowRight className="w-4 h-4 ml-2" />
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
+                  <ArrowRight className="w-5 h-5" style={{ color: 'var(--ln-ink-4)' }} />
+                </div>
+                <div className="ln-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}>
+                  {section.title}
+                </div>
+                <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '8px 0 0', lineHeight: 1.5, flex: 1 }}>
+                  {section.description}
+                </p>
+                {section.stats && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginTop: 16,
+                      paddingTop: 14,
+                      borderTop: '1px solid var(--ln-line)',
+                    }}
+                  >
+                    <span className="ln-eyebrow">{section.stats.label}</span>
+                    <span className="ln-num" style={{ fontSize: 20, color: section.accent, fontWeight: 500 }}>
+                      {section.stats.value}
+                    </span>
+                  </div>
+                )}
+                {!section.stats && (
+                  <button
+                    className="ln-btn"
+                    style={{ marginTop: 16, justifyContent: 'center', width: '100%' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(section.path);
+                    }}
+                  >
+                    Open Section <ArrowRight className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             );
           })}
         </div>
 
         {/* Quick Actions */}
-        <Card className="mt-8 bg-card">
-          <CardHeader>
-            <CardTitle className="text-xl font-bold text-foreground">Quick Actions</CardTitle>
-            <CardDescription className="text-sm text-foreground/80 dark:text-foreground/70">
-              Common administrative tasks
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-3">
-              <Button
-                variant="outline"
-                onClick={() => navigate('/admin/alerts')}
-                className="flex items-center gap-2 font-medium"
-              >
-                <AlertCircle className="w-4 h-4" />
-                Review Pending Alerts
-                {stats.pendingAlerts > 0 && (
-                  <Badge variant="destructive" className="ml-2">
-                    {stats.pendingAlerts}
-                  </Badge>
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => navigate('/admin/advertising')}
-                className="flex items-center gap-2 font-medium"
-              >
-                <Megaphone className="w-4 h-4" />
-                Review Advertising Submissions
-                {stats.pendingAds > 0 && (
-                  <Badge variant="destructive" className="ml-2">
-                    {stats.pendingAds}
-                  </Badge>
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => navigate('/map')}
-                className="flex items-center gap-2 font-medium"
-              >
-                <FileText className="w-4 h-4" />
-                View Map
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <div
+          style={{
+            marginTop: 28,
+            border: '1px solid var(--ln-line)',
+            background: 'var(--ln-surface)',
+            padding: 18,
+          }}
+        >
+          <span className="ln-eyebrow">Quick actions</span>
+          <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '6px 0 14px' }}>
+            Common administrative tasks
+          </p>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+            <button className="ln-btn" onClick={() => navigate('/admin/alerts')}>
+              <AlertCircle className="w-4 h-4" />
+              Review Pending Alerts
+              {stats.pendingAlerts > 0 && (
+                <span className="ln-chip is-crit" style={{ marginLeft: 4 }}>{stats.pendingAlerts}</span>
+              )}
+            </button>
+            <button className="ln-btn" onClick={() => navigate('/admin/advertising')}>
+              <Megaphone className="w-4 h-4" />
+              Review Advertising Submissions
+              {stats.pendingAds > 0 && (
+                <span className="ln-chip is-crit" style={{ marginLeft: 4 }}>{stats.pendingAds}</span>
+              )}
+            </button>
+            <button className="ln-btn" onClick={() => navigate('/map')}>
+              <FileText className="w-4 h-4" />
+              View Map
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

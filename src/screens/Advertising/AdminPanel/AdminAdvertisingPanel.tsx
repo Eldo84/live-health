@@ -1,19 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  Dialog, DialogContent, DialogDescription, DialogFooter, 
-  DialogHeader, DialogTitle 
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter,
+  DialogHeader, DialogTitle
 } from '@/components/ui/dialog';
-import { 
-  Loader2, Eye, MousePointerClick, Clock, CreditCard, 
-  BarChart3, CheckCircle, XCircle, AlertCircle, ArrowLeft,
-  Search, Filter, DollarSign, Users, FileText, Shield, Trash2
+import {
+  Loader2, Eye, CheckCircle, XCircle, AlertCircle, ArrowLeft,
+  Search, Trash2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
@@ -51,14 +45,14 @@ interface SponsoredContent {
   end_date: string;
 }
 
-const statusConfig: Record<string, { label: string; color: string }> = {
-  pending_review: { label: 'Pending Review', color: 'bg-yellow-500' },
-  approved_pending_payment: { label: 'Awaiting Payment', color: 'bg-blue-500' },
-  changes_requested: { label: 'Changes Requested', color: 'bg-orange-500' },
-  rejected: { label: 'Rejected', color: 'bg-red-500' },
-  active: { label: 'Active', color: 'bg-green-500' },
-  expired: { label: 'Expired', color: 'bg-gray-500' },
-  cancelled: { label: 'Cancelled', color: 'bg-gray-500' },
+const statusConfig: Record<string, { label: string; chip: string }> = {
+  pending_review: { label: 'Pending Review', chip: 'ln-chip is-warn' },
+  approved_pending_payment: { label: 'Awaiting Payment', chip: 'ln-chip is-warn' },
+  changes_requested: { label: 'Changes Requested', chip: 'ln-chip is-warn' },
+  rejected: { label: 'Rejected', chip: 'ln-chip is-crit' },
+  active: { label: 'Active', chip: 'ln-chip is-ok' },
+  expired: { label: 'Expired', chip: 'ln-chip is-crit' },
+  cancelled: { label: 'Cancelled', chip: 'ln-chip is-crit' },
 };
 
 export const AdminAdvertisingPanel: React.FC = () => {
@@ -299,8 +293,16 @@ export const AdminAdvertisingPanel: React.FC = () => {
 
   if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div
+        style={{
+          minHeight: 'calc(100vh - 140px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--ln-bg)',
+        }}
+      >
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--ln-brand)' }} />
       </div>
     );
   }
@@ -309,256 +311,293 @@ export const AdminAdvertisingPanel: React.FC = () => {
     return null;
   }
 
+  const reviewTabs: { id: string; label: string; count: number | null }[] = [
+    { id: 'pending', label: 'Pending', count: pendingCount },
+    { id: 'approved', label: 'Awaiting Payment', count: null },
+    { id: 'active', label: 'Active', count: null },
+    { id: 'rejected', label: 'Rejected', count: null },
+    { id: 'all', label: 'All', count: submissions.length },
+  ];
+
+  const reviewStats: { label: string; value: string | number; color: string }[] = [
+    { label: 'Pending Review', value: pendingCount, color: 'var(--ln-warn)' },
+    { label: 'Active Ads', value: activeCount, color: 'var(--ln-brand)' },
+    { label: 'Total Submissions', value: submissions.length, color: 'var(--ln-info, #6ab7ff)' },
+    { label: 'Total Revenue', value: `$${totalRevenue}`, color: 'var(--ln-brand)' },
+  ];
+
   return (
-    <div className="min-h-screen bg-background">
+    <div style={{ background: 'var(--ln-bg)', color: 'var(--ln-ink)', minHeight: 'calc(100vh - 140px)' }}>
       {/* Header */}
-      <div className="border-b bg-card">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" onClick={() => navigate('/admin')}>
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Admin Dashboard
-              </Button>
-              <div className="flex items-center gap-2">
-                <Shield className="w-6 h-6 text-primary" />
-                <div>
-                  <h1 className="text-2xl font-bold">Admin Panel</h1>
-                  <p className="text-muted-foreground">Manage advertising submissions</p>
-                </div>
-              </div>
-            </div>
-            <Badge variant="outline" className="text-primary border-primary">
-              Admin Access
-            </Badge>
+      <div
+        style={{
+          padding: '22px 28px',
+          borderBottom: '1px solid var(--ln-line)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 12,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <button className="ln-btn" onClick={() => navigate('/admin')}>
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </button>
+          <div>
+            <span className="ln-eyebrow">Advertising</span>
+            <h1 className="ln-display" style={{ fontSize: 26, margin: '4px 0 0', letterSpacing: '-0.02em' }}>
+              Advertising panel
+            </h1>
+            <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '4px 0 0' }}>
+              Manage advertising submissions
+            </p>
           </div>
         </div>
+        <span className="ln-chip is-ok">Admin access</span>
       </div>
 
-      {/* Content */}
-      <div className="container mx-auto px-4 py-8">
-        {/* Stats */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-yellow-100 rounded-lg">
-                  <Clock className="w-6 h-6 text-yellow-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Pending Review</p>
-                  <p className="text-2xl font-bold">{pendingCount}</p>
-                </div>
+      <div style={{ padding: '22px 28px 40px' }}>
+        {/* Stats Cards */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: 14,
+            marginBottom: 22,
+          }}
+        >
+          {reviewStats.map((s) => (
+            <div
+              key={s.label}
+              style={{
+                border: '1px solid var(--ln-line)',
+                background: 'var(--ln-surface)',
+                padding: '14px 16px',
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+            >
+              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 2, background: s.color }} />
+              <div className="ln-eyebrow">{s.label}</div>
+              <div className="ln-num" style={{ fontSize: 26, color: s.color, marginTop: 6, fontWeight: 500 }}>
+                {s.value}
               </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-green-100 rounded-lg">
-                  <CheckCircle className="w-6 h-6 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Active Ads</p>
-                  <p className="text-2xl font-bold">{activeCount}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-blue-100 rounded-lg">
-                  <Users className="w-6 h-6 text-blue-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Submissions</p>
-                  <p className="text-2xl font-bold">{submissions.length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 bg-green-100 rounded-lg">
-                  <DollarSign className="w-6 h-6 text-green-600" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Revenue</p>
-                  <p className="text-2xl font-bold">${totalRevenue}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+            </div>
+          ))}
         </div>
 
-        {/* Search */}
-        <div className="flex items-center gap-4 mb-6">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by company or email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+        {/* List */}
+        <div style={{ border: '1px solid var(--ln-line)', background: 'var(--ln-surface)' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              padding: '16px 18px',
+              borderBottom: '1px solid var(--ln-line)',
+              flexWrap: 'wrap',
+            }}
+          >
+            <span className="ln-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}>Submissions</span>
+            <div style={{ position: 'relative', width: 260, maxWidth: '100%' }}>
+              <span
+                style={{
+                  position: 'absolute',
+                  left: 10,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--ln-ink-4)',
+                  display: 'inline-flex',
+                }}
+              >
+                <Search className="w-4 h-4" />
+              </span>
+              <input
+                className="ln-input"
+                style={{ paddingLeft: 32 }}
+                placeholder="Search by company or email..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Tab nav */}
+          <div
+            style={{
+              display: 'flex',
+              gap: 4,
+              padding: '10px 18px 0',
+              borderBottom: '1px solid var(--ln-line)',
+              overflowX: 'auto',
+            }}
+          >
+            {reviewTabs.map((t) => {
+              const active = activeTab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setActiveTab(t.id)}
+                  style={{
+                    padding: '8px 12px',
+                    fontSize: 12.5,
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    color: active ? 'var(--ln-ink)' : 'var(--ln-ink-3)',
+                    borderBottom: active ? '1.5px solid var(--ln-brand)' : '1.5px solid transparent',
+                  }}
+                >
+                  {t.label}
+                  {t.count !== null && (
+                    <>
+                      {' '}
+                      <span className="ln-num" style={{ color: 'var(--ln-ink-4)' }}>({t.count})</span>
+                    </>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={{ padding: 18 }}>
+            {filteredSubmissions.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--ln-ink-3)', fontSize: 13 }}>
+                No submissions found
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {filteredSubmissions.map((submission) => {
+                  const status = statusConfig[submission.status] || statusConfig.pending_review;
+                  return (
+                    <div
+                      key={submission.id}
+                      style={{ border: '1px solid var(--ln-line)', background: 'var(--ln-surface-2)', padding: 16 }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+                        <div style={{ minWidth: 0 }}>
+                          <h3 style={{ fontSize: 15, fontWeight: 600, margin: 0, color: 'var(--ln-ink)' }}>
+                            {submission.company_name}
+                          </h3>
+                          <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '4px 0 0' }}>{submission.email}</p>
+                        </div>
+                        <span className={status.chip}>{status.label}</span>
+                      </div>
+
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+                          gap: 12,
+                          fontSize: 12.5,
+                          marginBottom: 12,
+                        }}
+                      >
+                        <div>
+                          <span style={{ color: 'var(--ln-ink-4)' }}>Contact</span>
+                          <p style={{ margin: '2px 0 0', fontWeight: 500, color: 'var(--ln-ink)' }}>{submission.contact_name}</p>
+                        </div>
+                        <div>
+                          <span style={{ color: 'var(--ln-ink-4)' }}>Plan</span>
+                          <p style={{ margin: '2px 0 0', fontWeight: 500, color: 'var(--ln-ink)', textTransform: 'capitalize' }}>{submission.selected_plan}</p>
+                        </div>
+                        <div>
+                          <span style={{ color: 'var(--ln-ink-4)' }}>Payment</span>
+                          <p style={{ margin: '2px 0 0', fontWeight: 500, color: 'var(--ln-ink)', textTransform: 'capitalize' }}>{submission.payment_status.replace('_', ' ')}</p>
+                        </div>
+                        <div>
+                          <span style={{ color: 'var(--ln-ink-4)' }}>Date</span>
+                          <p
+                            className="ln-num"
+                            style={{ margin: '2px 0 0', fontWeight: 500, color: 'var(--ln-ink)' }}
+                          >
+                            {new Date(submission.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+
+                      {submission.description && (
+                        <div style={{ fontSize: 12.5, marginBottom: 12 }}>
+                          <span style={{ color: 'var(--ln-ink-4)' }}>Description</span>
+                          <p style={{ margin: '4px 0 0', color: 'var(--ln-ink-2)' }}>{submission.description}</p>
+                        </div>
+                      )}
+
+                      {submission.admin_notes && (
+                        <div
+                          style={{
+                            padding: 10,
+                            background: 'var(--ln-surface-3)',
+                            border: '1px solid var(--ln-line-2)',
+                            fontSize: 12.5,
+                            color: 'var(--ln-ink-2)',
+                            marginBottom: 12,
+                          }}
+                        >
+                          <strong>Admin Notes:</strong> {submission.admin_notes}
+                        </div>
+                      )}
+
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+                        <button className="ln-btn" onClick={() => setViewingSubmission(submission)}>
+                          <Eye className="w-4 h-4" />
+                          View
+                        </button>
+                        {submission.status === 'pending_review' && (
+                          <>
+                            <button
+                              className="ln-btn is-primary"
+                              onClick={() => {
+                                setReviewingSubmission(submission);
+                                setReviewAction('approve');
+                              }}
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                              Approve
+                            </button>
+                            <button
+                              className="ln-btn"
+                              onClick={() => {
+                                setReviewingSubmission(submission);
+                                setReviewAction('changes');
+                              }}
+                            >
+                              <AlertCircle className="w-4 h-4" />
+                              Request Changes
+                            </button>
+                            <button
+                              className="ln-btn"
+                              style={{ color: 'var(--ln-crit)', borderColor: 'color-mix(in oklab, var(--ln-crit) 35%, transparent)' }}
+                              onClick={() => {
+                                setReviewingSubmission(submission);
+                                setReviewAction('reject');
+                              }}
+                            >
+                              <XCircle className="w-4 h-4" />
+                              Reject
+                            </button>
+                          </>
+                        )}
+                        <button
+                          className="ln-btn"
+                          style={{ color: 'var(--ln-crit)', borderColor: 'color-mix(in oklab, var(--ln-crit) 35%, transparent)' }}
+                          onClick={() => setDeletingSubmission(submission)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
-
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-6">
-            <TabsTrigger value="pending">
-              Pending ({pendingCount})
-            </TabsTrigger>
-            <TabsTrigger value="approved">
-              Awaiting Payment
-            </TabsTrigger>
-            <TabsTrigger value="active">
-              Active
-            </TabsTrigger>
-            <TabsTrigger value="rejected">
-              Rejected
-            </TabsTrigger>
-            <TabsTrigger value="all">
-              All ({submissions.length})
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value={activeTab}>
-            <Card>
-              <CardHeader>
-                <CardTitle>Submissions</CardTitle>
-                <CardDescription>
-                  {activeTab === 'pending' && 'Review and approve or reject submissions'}
-                  {activeTab === 'approved' && 'Submissions waiting for payment'}
-                  {activeTab === 'active' && 'Currently active advertisements'}
-                  {activeTab === 'rejected' && 'Rejected submissions'}
-                  {activeTab === 'all' && 'All submissions'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                {filteredSubmissions.length === 0 ? (
-                  <div className="text-center py-8">
-                    <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">No submissions found</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {filteredSubmissions.map((submission) => {
-                      const status = statusConfig[submission.status] || statusConfig.pending_review;
-                      return (
-                        <div key={submission.id} className="p-4 border rounded-lg">
-                          <div className="flex items-start justify-between mb-3">
-                            <div>
-                              <h3 className="font-semibold">{submission.company_name}</h3>
-                              <p className="text-sm text-muted-foreground">{submission.email}</p>
-                            </div>
-                            <Badge className={`${status.color} text-white`}>
-                              {status.label}
-                            </Badge>
-                          </div>
-                          
-                          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm mb-4">
-                            <div>
-                              <span className="text-muted-foreground">Contact:</span>
-                              <p className="font-medium">{submission.contact_name}</p>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Plan:</span>
-                              <p className="font-medium capitalize">{submission.selected_plan}</p>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Payment:</span>
-                              <p className="font-medium capitalize">{submission.payment_status.replace('_', ' ')}</p>
-                            </div>
-                            <div>
-                              <span className="text-muted-foreground">Date:</span>
-                              <p className="font-medium">{new Date(submission.created_at).toLocaleDateString()}</p>
-                            </div>
-                          </div>
-
-                          {submission.description && (
-                            <div className="text-sm mb-4">
-                              <span className="text-muted-foreground">Description:</span>
-                              <p className="mt-1">{submission.description}</p>
-                            </div>
-                          )}
-
-                          {submission.admin_notes && (
-                            <div className="text-sm mb-4 bg-muted p-3 rounded">
-                              <span className="text-muted-foreground">Admin Notes:</span>
-                              <p className="mt-1">{submission.admin_notes}</p>
-                            </div>
-                          )}
-
-                          <div className="flex gap-2 mt-4">
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => setViewingSubmission(submission)}
-                            >
-                              <Eye className="w-4 h-4 mr-2" />
-                              View
-                            </Button>
-                            {submission.status === 'pending_review' && (
-                              <>
-                                <Button 
-                                  size="sm" 
-                                  onClick={() => {
-                                    setReviewingSubmission(submission);
-                                    setReviewAction('approve');
-                                  }}
-                                >
-                                  <CheckCircle className="w-4 h-4 mr-2" />
-                                  Approve
-                                </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline"
-                                  onClick={() => {
-                                    setReviewingSubmission(submission);
-                                    setReviewAction('changes');
-                                  }}
-                                >
-                                  <AlertCircle className="w-4 h-4 mr-2" />
-                                  Request Changes
-                                </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="destructive"
-                                  onClick={() => {
-                                    setReviewingSubmission(submission);
-                                    setReviewAction('reject');
-                                  }}
-                                >
-                                  <XCircle className="w-4 h-4 mr-2" />
-                                  Reject
-                                </Button>
-                              </>
-                            )}
-                            <Button 
-                              size="sm" 
-                              variant="destructive"
-                              onClick={() => setDeletingSubmission(submission)}
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Delete
-                            </Button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
       </div>
 
       {/* View Details Dialog */}
@@ -660,9 +699,9 @@ export const AdminAdvertisingPanel: React.FC = () => {
                   <p className="text-sm text-muted-foreground">Company</p>
                   <p className="text-lg font-semibold">{viewingSubmission.company_name}</p>
                 </div>
-                <Badge className={`${(statusConfig[viewingSubmission.status] || statusConfig.pending_review).color} text-white`}>
+                <span className={(statusConfig[viewingSubmission.status] || statusConfig.pending_review).chip}>
                   {(statusConfig[viewingSubmission.status] || statusConfig.pending_review).label}
-                </Badge>
+                </span>
               </div>
 
               <div className="grid sm:grid-cols-2 gap-4 text-sm">
@@ -766,9 +805,9 @@ export const AdminAdvertisingPanel: React.FC = () => {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setViewingSubmission(null)}>
+            <button className="ln-btn" onClick={() => setViewingSubmission(null)}>
               Close
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -814,21 +853,22 @@ export const AdminAdvertisingPanel: React.FC = () => {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={closeReviewDialog}>
+            <button className="ln-btn" onClick={closeReviewDialog}>
               Cancel
-            </Button>
-            <Button 
+            </button>
+            <button
+              className={reviewAction === 'reject' ? 'ln-btn' : 'ln-btn is-primary'}
+              style={reviewAction === 'reject' ? { color: 'var(--ln-crit)', borderColor: 'color-mix(in oklab, var(--ln-crit) 35%, transparent)' } : undefined}
               onClick={handleReview}
               disabled={isProcessing || (reviewAction === 'reject' && !rejectionReason)}
-              variant={reviewAction === 'reject' ? 'destructive' : 'default'}
             >
               {isProcessing ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                <Loader2 className="w-4 h-4 animate-spin" />
               ) : null}
               {reviewAction === 'approve' && 'Approve & Send Payment Link'}
               {reviewAction === 'reject' && 'Reject Submission'}
               {reviewAction === 'changes' && 'Request Changes'}
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -859,22 +899,27 @@ export const AdminAdvertisingPanel: React.FC = () => {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeletingSubmission(null)}>
+            <button className="ln-btn" onClick={() => setDeletingSubmission(null)} disabled={isDeleting}>
               Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDeleteSubmission} disabled={isDeleting}>
+            </button>
+            <button
+              className="ln-btn"
+              style={{ color: 'var(--ln-crit)', borderColor: 'color-mix(in oklab, var(--ln-crit) 35%, transparent)' }}
+              onClick={handleDeleteSubmission}
+              disabled={isDeleting}
+            >
               {isDeleting ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   Deleting...
                 </>
               ) : (
                 <>
-                  <Trash2 className="w-4 h-4 mr-2" />
+                  <Trash2 className="w-4 h-4" />
                   Delete
                 </>
               )}
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

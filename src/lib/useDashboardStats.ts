@@ -3,10 +3,14 @@ import { useEffect, useState } from "react";
 export interface DashboardStats {
   activeOutbreaks: number;
   totalCases: number;
+  totalDeaths: number;
+  mortalityRate: number;
   countriesAffected: number;
   recoveryRate: number;
   activeOutbreaksChange: string;
   totalCasesChange: string;
+  totalDeathsChange: string;
+  mortalityRateChange: string;
   countriesAffectedChange: string;
   recoveryRateChange: string;
 }
@@ -31,7 +35,7 @@ export function useDashboardStats(timeRange: string, countryId?: string | null) 
         const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
         if (!supabaseUrl || !supabaseKey) {
-          throw new Error("Missing Supabase configuration");
+          throw new Error("Missing LiveHealth+ database configuration");
         }
 
         // Calculate date range
@@ -54,7 +58,7 @@ export function useDashboardStats(timeRange: string, countryId?: string | null) 
 
         // Fetch current period signals
         const currentParams = new URLSearchParams();
-        currentParams.set('select', 'id,case_count_mentioned,detected_at,country_id,severity_assessment');
+        currentParams.set('select', 'id,case_count_mentioned,mortality_count_mentioned,detected_at,country_id,severity_assessment');
         currentParams.set('detected_at', `gte.${startDate.toISOString()}`);
         currentParams.set('order', 'detected_at.desc');
         
@@ -79,7 +83,7 @@ export function useDashboardStats(timeRange: string, countryId?: string | null) 
 
         // Fetch previous period for comparison (fetch wider range and filter client-side)
         const previousParams = new URLSearchParams();
-        previousParams.set('select', 'id,case_count_mentioned,detected_at,country_id,severity_assessment');
+        previousParams.set('select', 'id,case_count_mentioned,mortality_count_mentioned,detected_at,country_id,severity_assessment');
         previousParams.set('detected_at', `gte.${previousStartDate.toISOString()}`);
         previousParams.set('order', 'detected_at.desc');
         
@@ -124,6 +128,28 @@ export function useDashboardStats(timeRange: string, countryId?: string | null) 
           totalCasesChange = "+100%";
         }
 
+        const totalDeaths = currentData.reduce((sum, signal) => sum + (signal.mortality_count_mentioned || 0), 0);
+        const previousDeaths = previousData.reduce((sum, signal) => sum + (signal.mortality_count_mentioned || 0), 0);
+        let totalDeathsChange = "0%";
+        if (previousDeaths > 0) {
+          const changePercent = ((totalDeaths - previousDeaths) / previousDeaths * 100);
+          totalDeathsChange = `${changePercent >= 0 ? '+' : ''}${changePercent.toFixed(1)}%`;
+        } else if (totalDeaths > 0) {
+          totalDeathsChange = "+100%";
+        }
+
+        // Mortality rate as deaths-per-1000-cases (so a 0.8% CFR shows as "8.0").
+        const mortalityRate = totalCases > 0 ? (totalDeaths / totalCases) * 1000 : 0;
+        const previousMortalityRate = previousCases > 0 ? (previousDeaths / previousCases) * 1000 : 0;
+        let mortalityRateChange = "0";
+        if (previousMortalityRate > 0) {
+          mortalityRateChange = `${mortalityRate - previousMortalityRate >= 0 ? "+" : ""}${(
+            mortalityRate - previousMortalityRate
+          ).toFixed(1)}`;
+        } else if (mortalityRate > 0) {
+          mortalityRateChange = `+${mortalityRate.toFixed(1)}`;
+        }
+
         const uniqueCountries = new Set(currentData.map((s: any) => s.country_id).filter(Boolean));
         const countriesAffected = uniqueCountries.size;
         const previousCountries = new Set(previousData.map((s: any) => s.country_id).filter(Boolean)).size;
@@ -154,10 +180,14 @@ export function useDashboardStats(timeRange: string, countryId?: string | null) 
         setStats({
           activeOutbreaks,
           totalCases,
+          totalDeaths,
+          mortalityRate: parseFloat(mortalityRate.toFixed(1)),
           countriesAffected,
           recoveryRate: parseFloat(recoveryRate.toFixed(1)),
           activeOutbreaksChange,
           totalCasesChange,
+          totalDeathsChange,
+          mortalityRateChange,
           countriesAffectedChange,
           recoveryRateChange,
         });

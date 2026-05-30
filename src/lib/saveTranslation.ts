@@ -20,7 +20,7 @@ export async function saveTranslation(
   const supabaseKey = (import.meta as any).env?.VITE_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
-    throw new Error("Missing Supabase configuration");
+    throw new Error("Missing LiveHealth+ database configuration");
   }
 
   if (!articleId || !translatedText) {

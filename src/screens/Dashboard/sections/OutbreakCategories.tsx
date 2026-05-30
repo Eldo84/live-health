@@ -43,7 +43,7 @@ export const OutbreakCategories = ({ timeRange = "7d", countryId }: OutbreakCate
         const supabaseKey = envVars?.VITE_SUPABASE_ANON_KEY;
 
         if (!supabaseUrl || !supabaseKey) {
-          throw new Error("Missing Supabase configuration");
+          throw new Error("Missing LiveHealth+ database configuration");
         }
 
         // Calculate date range

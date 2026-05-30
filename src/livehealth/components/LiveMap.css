@@ -1,0 +1,170 @@
+/* Markers + clusters for the LiveHealth+ Leaflet map. */
+
+.ln-marker-wrap { background: none !important; border: none !important; }
+
+.ln-marker {
+  position: relative;
+  width: calc(var(--r) * 2);
+  height: calc(var(--r) * 2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+}
+
+.ln-marker-dot {
+  position: relative;
+  z-index: 2;
+  width: var(--r);
+  height: var(--r);
+  background: var(--c);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--ln-marker-stroke, #0a0d10),
+              0 0 8px color-mix(in oklab, var(--c) 70%, transparent);
+}
+
+.ln-marker-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: var(--c);
+  opacity: 0.55;
+  animation: ln-pulse 2.4s infinite ease-out;
+  pointer-events: none;
+}
+
+.ln-marker-ring {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 1.5px solid var(--c);
+  pointer-events: none;
+  z-index: 3;
+}
+
+/* Cluster bubble */
+.ln-cluster-wrap { background: none !important; border: none !important; }
+.ln-cluster {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--c) 28%, rgba(7,10,13,0.92));
+  border: 1.5px solid var(--c);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 14px color-mix(in oklab, var(--c) 65%, transparent),
+              0 6px 16px rgba(0,0,0,0.45);
+}
+.ln-cluster-inner {
+  position: relative;
+  z-index: 2;
+  font-family: var(--ln-font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  color: #fff;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.ln-cluster-pulse {
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  background: var(--c);
+  opacity: 0.25;
+  animation: ln-pulse-soft 2s infinite ease-in-out;
+}
+
+/* Tile + container appearance to fit the dark theme. */
+.leaflet-container {
+  background: #07090c;
+  font-family: var(--ln-font-sans, inherit);
+}
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--ln-elev-bg, #0a0d10);
+  color: var(--ln-ink, #f0f3f6);
+  border: 1px solid var(--ln-line-3, rgba(255,255,255,0.16));
+  border-radius: 6px;
+  box-shadow: 0 8px 22px rgba(0,0,0,0.5);
+}
+.leaflet-popup-close-button { color: var(--ln-ink-3, #7a8794) !important; }
+
+/* Per-point hover tooltip (ported from the legacy map). */
+.leaflet-tooltip.ln-tip {
+  background: var(--ln-elev-bg, #0a0d10);
+  color: var(--ln-ink, #f0f3f6);
+  border: 1px solid var(--ln-line-3, rgba(255, 255, 255, 0.16));
+  border-radius: 6px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
+  padding: 7px 9px;
+  white-space: normal;
+  font-family: var(--ln-font-sans, inherit);
+}
+/* Recolor the little arrow so it matches the dark tooltip body. */
+.leaflet-tooltip-top.ln-tip::before { border-top-color: var(--ln-line-3, rgba(255, 255, 255, 0.16)); }
+.leaflet-tooltip-bottom.ln-tip::before { border-bottom-color: var(--ln-line-3, rgba(255, 255, 255, 0.16)); }
+.leaflet-tooltip-left.ln-tip::before { border-left-color: var(--ln-line-3, rgba(255, 255, 255, 0.16)); }
+.leaflet-tooltip-right.ln-tip::before { border-right-color: var(--ln-line-3, rgba(255, 255, 255, 0.16)); }
+
+.ln-tip-inner { min-width: 150px; max-width: 240px; }
+.ln-tip-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ln-ink, #f0f3f6);
+  line-height: 1.25;
+}
+.ln-tip-dot { width: 8px; height: 8px; border-radius: 2px; flex: 0 0 auto; }
+.ln-tip-loc { font-size: 11px; color: var(--ln-ink-2, #c3cdd6); margin-top: 2px; }
+.ln-tip-meta {
+  font-size: 10px;
+  color: var(--ln-ink-3, #7a8794);
+  margin-top: 3px;
+  font-family: var(--ln-font-mono, ui-monospace, monospace);
+}
+
+/* Click popup (source, article link, ministry contact) — ported from the
+   legacy map's OutbreakPopupContent. */
+.ln-pop { min-width: 190px; font-family: var(--ln-font-sans, inherit); }
+.ln-pop-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ln-ink, #f0f3f6);
+  margin-bottom: 5px;
+}
+.ln-pop-row { font-size: 11.5px; color: var(--ln-ink-2, #c3cdd6); margin-top: 2px; line-height: 1.35; }
+.ln-pop-row strong { color: var(--ln-ink, #f0f3f6); font-weight: 600; }
+.ln-pop-muted { color: var(--ln-ink-3, #7a8794); }
+.ln-pop-link { color: var(--ln-brand, #4ee0c4); text-decoration: none; word-break: break-word; }
+.ln-pop-link:hover { text-decoration: underline; }
+.ln-pop-article { display: inline-block; margin-top: 6px; font-weight: 600; }
+.ln-pop-ministry {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--ln-line-2, rgba(255, 255, 255, 0.10));
+}
+.ln-pop-ministry-head {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ln-brand, #4ee0c4);
+  margin-bottom: 3px;
+}
+.ln-pop-ministry-name { font-size: 11.5px; color: var(--ln-ink, #f0f3f6); font-weight: 500; }
+
+/* Custom themed zoom control (we render our own buttons but if the user re-enables
+   Leaflet's, give it the right look). */
+.leaflet-bar a {
+  background: var(--ln-surface-2, #161c23);
+  color: var(--ln-ink, #f0f3f6);
+  border-bottom: 1px solid var(--ln-line-2, rgba(255,255,255,0.10));
+}
+.leaflet-bar a:hover { background: var(--ln-surface-3, #1d242c); }
+
+/* Light theme overrides */
+.ln-theme-light .leaflet-container { background: #e7e6df; }

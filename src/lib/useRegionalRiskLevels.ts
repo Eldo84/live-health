@@ -189,7 +189,7 @@ export function useRegionalRiskLevels(timeRange: string = "30d", countryId?: str
         const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
         if (!supabaseUrl || !supabaseKey) {
-          throw new Error("Missing Supabase configuration");
+          throw new Error("Missing LiveHealth+ database configuration");
         }
 
         // Calculate date range
