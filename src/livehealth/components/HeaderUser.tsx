@@ -5,6 +5,7 @@ import { useAuth } from "../../contexts/AuthContext";
 import { AuthDialog } from "../../components/AuthDialog";
 import { AddAlertDialog } from "./AddAlertDialog";
 import { FeedbackDialog } from "./FeedbackDialog";
+import { Modal } from "./Modal";
 
 // Returns 1-2 character initials from the user's name / email metadata.
 function initialsFor(user: { email?: string | null; user_metadata?: any } | null): string {
@@ -33,6 +34,7 @@ export function HeaderUser() {
   const [authMode, setAuthMode] = useState<"login" | "signup">("login");
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [alertOpen, setAlertOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -160,7 +162,7 @@ export function HeaderUser() {
               navigate("/dashboard/advertising");
             }}
           >
-            <Icon.News /> My advertising
+            <Icon.News /> My Ads
           </MenuItem>
           <MenuItem
             onClick={() => {
@@ -169,6 +171,14 @@ export function HeaderUser() {
             }}
           >
             <Icon.Globe /> Partnership
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              setOpen(false);
+              navigate("/settings");
+            }}
+          >
+            <Icon.Bell /> Alerts &amp; settings
           </MenuItem>
           <div style={{ height: 1, background: "var(--ln-line-2)" }} />
           <MenuItem
@@ -187,6 +197,14 @@ export function HeaderUser() {
           >
             <Icon.Sparkles /> Send feedback
           </MenuItem>
+          <MenuItem
+            onClick={() => {
+              setOpen(false);
+              setHelpOpen(true);
+            }}
+          >
+            <Icon.Globe /> Help
+          </MenuItem>
           <div style={{ height: 1, background: "var(--ln-line-2)" }} />
           <MenuItem
             onClick={async () => {
@@ -201,7 +219,52 @@ export function HeaderUser() {
       )}
       <AddAlertDialog open={alertOpen} onClose={() => setAlertOpen(false)} />
       <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
+      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
+  );
+}
+
+const HELP_TIPS: { title: string; body: string }[] = [
+  {
+    title: "Filter the map",
+    body: "Use the left sidebar to filter by disease type, category, pathogen, minimum severity and time range. The KPI counts and map points update live.",
+  },
+  {
+    title: "Near me",
+    body: "Toggle “Near me” to focus on outbreaks within a chosen radius of your location, then pick a nearby category to drill into a specific threat.",
+  },
+  {
+    title: "Basemaps",
+    body: "Switch between Dark, Light, Street, Topographic and Imagery basemaps from the floating Basemap panel in the bottom-right corner of the map.",
+  },
+  {
+    title: "Fullscreen & legend",
+    body: "Use the fullscreen button in the on-map control stack for an immersive view, and the on-map category legend to toggle a category filter with one click.",
+  },
+  {
+    title: "Exports & reports",
+    body: "Open the Analytics dashboard to view aggregated trends and export charts and tables for reporting.",
+  },
+  {
+    title: "Alerts",
+    body: "Subscribe to alerts to get notified about new or escalating outbreaks. Manage subscriptions under Alerts & settings.",
+  },
+];
+
+function HelpModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  return (
+    <Modal open={open} onClose={onClose} eyebrow="LiveHealth+" title="Help & tips" width={520}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {HELP_TIPS.map((t) => (
+          <div key={t.title}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ln-ink)", marginBottom: 3 }}>
+              {t.title}
+            </div>
+            <div style={{ fontSize: 12.5, color: "var(--ln-ink-2)", lineHeight: 1.45 }}>{t.body}</div>
+          </div>
+        ))}
+      </div>
+    </Modal>
   );
 }
 

@@ -1147,7 +1147,7 @@ function LandingIntel() {
             Promote your study, vaccine programme, or relief campaign to ministers, researchers, and clinicians.
           </p>
           <Link
-            to="/advertising/payment"
+            to="/advertise"
             className="ln-btn"
             style={{ fontSize: 12, padding: "8px 12px" }}
           >
@@ -1418,8 +1418,8 @@ function LandingFooter() {
       items: [
         { l: useT("About"), to: "/partnership" },
         { l: useT("Partners"), to: "/partnership" },
-        { l: useT("Advertise"), to: "/advertising/payment" },
-        { l: useT("Donate"), to: "/donate/success" },
+        { l: useT("Advertise"), to: "/advertise" },
+        { l: useT("Donate"), onClick: () => setOpen(true) },
         { l: useT("Contact"), href: "mailto:contact@theghqa.org" },
       ],
     },
@@ -1504,6 +1504,24 @@ function LandingFooter() {
                     <Link to={it.to} style={{ fontSize: 13, color: "var(--ln-ink-2)", textDecoration: "none" }}>
                       {it.l}
                     </Link>
+                  ) : it.onClick ? (
+                    <button
+                      onClick={it.onClick}
+                      style={{
+                        fontSize: 13,
+                        color: "var(--ln-ink-2)",
+                        textDecoration: "none",
+                        background: "none",
+                        border: "none",
+                        padding: 0,
+                        margin: 0,
+                        cursor: "pointer",
+                        textAlign: "left",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      {it.l}
+                    </button>
                   ) : (
                     <a
                       href={it.href}

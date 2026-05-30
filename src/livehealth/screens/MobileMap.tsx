@@ -10,6 +10,7 @@ import { useLiveOutbreaks, type LiveOutbreak } from "../data/useLiveOutbreaks";
 import { useLiveAlerts } from "../data/useLiveAlerts";
 import { useLiveSponsored } from "../data/useLiveSponsored";
 import { useUserLocation } from "../../lib/useUserLocation";
+import { useHealthMinistry } from "../../lib/useHealthMinistry";
 import { useT } from "../lib/useT";
 import { severityColor, timeAgo, haversineKm } from "../lib/utils";
 import { PREDICTIONS } from "../data/predictions";
@@ -145,6 +146,7 @@ export function MobileMapScreen() {
           selectedId={selected?.id ?? null}
           pulse
           cluster
+          popup={false}
           onSelect={(o) => setSelected(o)}
           focusOn={userLocation?.coordinates ? (userLocation.coordinates as [number, number]) : null}
           focusRadiusKm={3000}
@@ -627,6 +629,7 @@ export function MobileMapScreen() {
                 />
                 <Metric label="Confidence" value={`${Math.round(selected.confidence * 100)}%`} />
               </div>
+              <MinistryContact country={selected.country} />
             </div>
             {selected.url && (
               <div

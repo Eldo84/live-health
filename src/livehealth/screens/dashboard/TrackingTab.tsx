@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { PaneHead } from "../../components/PaneHead";
 import { WorldMap } from "../../components/WorldMap";
 import { useLiveOutbreaks } from "../../data/useLiveOutbreaks";
@@ -31,6 +31,7 @@ export function TrackingTab({ range, isMobile, isTabletDown }: Props) {
   }, [outbreaks]);
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [hoverWeek, setHoverWeek] = useState<number | null>(null);
   const selected = useMemo(
     () => candidates.find((c) => c.id === selectedId) || candidates[0] || null,
     [candidates, selectedId]
@@ -180,8 +181,9 @@ export function TrackingTab({ range, isMobile, isTabletDown }: Props) {
               <span className="ln-eyebrow">
                 Cumulative cases · {selected.disease} · {selected.city || selected.country}
               </span>
-              <h3 style={{ fontSize: 16, margin: "4px 0 14px", fontWeight: 500 }}>
+              <h3 style={{ fontSize: 16, margin: "4px 0 14px", fontWeight: 500, display: "flex", alignItems: "center" }}>
                 From index case to today
+                <InfoDot text="Modeled cumulative-case curve (logistic S-growth) from the index case to today. Dashed markers flag detection, confirmation, escalation and the projected peak. Hover the curve to read the running total on any day; the real reported total is in the metrics panel." />
               </h3>
               <TrackingCurve cases={selected.cases} />
             </div>
@@ -215,7 +217,15 @@ export function TrackingTab({ range, isMobile, isTabletDown }: Props) {
           </div>
 
           <div style={{ borderBottom: "1px solid var(--ln-line)" }}>
-            <PaneHead eyebrow="Spread map" title="Where it travelled, week by week" />
+            <PaneHead
+              eyebrow="Spread map"
+              title="Where it travelled, week by week"
+              right={
+                <InfoDot
+                  text={`Each panel adds the locations reporting ${selected.disease} up to that point, accumulated across six equal time slices — a proxy for geographic spread from the first signal to now. Hover a week for its location and case totals.`}
+                />
+              }
+            />
             <div
               style={{
                 display: "grid",
@@ -224,46 +234,82 @@ export function TrackingTab({ range, isMobile, isTabletDown }: Props) {
                 borderLeft: "1px solid var(--ln-line-2)",
               }}
             >
-              {spread.map((bucket, i) => (
-                <div
-                  key={i}
-                  style={{
-                    borderRight: "1px solid var(--ln-line-2)",
-                    borderBottom: "1px solid var(--ln-line-2)",
-                    padding: 12,
-                  }}
-                >
-                  <div className="ln-eyebrow">Wk {i + 1}</div>
+              {spread.map((bucket, i) => {
+                const weekCases = bucket.reduce((a, o) => a + o.cases, 0);
+                const weekLocs = bucket.length;
+                return (
                   <div
+                    key={i}
+                    onMouseEnter={() => setHoverWeek(i)}
+                    onMouseLeave={() => setHoverWeek((w) => (w === i ? null : w))}
                     style={{
-                      marginTop: 6,
-                      height: 110,
-                      position: "relative",
-                      overflow: "hidden",
-                      background: "var(--ln-map-bg)",
+                      borderRight: "1px solid var(--ln-line-2)",
+                      borderBottom: "1px solid var(--ln-line-2)",
+                      padding: 12,
                     }}
-                    className="ln-dotgrid"
                   >
-                    <WorldMap
-                      width={200}
-                      height={110}
-                      outbreaks={bucket.map((o) => ({
-                        id: o.id,
-                        lng: o.lng,
-                        lat: o.lat,
-                        severity: o.severity,
-                      }))}
-                      regionRisk={{}}
-                      showChoropleth={false}
-                      pulse={false}
-                      dotSpacing={11}
-                    />
+                    <div className="ln-eyebrow">Wk {i + 1}</div>
+                    <div
+                      style={{
+                        marginTop: 6,
+                        height: 110,
+                        position: "relative",
+                        overflow: "hidden",
+                        background: "var(--ln-map-bg)",
+                      }}
+                      className="ln-dotgrid"
+                    >
+                      <WorldMap
+                        width={200}
+                        height={110}
+                        outbreaks={bucket.map((o) => ({
+                          id: o.id,
+                          lng: o.lng,
+                          lat: o.lat,
+                          severity: o.severity,
+                        }))}
+                        regionRisk={{}}
+                        showChoropleth={false}
+                        pulse={false}
+                        dotSpacing={11}
+                      />
+                      {/* Descriptive per-week tooltip */}
+                      {hoverWeek === i && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            inset: 4,
+                            background: "color-mix(in oklab, var(--ln-elev-bg) 92%, transparent)",
+                            border: "1px solid var(--ln-line-3)",
+                            borderRadius: 4,
+                            padding: "6px 8px",
+                            fontSize: 9.5,
+                            lineHeight: 1.4,
+                            color: "var(--ln-ink-2)",
+                            zIndex: 4,
+                            pointerEvents: "none",
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <strong style={{ color: "var(--ln-ink)", fontSize: 11 }}>Week {i + 1} of 6</strong>
+                          <span style={{ marginTop: 2 }}>
+                            {weekLocs} location{weekLocs === 1 ? "" : "s"} ·{" "}
+                            {weekCases > 0 ? weekCases.toLocaleString() : weekLocs} cases
+                          </span>
+                          <span style={{ marginTop: 2, color: "var(--ln-ink-3)" }}>
+                            cumulative spread of {selected.disease} to this point
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="ln-num" style={{ fontSize: 11, color: "var(--ln-ink-3)", marginTop: 6 }}>
+                      {weekCases > 0 ? weekCases.toLocaleString() : weekLocs} cases
+                    </div>
                   </div>
-                  <div className="ln-num" style={{ fontSize: 11, color: "var(--ln-ink-3)", marginTop: 6 }}>
-                    {bucket.reduce((a, o) => a + o.cases, 0).toLocaleString() || bucket.length} cases
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </>
@@ -343,61 +389,199 @@ function TrackingCurve({ cases }: { cases: number }) {
   const padB = 20;
   const days = 44;
   const peak = Math.max(50, cases);
-  const cumulative = Array.from({ length: days }, (_, i) =>
-    Math.round(peak / (1 + Math.exp(-(i - 22) * 0.16)))
+  const cumulative = useMemo(
+    () => Array.from({ length: days }, (_, i) => Math.round(peak / (1 + Math.exp(-(i - 22) * 0.16)))),
+    [peak]
   );
-  const max = cumulative[days - 1];
-  const path = cumulative
-    .map(
-      (v, i) =>
-        `${i ? "L" : "M"}${padL + (i / (days - 1)) * (W - padL - 12)} ${(H - padB - 4) - (v / max) * (H - padB - 12) + 4}`
-    )
-    .join(" ");
+  const max = cumulative[days - 1] || 1;
+  const xAt = (i: number) => padL + (i / (days - 1)) * (W - padL - 12);
+  const yAt = (v: number) => H - padB - 4 - (v / max) * (H - padB - 12) + 4;
+  const path = cumulative.map((v, i) => `${i ? "L" : "M"}${xAt(i)} ${yAt(v)}`).join(" ");
+
+  // Hover tooltip — reads the running total on any day.
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [hoverI, setHoverI] = useState<number | null>(null);
+  const setFromX = (clientX: number) => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (!rect.width) return;
+    const vbX = ((clientX - rect.left) / rect.width) * W;
+    const frac = (vbX - padL) / Math.max(1, W - padL - 12);
+    setHoverI(Math.max(0, Math.min(days - 1, Math.round(frac * (days - 1)))));
+  };
+
+  const hx = hoverI != null ? xAt(hoverI) : 0;
+  const hy = hoverI != null ? yAt(cumulative[hoverI]) : 0;
+  const leftPct = (hx / W) * 100;
+  const topPct = Math.max(8, Math.min(80, (hy / H) * 100));
+  const onRight = leftPct > 55;
+
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: "block" }}>
-      {[0, 0.5, 1].map((p) => (
-        <line
-          key={p}
-          x1={padL}
-          y1={(H - padB) * (1 - p) + 4}
-          x2={W}
-          y2={(H - padB) * (1 - p) + 4}
-          stroke="var(--ln-line)"
-          strokeDasharray="2 4"
-        />
-      ))}
-      <path d={`${path} L${W - 12} ${H - padB} L${padL} ${H - padB} Z`} fill={ACCENT} opacity="0.12" />
-      <path d={path} fill="none" stroke={ACCENT} strokeWidth="1.8" strokeLinecap="round" />
-      {[
-        { x: 0, l: "detect" },
-        { x: 3, l: "confirm" },
-        { x: 10, l: "escalate" },
-        { x: 36, l: "peak" },
-      ].map((m) => {
-        const x = padL + (m.x / (days - 1)) * (W - padL - 12);
-        return (
-          <g key={m.l}>
-            <line
-              x1={x}
-              y1={4}
-              x2={x}
-              y2={H - padB}
-              stroke="var(--ln-line-3)"
-              strokeDasharray="2 3"
-            />
-            <text
-              x={x + 4}
-              y={16}
-              fontSize="10"
-              fill="var(--ln-ink-4)"
-              fontFamily="var(--ln-font-mono)"
-              letterSpacing="0.06em"
-            >
-              {m.l}
-            </text>
+    <div
+      ref={wrapRef}
+      style={{ position: "relative" }}
+      onMouseMove={(e) => setFromX(e.clientX)}
+      onMouseLeave={() => setHoverI(null)}
+      onTouchMove={(e) => e.touches[0] && setFromX(e.touches[0].clientX)}
+      onTouchEnd={() => setHoverI(null)}
+    >
+      <svg viewBox={`0 0 ${W} ${H}`} width="100%" style={{ display: "block" }}>
+        {[0, 0.5, 1].map((p) => (
+          <line
+            key={p}
+            x1={padL}
+            y1={(H - padB) * (1 - p) + 4}
+            x2={W}
+            y2={(H - padB) * (1 - p) + 4}
+            stroke="var(--ln-line)"
+            strokeDasharray="2 4"
+          />
+        ))}
+        <path d={`${path} L${W - 12} ${H - padB} L${padL} ${H - padB} Z`} fill={ACCENT} opacity="0.12" />
+        <path d={path} fill="none" stroke={ACCENT} strokeWidth="1.8" strokeLinecap="round" />
+        {[
+          { x: 0, l: "detect" },
+          { x: 3, l: "confirm" },
+          { x: 10, l: "escalate" },
+          { x: 36, l: "peak" },
+        ].map((m) => {
+          const x = xAt(m.x);
+          return (
+            <g key={m.l}>
+              <line x1={x} y1={4} x2={x} y2={H - padB} stroke="var(--ln-line-3)" strokeDasharray="2 3" />
+              <text
+                x={x + 4}
+                y={16}
+                fontSize="10"
+                fill="var(--ln-ink-4)"
+                fontFamily="var(--ln-font-mono)"
+                letterSpacing="0.06em"
+              >
+                {m.l}
+              </text>
+            </g>
+          );
+        })}
+        {hoverI != null && (
+          <g>
+            <line x1={hx} y1={4} x2={hx} y2={H - padB} stroke="var(--ln-ink-4)" strokeDasharray="3 3" />
+            <circle cx={hx} cy={hy} r="4" fill={ACCENT} stroke="var(--ln-bg)" strokeWidth="1.5" />
           </g>
-        );
-      })}
-    </svg>
+        )}
+      </svg>
+      {hoverI != null && (
+        <div
+          style={{
+            position: "absolute",
+            top: `${topPct}%`,
+            left: `${leftPct}%`,
+            transform: onRight ? "translate(calc(-100% - 12px), -50%)" : "translate(12px, -50%)",
+            background: "var(--ln-elev-bg)",
+            border: "1px solid var(--ln-line-3)",
+            borderRadius: 6,
+            padding: "7px 9px",
+            boxShadow: "0 8px 22px rgba(0,0,0,0.5)",
+            pointerEvents: "none",
+            zIndex: 5,
+            minWidth: 130,
+          }}
+        >
+          <div
+            style={{
+              fontFamily: "var(--ln-font-mono)",
+              fontSize: 10,
+              color: "var(--ln-ink-3)",
+              letterSpacing: "0.06em",
+              marginBottom: 4,
+            }}
+          >
+            Day {hoverI + 1} of {days}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ width: 8, height: 8, borderRadius: 2, background: ACCENT, flex: "0 0 8px" }} />
+            <span style={{ fontSize: 12, color: "var(--ln-ink-2)", flex: 1 }}>Cumulative</span>
+            <span className="ln-num" style={{ fontSize: 12, color: "var(--ln-ink)" }}>
+              {cumulative[hoverI].toLocaleString()}
+            </span>
+          </div>
+          <div
+            style={{
+              marginTop: 5,
+              paddingTop: 4,
+              borderTop: "1px solid var(--ln-line)",
+              fontSize: 9.5,
+              color: "var(--ln-ink-4)",
+              lineHeight: 1.35,
+            }}
+          >
+            Modeled cases reported by this day.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Small "?" info affordance with a styled descriptive tooltip on hover/focus.
+function InfoDot({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span style={{ position: "relative", display: "inline-flex", verticalAlign: "middle", marginLeft: 6 }}>
+      <button
+        type="button"
+        aria-label="What is this?"
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        style={{
+          width: 15,
+          height: 15,
+          borderRadius: "50%",
+          border: "1px solid var(--ln-line-3)",
+          background: "transparent",
+          color: "var(--ln-ink-3)",
+          fontSize: 10,
+          lineHeight: 1,
+          cursor: "help",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 0,
+          fontFamily: "var(--ln-font-mono)",
+        }}
+      >
+        ?
+      </button>
+      {open && (
+        <span
+          role="tooltip"
+          style={{
+            position: "absolute",
+            top: "calc(100% + 8px)",
+            left: "50%",
+            transform: "translateX(-50%)",
+            width: 240,
+            maxWidth: "70vw",
+            background: "var(--ln-elev-bg)",
+            border: "1px solid var(--ln-line-3)",
+            borderRadius: 6,
+            padding: "8px 10px",
+            boxShadow: "0 8px 22px rgba(0,0,0,0.5)",
+            fontSize: 11.5,
+            fontWeight: 400,
+            color: "var(--ln-ink-2)",
+            lineHeight: 1.45,
+            letterSpacing: 0,
+            textTransform: "none",
+            whiteSpace: "normal",
+            zIndex: 30,
+          }}
+        >
+          {text}
+        </span>
+      )}
+    </span>
   );
 }

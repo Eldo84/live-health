@@ -90,6 +90,73 @@
 }
 .leaflet-popup-close-button { color: var(--ln-ink-3, #7a8794) !important; }
 
+/* Per-point hover tooltip (ported from the legacy map). */
+.leaflet-tooltip.ln-tip {
+  background: var(--ln-elev-bg, #0a0d10);
+  color: var(--ln-ink, #f0f3f6);
+  border: 1px solid var(--ln-line-3, rgba(255, 255, 255, 0.16));
+  border-radius: 6px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
+  padding: 7px 9px;
+  white-space: normal;
+  font-family: var(--ln-font-sans, inherit);
+}
+/* Recolor the little arrow so it matches the dark tooltip body. */
+.leaflet-tooltip-top.ln-tip::before { border-top-color: var(--ln-line-3, rgba(255, 255, 255, 0.16)); }
+.leaflet-tooltip-bottom.ln-tip::before { border-bottom-color: var(--ln-line-3, rgba(255, 255, 255, 0.16)); }
+.leaflet-tooltip-left.ln-tip::before { border-left-color: var(--ln-line-3, rgba(255, 255, 255, 0.16)); }
+.leaflet-tooltip-right.ln-tip::before { border-right-color: var(--ln-line-3, rgba(255, 255, 255, 0.16)); }
+
+.ln-tip-inner { min-width: 150px; max-width: 240px; }
+.ln-tip-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ln-ink, #f0f3f6);
+  line-height: 1.25;
+}
+.ln-tip-dot { width: 8px; height: 8px; border-radius: 2px; flex: 0 0 auto; }
+.ln-tip-loc { font-size: 11px; color: var(--ln-ink-2, #c3cdd6); margin-top: 2px; }
+.ln-tip-meta {
+  font-size: 10px;
+  color: var(--ln-ink-3, #7a8794);
+  margin-top: 3px;
+  font-family: var(--ln-font-mono, ui-monospace, monospace);
+}
+
+/* Click popup (source, article link, ministry contact) — ported from the
+   legacy map's OutbreakPopupContent. */
+.ln-pop { min-width: 190px; font-family: var(--ln-font-sans, inherit); }
+.ln-pop-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ln-ink, #f0f3f6);
+  margin-bottom: 5px;
+}
+.ln-pop-row { font-size: 11.5px; color: var(--ln-ink-2, #c3cdd6); margin-top: 2px; line-height: 1.35; }
+.ln-pop-row strong { color: var(--ln-ink, #f0f3f6); font-weight: 600; }
+.ln-pop-muted { color: var(--ln-ink-3, #7a8794); }
+.ln-pop-link { color: var(--ln-brand, #4ee0c4); text-decoration: none; word-break: break-word; }
+.ln-pop-link:hover { text-decoration: underline; }
+.ln-pop-article { display: inline-block; margin-top: 6px; font-weight: 600; }
+.ln-pop-ministry {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--ln-line-2, rgba(255, 255, 255, 0.10));
+}
+.ln-pop-ministry-head {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ln-brand, #4ee0c4);
+  margin-bottom: 3px;
+}
+.ln-pop-ministry-name { font-size: 11.5px; color: var(--ln-ink, #f0f3f6); font-weight: 500; }
+
 /* Custom themed zoom control (we render our own buttons but if the user re-enables
    Leaflet's, give it the right look). */
 .leaflet-bar a {

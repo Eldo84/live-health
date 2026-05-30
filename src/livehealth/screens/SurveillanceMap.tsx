@@ -9,7 +9,7 @@ import { SeverityBar } from "../components/SeverityBar";
 import { AlertTicker, type TickerAlert } from "../components/AlertTicker";
 import { AdCard } from "../components/AdCard";
 import { useLiveSponsored } from "../data/useLiveSponsored";
-import { LiveMap } from "../components/LiveMap";
+import { LiveMap, MAP_TYPES, type MapType } from "../components/LiveMap";
 import { HeaderAlerts } from "../components/HeaderAlerts";
 import { HeaderUser } from "../components/HeaderUser";
 import { ThemeToggle } from "../components/ThemeToggle";
@@ -44,6 +44,10 @@ export function SurveillanceMapScreen() {
   const [minSeverity, setMinSeverity] = useState(1);
   const [clusterMarkers, setClusterMarkers] = useState(true);
   const [pulse, setPulse] = useState(true);
+  const [mapType, setMapType] = useState<MapType>("imagery");
+  const [mapSettingsOpen, setMapSettingsOpen] = useState(false);
+  const [mapFullscreen, setMapFullscreen] = useState(false);
+  const [legendOpen, setLegendOpen] = useState(true);
   const [selected, setSelected] = useState<LiveOutbreak | null>(null);
   const [hovered, setHovered] = useState<LiveOutbreak | null>(null);
   const [tab, setTab] = useState<"alerts" | "news" | "sponsored">("alerts");
@@ -99,6 +103,7 @@ export function SurveillanceMapScreen() {
   const tSearch = useT("Search");
   const tCluster = useT("Cluster");
   const tPulse = useT("Pulse");
+  const tBasemap = useT("Basemap");
 
   const mapInstance = useRef<LMap | null>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -120,9 +125,20 @@ export function SurveillanceMapScreen() {
     const m = mapInstance.current;
     if (!m) return;
     flewToUserRef.current = true;
-    m.flyTo(userLocation.coordinates as [number, number], 4, { duration: 0.9 });
+    // Zoom to the user's country (zoom 5), not just their continent.
+    m.flyTo(userLocation.coordinates as [number, number], 5, { duration: 0.9 });
     setShowLocBanner(true);
   }, [mapReady, userLocation?.coordinates]);
+
+  // When entering/leaving fullscreen the map container resizes; nudge Leaflet to
+  // recompute tile layout (the ResizeObserver usually catches this, but a manual
+  // invalidateSize after the layout settles avoids any blank-tile flash).
+  useEffect(() => {
+    const m = mapInstance.current;
+    if (!m) return;
+    const id = setTimeout(() => m.invalidateSize(), 220);
+    return () => clearTimeout(id);
+  }, [mapFullscreen]);
 
   const zoomBy = (delta: number) => {
     const m = mapInstance.current;
@@ -132,7 +148,7 @@ export function SurveillanceMapScreen() {
     const m = mapInstance.current;
     if (!m) return;
     if (userLocation?.coordinates) {
-      m.flyTo(userLocation.coordinates as [number, number], 4, { duration: 0.7 });
+      m.flyTo(userLocation.coordinates as [number, number], 5, { duration: 0.7 });
     } else {
       m.flyTo([15, 5], 2, { duration: 0.7 });
     }
@@ -167,6 +183,37 @@ export function SurveillanceMapScreen() {
       .map(([name, v]) => ({ name, color: v.color, count: v.count }))
       .sort((a, b) => b.count - a.count);
   }, [outbreaks]);
+
+  // Categories that actually have ≥1 outbreak within the Near-me radius of the
+  // user's location, with live counts — feeds the Near-me category picker.
+  const nearbyCategories = useMemo(() => {
+    if (!nearMeOn || !userLocation?.coordinates) return [];
+    const nearby = outbreaks.filter(
+      (o) => haversineKm([o.lat, o.lng], userLocation.coordinates as [number, number]) <= nearMeRadius
+    );
+    return categories
+      .map((c) => ({
+        id: c.id,
+        label: c.label,
+        color: c.color,
+        count: nearby.filter((o) => matchesCategory(o.diseaseId, c.id)).length,
+      }))
+      .filter((c) => c.count > 0)
+      .sort((a, b) => b.count - a.count);
+  }, [nearMeOn, userLocation, outbreaks, nearMeRadius, categories, matchesCategory]);
+
+  // Per-category live counts (within current filters' time window) for the
+  // on-map legend.
+  const legendCategories = useMemo(
+    () =>
+      categories.map((c) => ({
+        id: c.id,
+        label: c.label,
+        color: c.color,
+        count: outbreaks.filter((o) => matchesCategory(o.diseaseId, c.id)).length,
+      })),
+    [categories, outbreaks, matchesCategory]
+  );
 
   const visibleOutbreaks = useMemo(() => {
     return outbreaks
@@ -572,6 +619,42 @@ export function SurveillanceMapScreen() {
                   {nearMeRadius} km
                 </div>
               )}
+              {nearMeOn && (
+                <div style={{ marginTop: 10 }}>
+                  <span className="ln-eyebrow" style={{ display: "block", marginBottom: 6 }}>
+                    {tCategories}
+                  </span>
+                  <select
+                    value={
+                      activeCategory && nearbyCategories.some((c) => c.id === activeCategory)
+                        ? activeCategory
+                        : ""
+                    }
+                    onChange={(e) => setActiveCategory(e.target.value || null)}
+                    disabled={nearbyCategories.length === 0}
+                    style={{
+                      width: "100%",
+                      background: "var(--ln-surface-2)",
+                      border: "1px solid var(--ln-line-2)",
+                      padding: "5px 8px",
+                      fontSize: 12,
+                      color: "var(--ln-ink)",
+                      borderRadius: 6,
+                    }}
+                  >
+                    <option value="">
+                      {nearbyCategories.length === 0
+                        ? "No categories nearby"
+                        : "All nearby categories"}
+                    </option>
+                    {nearbyCategories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label} ({c.count})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             <div style={{ padding: "12px 14px 14px", borderTop: "1px solid var(--ln-line)" }}>
@@ -939,14 +1022,25 @@ export function SurveillanceMapScreen() {
             }}
           >
             <div
-              style={{
-                position: "relative",
-                width: "100%",
-                height: "100%",
-                border: "1px solid var(--ln-line)",
-                background: "var(--ln-map-bg)",
-                overflow: "hidden",
-              }}
+              style={
+                mapFullscreen
+                  ? {
+                      position: "fixed",
+                      inset: 0,
+                      zIndex: 1000,
+                      border: "none",
+                      background: "var(--ln-map-bg)",
+                      overflow: "hidden",
+                    }
+                  : {
+                      position: "relative",
+                      width: "100%",
+                      height: "100%",
+                      border: "1px solid var(--ln-line)",
+                      background: "var(--ln-map-bg)",
+                      overflow: "hidden",
+                    }
+              }
             >
               <span
                 style={{
@@ -983,6 +1077,7 @@ export function SurveillanceMapScreen() {
                 selectedId={selected?.id ?? null}
                 pulse={pulse}
                 cluster={clusterMarkers}
+                mapType={mapType}
                 onHover={(o) => setHovered(o)}
                 onSelect={(o) => setSelected(o)}
                 focusOn={
@@ -1033,6 +1128,82 @@ export function SurveillanceMapScreen() {
                 >
                   ⌖
                 </button>
+                <button
+                  className={`ln-btn ${mapFullscreen ? "is-active" : ""}`}
+                  style={{ width: 30, height: 30, justifyContent: "center", padding: 0, fontSize: 14 }}
+                  title={mapFullscreen ? "Exit fullscreen" : "Fullscreen map"}
+                  aria-label={mapFullscreen ? "Exit fullscreen" : "Fullscreen map"}
+                  aria-pressed={mapFullscreen}
+                  onClick={() => setMapFullscreen((v) => !v)}
+                >
+                  {mapFullscreen ? "⤬" : "⛶"}
+                </button>
+              </div>
+
+              {/* Floating basemap switcher — ported from the legacy map's
+                  "Map Settings" overlay. Collapsible so it stays compact. */}
+              <div
+                style={{
+                  position: "absolute",
+                  right: 12,
+                  bottom: isMobile ? 12 : 14,
+                  zIndex: 500,
+                  width: 168,
+                  background: "var(--ln-overlay-bg)",
+                  border: "1px solid var(--ln-line-2)",
+                  backdropFilter: "blur(8px)",
+                  overflow: "hidden",
+                }}
+              >
+                <button
+                  onClick={() => setMapSettingsOpen((v) => !v)}
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 8,
+                    padding: "8px 10px",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    color: "var(--ln-ink)",
+                  }}
+                  aria-expanded={mapSettingsOpen}
+                >
+                  <span className="ln-eyebrow">{tBasemap}</span>
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      transform: mapSettingsOpen ? "rotate(180deg)" : "rotate(0deg)",
+                      transition: "transform .2s",
+                      color: "var(--ln-ink-3)",
+                    }}
+                  >
+                    <Icon.Down />
+                  </span>
+                </button>
+                {mapSettingsOpen && (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 4,
+                      padding: "0 8px 8px",
+                    }}
+                  >
+                    {MAP_TYPES.map((t) => (
+                      <button
+                        key={t.id}
+                        className={`ln-btn ${mapType === t.id ? "is-active" : ""}`}
+                        onClick={() => setMapType(t.id)}
+                        style={{ padding: "5px 8px", justifyContent: "flex-start", fontSize: 11 }}
+                      >
+                        {t.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div
@@ -1083,6 +1254,130 @@ export function SurveillanceMapScreen() {
                   <span>CRITICAL</span>
                 </div>
               </div>
+
+              {/* On-map collapsible category legend. Top-left, below the
+                  WGS-84 coordinate label and clear of the KPI row, zoom stack,
+                  basemap panel and severity legend. Each row toggles the
+                  activeCategory filter. */}
+              {!isMobile && (
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 8,
+                    top: 30,
+                    zIndex: 500,
+                    width: 192,
+                    background: "var(--ln-overlay-bg)",
+                    border: "1px solid var(--ln-line-2)",
+                    backdropFilter: "blur(8px)",
+                    overflow: "hidden",
+                  }}
+                >
+                  <button
+                    onClick={() => setLegendOpen((v) => !v)}
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 8,
+                      padding: "8px 10px",
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      color: "var(--ln-ink)",
+                    }}
+                    aria-expanded={legendOpen}
+                  >
+                    <span className="ln-eyebrow">{tCategories}</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      {activeCategory && (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveCategory(null);
+                          }}
+                          style={{
+                            fontSize: 9,
+                            fontFamily: "var(--ln-font-mono)",
+                            color: "var(--ln-ink-3)",
+                            cursor: "pointer",
+                          }}
+                        >
+                          CLEAR
+                        </span>
+                      )}
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          transform: legendOpen ? "rotate(180deg)" : "rotate(0deg)",
+                          transition: "transform .2s",
+                          color: "var(--ln-ink-3)",
+                        }}
+                      >
+                        <Icon.Down />
+                      </span>
+                    </span>
+                  </button>
+                  {legendOpen && (
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 2,
+                        padding: "0 6px 8px",
+                        maxHeight: 220,
+                        overflowY: "auto",
+                      }}
+                    >
+                      {legendCategories.length === 0 && (
+                        <div style={{ fontSize: 11, color: "var(--ln-ink-4)", padding: "4px 6px" }}>
+                          Loading…
+                        </div>
+                      )}
+                      {legendCategories.map((c) => {
+                        const on = activeCategory === c.id;
+                        return (
+                          <button
+                            key={c.id}
+                            onClick={() => setActiveCategory(on ? null : c.id)}
+                            style={{
+                              display: "grid",
+                              gridTemplateColumns: "10px 1fr auto",
+                              alignItems: "center",
+                              gap: 8,
+                              padding: "5px 6px",
+                              textAlign: "left",
+                              cursor: "pointer",
+                              background: on ? "rgba(255,255,255,0.05)" : "transparent",
+                              border: on ? `1px solid ${c.color}66` : "1px solid transparent",
+                              color: "var(--ln-ink)",
+                            }}
+                          >
+                            <span style={{ width: 8, height: 8, background: c.color, borderRadius: 2 }} />
+                            <span
+                              style={{
+                                fontSize: 11.5,
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                              }}
+                              title={c.label}
+                            >
+                              {c.label}
+                            </span>
+                            <span className="ln-num" style={{ fontSize: 10, color: "var(--ln-ink-3)" }}>
+                              {c.count}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {hovered && (
                 <div
@@ -1508,7 +1803,7 @@ export function SurveillanceMapScreen() {
   );
 }
 
-export function TopBar({ active }: { active: "map" | "dashboard" | "news" | "ghi" }) {
+export function TopBar({ active }: { active: "map" | "dashboard" | "news" | "ghi" | "none" }) {
   const tMap = useT("Surveillance Map");
   const tAnalytics = useT("Analytics");
   const tNews = useT("News");

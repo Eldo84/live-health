@@ -1,10 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { CheckCircle, Loader2, ArrowRight, MapPin, BarChart3, Sparkles } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+
+const PAGE_STYLE: React.CSSProperties = {
+  minHeight: '100vh',
+  background: 'var(--ln-bg)',
+  color: 'var(--ln-ink)',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: 16,
+};
+
+const STEPS: { title: string; desc: string; accent: string }[] = [
+  { title: 'Ad Activated', desc: 'Your ad is now live and visible on the platform', accent: 'var(--ln-brand)' },
+  { title: 'Start Tracking', desc: 'View analytics in your dashboard', accent: '#4ee0c4' },
+  { title: 'Manage Your Ad', desc: 'Update content anytime from your dashboard', accent: '#4ee0c4' },
+];
 
 export const PaymentSuccess: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -130,112 +144,124 @@ export const PaymentSuccess: React.FC = () => {
 
   if (isVerifying) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-green-50 to-background flex items-center justify-center p-4">
-        <Card className="max-w-md w-full">
-          <CardContent className="pt-8 pb-8 text-center">
-            <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
-            <h2 className="text-xl font-semibold mb-2">Verifying Payment...</h2>
-            <p className="text-muted-foreground mb-4">
-              Please wait while we confirm your payment.
+      <div className="ln-app" style={PAGE_STYLE}>
+        <div style={{ maxWidth: 440, width: '100%', border: '1px solid var(--ln-line)', background: 'var(--ln-surface)', padding: '40px 28px', textAlign: 'center' }}>
+          <Loader2 className="w-12 h-12 animate-spin" style={{ color: 'var(--ln-brand)', margin: '0 auto 16px' }} />
+          <h2 className="ln-display" style={{ fontSize: 20, margin: '0 0 8px' }}>Verifying Payment...</h2>
+          <p style={{ color: 'var(--ln-ink-3)', fontSize: 13, margin: '0 0 12px' }}>
+            Please wait while we confirm your payment.
+          </p>
+          {verificationAttempts > 3 && (
+            <p style={{ fontSize: 12, color: 'var(--ln-ink-4)', fontStyle: 'italic', margin: 0 }}>
+              This may take a few moments. Your payment is being processed...
             </p>
-            {verificationAttempts > 3 && (
-              <p className="text-sm text-muted-foreground italic">
-                This may take a few moments. Your payment is being processed...
-              </p>
-            )}
-            {sessionId && (
-              <p className="text-xs text-muted-foreground mt-4">
-                Session: {sessionId.substring(0, 20)}...
-              </p>
-            )}
-          </CardContent>
-        </Card>
+          )}
+          {sessionId && (
+            <p className="ln-num" style={{ fontSize: 11, color: 'var(--ln-ink-4)', marginTop: 16 }}>
+              Session: {sessionId.substring(0, 20)}...
+            </p>
+          )}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 to-background flex items-center justify-center p-4">
-      <Card className="max-w-lg w-full shadow-lg border-green-200">
-        <CardContent className="pt-8 pb-8 text-center">
-          {/* Success Icon with animation */}
-          <div className="relative w-20 h-20 mx-auto mb-6">
-            <div className="absolute inset-0 bg-green-100 rounded-full animate-ping opacity-25" />
-            <div className="relative w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
-              <CheckCircle className="w-12 h-12 text-green-500" />
-            </div>
-            <Sparkles className="absolute -top-2 -right-2 w-6 h-6 text-yellow-500 animate-bounce" />
+    <div className="ln-app" style={PAGE_STYLE}>
+      <div style={{ maxWidth: 560, width: '100%', border: '1px solid color-mix(in oklab, var(--ln-brand) 30%, var(--ln-line))', background: 'var(--ln-surface)', padding: '40px 32px', textAlign: 'center' }}>
+        {/* Success Icon with animation */}
+        <div style={{ position: 'relative', width: 80, height: 80, margin: '0 auto 24px' }}>
+          <div
+            className="animate-ping"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: '50%',
+              background: 'color-mix(in oklab, var(--ln-brand) 25%, transparent)',
+              opacity: 0.25,
+            }}
+          />
+          <div
+            style={{
+              position: 'relative',
+              width: 80,
+              height: 80,
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'color-mix(in oklab, var(--ln-brand) 14%, transparent)',
+              border: '1px solid color-mix(in oklab, var(--ln-brand) 40%, transparent)',
+            }}
+          >
+            <CheckCircle className="w-12 h-12" style={{ color: 'var(--ln-brand)' }} />
           </div>
+          <Sparkles className="absolute animate-bounce" style={{ top: -8, right: -8, width: 24, height: 24, color: '#4ee0c4' }} />
+        </div>
 
-          {/* Title */}
-          <h1 className="text-3xl font-bold mb-2">Payment Successful! 🎉</h1>
-          <p className="text-muted-foreground mb-8">
-            Thank you for advertising with OutbreakNow. Your ad is now being activated.
+        {/* Title */}
+        <span className="ln-eyebrow">Payment confirmed</span>
+        <h1 className="ln-display" style={{ fontSize: 30, margin: '6px 0 8px', letterSpacing: '-0.02em' }}>Payment Successful!</h1>
+        <p style={{ color: 'var(--ln-ink-3)', fontSize: 13.5, margin: '0 0 32px' }}>
+          Thank you for advertising with LiveHealth+. Your ad is now being activated and will start reaching people across the platform.
+        </p>
+
+        {/* What's Next */}
+        <div style={{ border: '1px solid var(--ln-line)', background: 'var(--ln-surface-2)', padding: 24, marginBottom: 32, textAlign: 'left' }}>
+          <h3 style={{ fontSize: 14, fontWeight: 600, margin: '0 0 16px', color: 'var(--ln-ink)' }}>What happens now?</h3>
+          <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {STEPS.map((step, i) => (
+              <li key={step.title} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                <div
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: '50%',
+                    flexShrink: 0,
+                    marginTop: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: step.accent,
+                    color: 'var(--ln-bg)',
+                    fontSize: 11,
+                    fontWeight: 700,
+                  }}
+                >
+                  {i + 1}
+                </div>
+                <div>
+                  <span style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--ln-ink)' }}>{step.title}</span>
+                  <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '2px 0 0' }}>{step.desc}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <Link to="/map" className="ln-btn is-primary" style={{ width: '100%', height: 44, justifyContent: 'center' }}>
+            <MapPin className="w-4 h-4" />
+            View Your Ad on the Map
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+
+          <Link to="/dashboard/advertising" className="ln-btn" style={{ width: '100%', height: 44, justifyContent: 'center' }}>
+            <BarChart3 className="w-4 h-4" />
+            Go to Dashboard
+          </Link>
+        </div>
+
+        {/* Reference Info */}
+        {submissionId && (
+          <p className="ln-num" style={{ fontSize: 11, color: 'var(--ln-ink-4)', marginTop: 24 }}>
+            Reference: {submissionId}
           </p>
-
-          {/* What's Next */}
-          <div className="bg-muted/50 rounded-lg p-6 mb-8 text-left">
-            <h3 className="font-semibold mb-4">What happens now?</h3>
-            <ul className="space-y-3">
-              <li className="flex items-start gap-3">
-                <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-white text-xs font-bold">1</span>
-                </div>
-                <div>
-                  <span className="font-medium">Ad Activated</span>
-                  <p className="text-sm text-muted-foreground">Your ad is now live and visible on the platform</p>
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-white text-xs font-bold">2</span>
-                </div>
-                <div>
-                  <span className="font-medium">Start Tracking</span>
-                  <p className="text-sm text-muted-foreground">View analytics in your dashboard</p>
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-white text-xs font-bold">3</span>
-                </div>
-                <div>
-                  <span className="font-medium">Manage Your Ad</span>
-                  <p className="text-sm text-muted-foreground">Update content anytime from your dashboard</p>
-                </div>
-              </li>
-            </ul>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="space-y-3">
-            <Button asChild className="w-full" size="lg">
-              <Link to="/map">
-                <MapPin className="w-4 h-4 mr-2" />
-                View Your Ad on the Map
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Link>
-            </Button>
-            
-            <Button asChild variant="outline" className="w-full" size="lg">
-              <Link to="/dashboard/advertising">
-                <BarChart3 className="w-4 h-4 mr-2" />
-                Go to Dashboard
-              </Link>
-            </Button>
-          </div>
-
-          {/* Reference Info */}
-          {submissionId && (
-            <p className="text-xs text-muted-foreground mt-6">
-              Reference: {submissionId}
-            </p>
-          )}
-        </CardContent>
-      </Card>
+        )}
+      </div>
     </div>
   );
 };
 
 export default PaymentSuccess;
-

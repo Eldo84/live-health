@@ -1,13 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { 
-  Loader2, Plus, Eye, MousePointerClick, Clock, CreditCard, 
-  BarChart3, FileText, CheckCircle, XCircle, AlertCircle, 
-  ExternalLink, ArrowLeft, RefreshCcw, Bell, Edit, Trash2, Upload, MapPin, X
+import { TopBar } from '../../../livehealth/screens/SurveillanceMap';
+import {
+  Loader2, Plus, Eye, MousePointerClick, Clock, CreditCard,
+  FileText, CheckCircle, XCircle, AlertCircle,
+  ArrowLeft, Bell, Edit, Trash2, Upload, MapPin, X
 } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -64,14 +61,14 @@ interface Payment {
   created_at: string;
 }
 
-const statusConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
-  pending_review: { label: 'Pending Review', color: 'bg-yellow-500', icon: <Clock className="w-3 h-3" /> },
-  approved_pending_payment: { label: 'Awaiting Payment', color: 'bg-blue-500', icon: <CreditCard className="w-3 h-3" /> },
-  changes_requested: { label: 'Changes Requested', color: 'bg-orange-500', icon: <AlertCircle className="w-3 h-3" /> },
-  rejected: { label: 'Rejected', color: 'bg-red-500', icon: <XCircle className="w-3 h-3" /> },
-  active: { label: 'Active', color: 'bg-green-500', icon: <CheckCircle className="w-3 h-3" /> },
-  expired: { label: 'Expired', color: 'bg-gray-500', icon: <Clock className="w-3 h-3" /> },
-  cancelled: { label: 'Cancelled', color: 'bg-gray-500', icon: <XCircle className="w-3 h-3" /> },
+const statusConfig: Record<string, { label: string; chip: string; icon: React.ReactNode }> = {
+  pending_review: { label: 'Pending Review', chip: 'ln-chip is-warn', icon: <Clock className="w-3 h-3" /> },
+  approved_pending_payment: { label: 'Awaiting Payment', chip: 'ln-chip is-warn', icon: <CreditCard className="w-3 h-3" /> },
+  changes_requested: { label: 'Changes Requested', chip: 'ln-chip is-warn', icon: <AlertCircle className="w-3 h-3" /> },
+  rejected: { label: 'Rejected', chip: 'ln-chip is-crit', icon: <XCircle className="w-3 h-3" /> },
+  active: { label: 'Active', chip: 'ln-chip is-ok', icon: <CheckCircle className="w-3 h-3" /> },
+  expired: { label: 'Expired', chip: 'ln-chip', icon: <Clock className="w-3 h-3" /> },
+  cancelled: { label: 'Cancelled', chip: 'ln-chip is-crit', icon: <XCircle className="w-3 h-3" /> },
 };
 
 export const UserAdvertisingDashboard: React.FC = () => {
@@ -79,14 +76,14 @@ export const UserAdvertisingDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { notifications, unreadCount, markAsRead, markAllAsRead, handleNotificationClick } = useNotifications();
-  
+
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [activeAds, setActiveAds] = useState<SponsoredContent[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [adAnalytics, setAdAnalytics] = useState<Record<string, AdAnalytics>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
-  
+
   // Edit dialog state
   const [editingSubmission, setEditingSubmission] = useState<Submission | null>(null);
   const [editFormData, setEditFormData] = useState({
@@ -106,7 +103,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
   const [editMediaFile, setEditMediaFile] = useState<File | null>(null);
   const [editMediaType, setEditMediaType] = useState<'image' | 'video' | 'gif' | 'animation' | null>(null);
   const [editPreviewUrl, setEditPreviewUrl] = useState<string | null>(null);
-  
+
   // Delete dialog state
   const [deletingSubmission, setDeletingSubmission] = useState<Submission | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -114,7 +111,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
 
   useEffect(() => {
     if (authLoading) return;
-    
+
     if (!user) {
       navigate('/');
       return;
@@ -125,7 +122,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
 
   const fetchData = async () => {
     if (!user) return;
-    
+
     setIsLoading(true);
     try {
       // Fetch submissions - ONLY for the current user
@@ -152,7 +149,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
       if (adsData && adsData.length > 0) {
         const analyticsMap: Record<string, AdAnalytics> = {};
         const adIds = adsData.map(ad => ad.id);
-        
+
         try {
           // Fetch all analytics for user's ads in one query
           const { data: allAnalytics, error: analyticsError } = await supabase
@@ -203,7 +200,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
             };
           });
         }
-        
+
         setAdAnalytics(analyticsMap);
       }
 
@@ -249,9 +246,9 @@ export const UserAdvertisingDashboard: React.FC = () => {
   // Handle media upload in edit form
   const handleEditMediaUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] || null;
-    
+
     if (!file) return;
-    
+
     const detectedType = getMediaType(file);
     if (!detectedType) {
       toast({
@@ -261,10 +258,10 @@ export const UserAdvertisingDashboard: React.FC = () => {
       });
       return;
     }
-    
+
     const maxSize = detectedType === 'video' ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
     const maxSizeMB = detectedType === 'video' ? 50 : 10;
-    
+
     if (file.size > maxSize) {
       toast({
         title: "File too large",
@@ -273,7 +270,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
       });
       return;
     }
-    
+
     setEditMediaType(detectedType);
     setEditMediaFile(file);
     setEditPreviewUrl(URL.createObjectURL(file));
@@ -285,14 +282,14 @@ export const UserAdvertisingDashboard: React.FC = () => {
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `ad-${user?.id || 'anonymous'}-${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
-      
+
       let bucket: string;
       if (editMediaType === 'video') {
         bucket = 'sponsored-videos';
       } else {
         bucket = 'sponsored-images';
       }
-      
+
       let filePath = fileName;
       let uploadError: any = null;
 
@@ -489,184 +486,248 @@ export const UserAdvertisingDashboard: React.FC = () => {
 
   if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div
+        className="ln-app"
+        style={{
+          width: '100%',
+          height: '100vh',
+          background: 'var(--ln-bg)',
+          color: 'var(--ln-ink)',
+          display: 'grid',
+          gridTemplateRows: '52px 1fr',
+          overflow: 'hidden',
+        }}
+      >
+        <TopBar active="none" />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--ln-brand)' }} />
+        </div>
       </div>
     );
   }
 
+  const dashboardTabs: { id: string; label: string; count?: number; badge?: number }[] = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'notifications', label: 'Notifications', badge: unreadCount },
+    { id: 'submissions', label: 'Submissions', count: submissions.length },
+    { id: 'active-ads', label: 'Active Ads', count: activeCount },
+    { id: 'payments', label: 'Payments' },
+  ];
+
+  const overviewStats: { label: string; value: string; sub: string; color: string }[] = [
+    { label: 'Total Views', value: totalViews.toLocaleString(), sub: 'across all ads', color: 'var(--ln-brand)' },
+    { label: 'Total Clicks', value: totalClicks.toLocaleString(), sub: 'engagements logged', color: '#4ee0c4' },
+    { label: 'Active Ads', value: String(activeCount), sub: 'currently running', color: 'var(--ln-info, #6ab7ff)' },
+    { label: 'Pending Review', value: String(pendingCount), sub: 'submissions awaiting review', color: 'var(--ln-warn)' },
+  ];
+
   return (
-    <div className="min-h-screen bg-background">
+    <div
+      className="ln-app"
+      style={{
+        width: '100%',
+        height: '100vh',
+        background: 'var(--ln-bg)',
+        color: 'var(--ln-ink)',
+        display: 'grid',
+        gridTemplateRows: '52px 1fr',
+        overflow: 'hidden',
+      }}
+    >
+      <TopBar active="none" />
+      <div className="ln-pane" style={{ overflowY: 'auto', paddingBottom: 80 }}>
       {/* Header */}
-      <div className="border-b bg-card">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" asChild>
-                <Link to="/map">
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Map
-                </Link>
-              </Button>
-              <div>
-                <h1 className="text-2xl font-bold">Advertising Dashboard</h1>
-                <p className="text-muted-foreground">Manage your ads and view analytics</p>
-              </div>
-            </div>
-            <Button asChild>
-              <Link to="/?tab=advertise">
-                <Plus className="w-4 h-4 mr-2" />
-                New Ad
-              </Link>
-            </Button>
+      <div
+        style={{
+          padding: '22px 28px',
+          borderBottom: '1px solid var(--ln-line)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 12,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <Link to="/map" className="ln-btn">
+            <ArrowLeft className="w-4 h-4" />
+            Back to Map
+          </Link>
+          <div>
+            <span className="ln-eyebrow">Advertiser console</span>
+            <h1 className="ln-display" style={{ fontSize: 26, margin: '4px 0 0', letterSpacing: '-0.02em' }}>
+              My ads
+            </h1>
+            <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '4px 0 0' }}>
+              Manage your ads and view analytics
+            </p>
           </div>
         </div>
+        <Link to="/advertise" className="ln-btn is-primary">
+          <Plus className="w-4 h-4" />
+          New Ad
+        </Link>
       </div>
 
-      {/* Content */}
-      <div className="container mx-auto px-4 py-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-8">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="notifications">
-              Notifications
-              {unreadCount > 0 && (
-                <Badge variant="destructive" className="ml-2 h-5 px-1.5 text-xs">
-                  {unreadCount}
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="submissions">Submissions ({submissions.length})</TabsTrigger>
-            <TabsTrigger value="active-ads">Active Ads ({activeCount})</TabsTrigger>
-            <TabsTrigger value="payments">Payments</TabsTrigger>
-          </TabsList>
+      <div style={{ padding: '22px 28px 40px' }}>
+        {/* Tab nav */}
+        <div
+          style={{
+            display: 'flex',
+            gap: 4,
+            marginBottom: 24,
+            borderBottom: '1px solid var(--ln-line)',
+            flexWrap: 'wrap',
+          }}
+        >
+          {dashboardTabs.map((t) => {
+            const active = activeTab === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setActiveTab(t.id)}
+                style={{
+                  padding: '8px 12px',
+                  fontSize: 12.5,
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: active ? 'var(--ln-ink)' : 'var(--ln-ink-3)',
+                  borderBottom: active ? '1.5px solid var(--ln-brand)' : '1.5px solid transparent',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                {t.label}
+                {typeof t.count === 'number' && (
+                  <span className="ln-num" style={{ color: 'var(--ln-ink-4)' }}>({t.count})</span>
+                )}
+                {typeof t.badge === 'number' && t.badge > 0 && (
+                  <span className="ln-chip is-crit" style={{ marginLeft: 2 }}>{t.badge}</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
 
-          {/* Overview Tab */}
-          <TabsContent value="overview">
+        {/* Overview Tab */}
+        {activeTab === 'overview' && (
+          <div>
             {/* Stats Cards */}
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-blue-100 rounded-lg">
-                      <Eye className="w-6 h-6 text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Total Views</p>
-                      <p className="text-2xl font-bold">{totalViews.toLocaleString()}</p>
-                    </div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: 14,
+                marginBottom: 28,
+              }}
+            >
+              {overviewStats.map((s) => (
+                <div
+                  key={s.label}
+                  style={{
+                    border: '1px solid var(--ln-line)',
+                    background: 'var(--ln-surface)',
+                    padding: '16px 18px',
+                    position: 'relative',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 2, background: s.color }} />
+                  <div className="ln-eyebrow">{s.label}</div>
+                  <div className="ln-num" style={{ fontSize: 32, color: s.color, margin: '8px 0 4px', fontWeight: 500 }}>
+                    {s.value}
                   </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-green-100 rounded-lg">
-                      <MousePointerClick className="w-6 h-6 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Total Clicks</p>
-                      <p className="text-2xl font-bold">{totalClicks.toLocaleString()}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-purple-100 rounded-lg">
-                      <BarChart3 className="w-6 h-6 text-purple-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Active Ads</p>
-                      <p className="text-2xl font-bold">{activeCount}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-yellow-100 rounded-lg">
-                      <Clock className="w-6 h-6 text-yellow-600" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Pending Review</p>
-                      <p className="text-2xl font-bold">{pendingCount}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                  <p style={{ fontSize: 12, color: 'var(--ln-ink-3)', margin: 0 }}>{s.sub}</p>
+                </div>
+              ))}
             </div>
 
             {/* Quick Actions - Only show if user has their own submissions waiting for payment */}
             {user && submissions.some(s => s.status === 'approved_pending_payment' && s.user_id === user.id) && (
-              <Card className="mb-8 border-blue-200 bg-blue-50">
-                <CardContent className="pt-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <CreditCard className="w-8 h-8 text-blue-600" />
-                      <div>
-                        <p className="font-semibold">Payment Required</p>
-                        <p className="text-sm text-muted-foreground">
-                          You have approved submissions waiting for payment
-                        </p>
-                      </div>
-                    </div>
-                    <Button asChild>
-                      <Link to={`/advertising/payment/${submissions.find(s => s.status === 'approved_pending_payment' && s.user_id === user.id)?.id}`}>
-                        Complete Payment
-                      </Link>
-                    </Button>
+              <div
+                style={{
+                  marginBottom: 28,
+                  border: '1px solid color-mix(in oklab, var(--ln-warn) 35%, transparent)',
+                  background: 'color-mix(in oklab, var(--ln-warn) 10%, transparent)',
+                  padding: 18,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 12,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                  <CreditCard className="w-7 h-7" style={{ color: 'var(--ln-warn)' }} />
+                  <div>
+                    <p style={{ fontSize: 14, fontWeight: 600, margin: 0, color: 'var(--ln-ink)' }}>Payment Required</p>
+                    <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '4px 0 0' }}>
+                      You have approved submissions waiting for payment
+                    </p>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+                <Link
+                  to={`/advertising/payment/${submissions.find(s => s.status === 'approved_pending_payment' && s.user_id === user.id)?.id}`}
+                  className="ln-btn is-primary"
+                >
+                  Complete Payment
+                </Link>
+              </div>
             )}
 
             {/* Recent Activity */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Submissions</CardTitle>
-              </CardHeader>
-              <CardContent>
+            <div style={{ border: '1px solid var(--ln-line)', background: 'var(--ln-surface)' }}>
+              <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--ln-line)' }}>
+                <span className="ln-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}>Recent submissions</span>
+              </div>
+              <div style={{ padding: 18 }}>
                 {submissions.length === 0 ? (
-                  <div className="text-center py-8">
-                    <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground mb-4">No submissions yet</p>
-                    <Button asChild>
-                      <Link to="/?tab=advertise">Create Your First Ad</Link>
-                    </Button>
+                  <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                    <FileText className="w-12 h-12" style={{ color: 'var(--ln-ink-4)', margin: '0 auto 16px' }} />
+                    <p style={{ color: 'var(--ln-ink-3)', fontSize: 13, marginBottom: 16 }}>No submissions yet</p>
+                    <Link to="/advertise" className="ln-btn is-primary" style={{ display: 'inline-flex' }}>
+                      Create Your First Ad
+                    </Link>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {submissions.slice(0, 5).map((submission) => {
                       const status = statusConfig[submission.status] || statusConfig.pending_review;
                       return (
-                        <div key={submission.id} className="flex items-center justify-between p-4 border rounded-lg">
-                          <div className="flex items-center gap-4">
-                            <Badge className={`${status.color} text-white`}>
+                        <div
+                          key={submission.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 12,
+                            padding: 16,
+                            border: '1px solid var(--ln-line)',
+                            background: 'var(--ln-surface-2)',
+                            flexWrap: 'wrap',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                            <span className={status.chip}>
                               {status.icon}
-                              <span className="ml-1">{status.label}</span>
-                            </Badge>
+                              <span style={{ marginLeft: 4 }}>{status.label}</span>
+                            </span>
                             <div>
-                              <p className="font-medium">{submission.company_name}</p>
-                              <p className="text-sm text-muted-foreground capitalize">
+                              <p style={{ fontSize: 14, fontWeight: 500, margin: 0, color: 'var(--ln-ink)' }}>{submission.company_name}</p>
+                              <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '2px 0 0', textTransform: 'capitalize' }}>
                                 {submission.selected_plan} Plan
                               </p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                             {submission.status === 'approved_pending_payment' && user && submission.user_id === user.id && (
-                              <Button size="sm" asChild>
-                                <Link to={`/advertising/payment/${submission.id}`}>
-                                  Pay Now
-                                </Link>
-                              </Button>
+                              <Link to={`/advertising/payment/${submission.id}`} className="ln-btn is-primary">
+                                Pay Now
+                              </Link>
                             )}
-                            <span className="text-sm text-muted-foreground">
+                            <span className="ln-num" style={{ fontSize: 12, color: 'var(--ln-ink-4)' }}>
                               {new Date(submission.created_at).toLocaleDateString()}
                             </span>
                           </div>
@@ -675,271 +736,310 @@ export const UserAdvertisingDashboard: React.FC = () => {
                     })}
                   </div>
                 )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+              </div>
+            </div>
+          </div>
+        )}
 
-          {/* Notifications Tab */}
-          <TabsContent value="notifications">
-            <Card>
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle>Notifications</CardTitle>
-                    <CardDescription>Real-time updates about your advertising applications</CardDescription>
-                  </div>
-                  {unreadCount > 0 && (
-                    <Button variant="outline" size="sm" onClick={markAllAsRead}>
-                      Mark all as read
-                    </Button>
-                  )}
+        {/* Notifications Tab */}
+        {activeTab === 'notifications' && (
+          <div style={{ border: '1px solid var(--ln-line)', background: 'var(--ln-surface)' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                padding: '16px 18px',
+                borderBottom: '1px solid var(--ln-line)',
+                flexWrap: 'wrap',
+              }}
+            >
+              <div>
+                <span className="ln-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}>Notifications</span>
+                <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '4px 0 0' }}>
+                  Real-time updates about your advertising applications
+                </p>
+              </div>
+              {unreadCount > 0 && (
+                <button className="ln-btn" onClick={markAllAsRead}>
+                  Mark all as read
+                </button>
+              )}
+            </div>
+            <div style={{ padding: 18 }}>
+              {notifications.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px 0' }}>
+                  <Bell className="w-12 h-12" style={{ color: 'var(--ln-ink-4)', margin: '0 auto 16px' }} />
+                  <p style={{ color: 'var(--ln-ink-3)', fontSize: 13 }}>No notifications yet</p>
                 </div>
-              </CardHeader>
-              <CardContent>
-                {notifications.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Bell className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">No notifications yet</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {notifications.map((notification) => {
-                      const isUnread = !notification.read;
-                      return (
-                        <div
-                          key={notification.id}
-                          className={`p-4 border rounded-lg cursor-pointer transition-colors ${
-                            isUnread ? 'bg-primary/5 border-primary/20' : 'hover:bg-muted/50'
-                          }`}
-                          onClick={() => handleNotificationClick(notification)}
-                        >
-                          <div className="flex items-start gap-3">
-                            <div className="mt-0.5">
-                              {isUnread ? (
-                                <div className="w-2 h-2 bg-primary rounded-full" />
-                              ) : (
-                                <div className="w-2 h-2 bg-transparent" />
-                              )}
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {notifications.map((notification) => {
+                    const isUnread = !notification.read;
+                    return (
+                      <div
+                        key={notification.id}
+                        style={{
+                          padding: 16,
+                          border: isUnread
+                            ? '1px solid color-mix(in oklab, var(--ln-brand) 35%, transparent)'
+                            : '1px solid var(--ln-line)',
+                          background: isUnread
+                            ? 'color-mix(in oklab, var(--ln-brand) 8%, transparent)'
+                            : 'var(--ln-surface-2)',
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => handleNotificationClick(notification)}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                          <div style={{ marginTop: 6 }}>
+                            <div
+                              style={{
+                                width: 8,
+                                height: 8,
+                                borderRadius: '50%',
+                                background: isUnread ? 'var(--ln-brand)' : 'transparent',
+                              }}
+                            />
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                              <h4
+                                style={{
+                                  fontSize: 14,
+                                  fontWeight: isUnread ? 600 : 500,
+                                  margin: 0,
+                                  color: 'var(--ln-ink)',
+                                }}
+                              >
+                                {notification.title}
+                              </h4>
+                              <span className="ln-num" style={{ fontSize: 11, color: 'var(--ln-ink-4)', whiteSpace: 'nowrap' }}>
+                                {new Date(notification.created_at).toLocaleDateString()}
+                              </span>
                             </div>
-                            <div className="flex-1">
-                              <div className="flex items-start justify-between gap-2">
-                                <h4 className={`font-medium ${isUnread ? 'font-semibold' : ''}`}>
-                                  {notification.title}
-                                </h4>
-                                <span className="text-xs text-muted-foreground whitespace-nowrap">
-                                  {new Date(notification.created_at).toLocaleDateString()}
-                                </span>
-                              </div>
-                              <p className="text-sm text-muted-foreground mt-1">
-                                {notification.message}
-                              </p>
-                              {notification.action_label && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="mt-2"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleNotificationClick(notification);
-                                  }}
-                                >
-                                  {notification.action_label}
-                                </Button>
-                              )}
-                            </div>
+                            <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '4px 0 0' }}>
+                              {notification.message}
+                            </p>
+                            {notification.action_label && (
+                              <button
+                                className="ln-btn"
+                                style={{ marginTop: 10 }}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleNotificationClick(notification);
+                                }}
+                              >
+                                {notification.action_label}
+                              </button>
+                            )}
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
-          {/* Submissions Tab */}
-          <TabsContent value="submissions">
-            <Card>
-              <CardHeader>
-                <CardTitle>All Submissions</CardTitle>
-                <CardDescription>Track the status of your advertising applications</CardDescription>
-              </CardHeader>
-              <CardContent className="p-6">
-                {submissions.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">No submissions found</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {submissions.map((submission) => {
-                      const status = statusConfig[submission.status] || statusConfig.pending_review;
-                      return (
-                        <div key={submission.id} className="p-4 border rounded-lg">
-                          <div className="flex items-start justify-between mb-2">
-                            <div>
-                              <h3 className="font-semibold">{submission.company_name}</h3>
-                              {submission.ad_title && (
-                                <p className="text-sm text-muted-foreground">{submission.ad_title}</p>
-                              )}
-                            </div>
-                            <Badge className={`${status.color} text-white`}>
-                              {status.icon}
-                              <span className="ml-1">{status.label}</span>
-                            </Badge>
+        {/* Submissions Tab */}
+        {activeTab === 'submissions' && (
+          <div style={{ border: '1px solid var(--ln-line)', background: 'var(--ln-surface)' }}>
+            <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--ln-line)' }}>
+              <span className="ln-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}>All submissions</span>
+              <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '4px 0 0' }}>
+                Track the status of your advertising applications
+              </p>
+            </div>
+            <div style={{ padding: 18 }}>
+              {submissions.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--ln-ink-3)', fontSize: 13 }}>
+                  No submissions found
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {submissions.map((submission) => {
+                    const status = statusConfig[submission.status] || statusConfig.pending_review;
+                    return (
+                      <div
+                        key={submission.id}
+                        style={{ border: '1px solid var(--ln-line)', background: 'var(--ln-surface-2)', padding: 16 }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 8 }}>
+                          <div>
+                            <h3 style={{ fontSize: 15, fontWeight: 600, margin: 0, color: 'var(--ln-ink)' }}>{submission.company_name}</h3>
+                            {submission.ad_title && (
+                              <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '4px 0 0' }}>{submission.ad_title}</p>
+                            )}
                           </div>
-                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                            <span className="capitalize">{submission.selected_plan} Plan</span>
-                            <span>•</span>
-                            <span>{new Date(submission.created_at).toLocaleDateString()}</span>
-                          </div>
-                          <div className="flex items-center gap-2 mt-3">
-                          <Button 
-                            size="sm" 
-                            variant="outline"
-                            onClick={() => setViewingSubmission(submission)}
-                          >
-                            <Eye className="w-4 h-4 mr-2" />
+                          <span className={status.chip}>
+                            {status.icon}
+                            <span style={{ marginLeft: 4 }}>{status.label}</span>
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5, color: 'var(--ln-ink-3)' }}>
+                          <span style={{ textTransform: 'capitalize' }}>{submission.selected_plan} Plan</span>
+                          <span>•</span>
+                          <span className="ln-num">{new Date(submission.created_at).toLocaleDateString()}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
+                          <button className="ln-btn" onClick={() => setViewingSubmission(submission)}>
+                            <Eye className="w-4 h-4" />
                             View
-                          </Button>
-                            {submission.status === 'approved_pending_payment' && user && submission.user_id === user.id && (
-                              <Button size="sm" asChild>
-                                <Link to={`/advertising/payment/${submission.id}`}>
-                                  <CreditCard className="w-4 h-4 mr-2" />
-                                  Complete Payment
-                                </Link>
-                              </Button>
-                            )}
-                            {canEditOrDelete(submission) && (
-                              <>
-                                <Button 
-                                  size="sm" 
-                                  variant="outline"
-                                  onClick={() => handleEdit(submission)}
-                                >
-                                  <Edit className="w-4 h-4 mr-2" />
-                                  Edit
-                                </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="destructive"
-                                  onClick={() => setDeletingSubmission(submission)}
-                                >
-                                  <Trash2 className="w-4 h-4 mr-2" />
-                                  Delete
-                                </Button>
-                              </>
+                          </button>
+                          {submission.status === 'approved_pending_payment' && user && submission.user_id === user.id && (
+                            <Link to={`/advertising/payment/${submission.id}`} className="ln-btn is-primary">
+                              <CreditCard className="w-4 h-4" />
+                              Complete Payment
+                            </Link>
+                          )}
+                          {canEditOrDelete(submission) && (
+                            <>
+                              <button className="ln-btn" onClick={() => handleEdit(submission)}>
+                                <Edit className="w-4 h-4" />
+                                Edit
+                              </button>
+                              <button
+                                className="ln-btn"
+                                style={{ color: 'var(--ln-crit)', borderColor: 'color-mix(in oklab, var(--ln-crit) 35%, transparent)' }}
+                                onClick={() => setDeletingSubmission(submission)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                                Delete
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Active Ads Tab */}
+        {activeTab === 'active-ads' && (
+          <div style={{ border: '1px solid var(--ln-line)', background: 'var(--ln-surface)' }}>
+            <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--ln-line)' }}>
+              <span className="ln-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}>Active advertisements</span>
+              <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '4px 0 0' }}>
+                Your currently running ads and their performance
+              </p>
+            </div>
+            <div style={{ padding: 18 }}>
+              {activeAds.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--ln-ink-3)', fontSize: 13 }}>
+                  No active ads
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {activeAds.map((ad) => (
+                    <div
+                      key={ad.id}
+                      style={{ border: '1px solid var(--ln-line)', background: 'var(--ln-surface-2)', padding: 16 }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16 }}>
+                        <img
+                          src={ad.image_url || '/image.png'}
+                          alt={ad.title}
+                          style={{ width: 80, height: 56, objectFit: 'cover', borderRadius: 4, border: '1px solid var(--ln-line)', flex: '0 0 auto' }}
+                        />
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
+                            <h3 style={{ fontSize: 15, fontWeight: 600, margin: 0, color: 'var(--ln-ink)' }}>{ad.title}</h3>
+                            <span className={ad.is_active ? 'ln-chip is-ok' : 'ln-chip'}>
+                              {ad.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5, color: 'var(--ln-ink-3)', marginBottom: 10, flexWrap: 'wrap' }}>
+                            <span style={{ textTransform: 'capitalize' }}>{ad.plan_type} Plan</span>
+                            <span>•</span>
+                            <span>Ends: <span className="ln-num">{new Date(ad.end_date).toLocaleDateString()}</span></span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <Eye className="w-4 h-4" style={{ color: 'var(--ln-ink-4)' }} />
+                              <span style={{ fontSize: 12.5, color: 'var(--ln-ink-2)' }}>
+                                <span className="ln-num">{adAnalytics[ad.id]?.views ?? ad.view_count}</span> views
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <MousePointerClick className="w-4 h-4" style={{ color: 'var(--ln-ink-4)' }} />
+                              <span style={{ fontSize: 12.5, color: 'var(--ln-ink-2)' }}>
+                                <span className="ln-num">{adAnalytics[ad.id]?.clicks ?? ad.click_count}</span> clicks
+                              </span>
+                            </div>
+                            {((adAnalytics[ad.id]?.views ?? ad.view_count) > 0) && (
+                              <span style={{ fontSize: 12.5, color: 'var(--ln-ink-3)' }}>
+                                CTR: <span className="ln-num">{(((adAnalytics[ad.id]?.clicks ?? ad.click_count) / (adAnalytics[ad.id]?.views ?? ad.view_count)) * 100).toFixed(2)}%</span>
+                              </span>
                             )}
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Active Ads Tab */}
-          <TabsContent value="active-ads">
-            <Card>
-              <CardHeader>
-                <CardTitle>Active Advertisements</CardTitle>
-                <CardDescription>Your currently running ads and their performance</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {activeAds.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">No active ads</p>
-                  </div>
-                ) : (
-                  <div className="grid gap-4">
-                    {activeAds.map((ad) => (
-                      <div key={ad.id} className="p-4 border rounded-lg">
-                        <div className="flex items-start gap-4">
-                          <img 
-                            src={ad.image_url || '/image.png'} 
-                            alt={ad.title}
-                            className="w-20 h-14 object-cover rounded"
-                          />
-                          <div className="flex-1">
-                            <div className="flex items-center justify-between mb-2">
-                              <h3 className="font-semibold">{ad.title}</h3>
-                              <Badge variant={ad.is_active ? "default" : "secondary"}>
-                                {ad.is_active ? 'Active' : 'Inactive'}
-                              </Badge>
-                            </div>
-                            <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
-                              <span className="capitalize">{ad.plan_type} Plan</span>
-                              <span>•</span>
-                              <span>Ends: {new Date(ad.end_date).toLocaleDateString()}</span>
-                            </div>
-                            <div className="flex items-center gap-6">
-                              <div className="flex items-center gap-2">
-                                <Eye className="w-4 h-4 text-muted-foreground" />
-                                <span className="text-sm font-medium">
-                                  {adAnalytics[ad.id]?.views ?? ad.view_count} views
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <MousePointerClick className="w-4 h-4 text-muted-foreground" />
-                                <span className="text-sm font-medium">
-                                  {adAnalytics[ad.id]?.clicks ?? ad.click_count} clicks
-                                </span>
-                              </div>
-                              {((adAnalytics[ad.id]?.views ?? ad.view_count) > 0) && (
-                                <span className="text-sm text-muted-foreground">
-                                  CTR: {(((adAnalytics[ad.id]?.clicks ?? ad.click_count) / (adAnalytics[ad.id]?.views ?? ad.view_count)) * 100).toFixed(2)}%
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
-          {/* Payments Tab */}
-          <TabsContent value="payments">
-            <Card>
-              <CardHeader>
-                <CardTitle>Payment History</CardTitle>
-                <CardDescription>Your payment transactions</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {payments.length === 0 ? (
-                  <div className="text-center py-8">
-                    <p className="text-muted-foreground">No payments yet</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {payments.map((payment) => (
-                      <div key={payment.id} className="flex items-center justify-between p-4 border rounded-lg">
-                        <div>
-                          <p className="font-medium capitalize">{payment.plan_type} Plan</p>
-                          <p className="text-sm text-muted-foreground">
-                            {payment.paid_at 
-                              ? new Date(payment.paid_at).toLocaleDateString() 
-                              : new Date(payment.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-bold">${payment.amount.toFixed(2)}</p>
-                          <Badge variant={payment.status === 'succeeded' ? 'default' : 'secondary'}>
-                            {payment.status}
-                          </Badge>
-                        </div>
+        {/* Payments Tab */}
+        {activeTab === 'payments' && (
+          <div style={{ border: '1px solid var(--ln-line)', background: 'var(--ln-surface)' }}>
+            <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--ln-line)' }}>
+              <span className="ln-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}>Payment history</span>
+              <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '4px 0 0' }}>
+                Your payment transactions
+              </p>
+            </div>
+            <div style={{ padding: 18 }}>
+              {payments.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--ln-ink-3)', fontSize: 13 }}>
+                  No payments yet
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                  {payments.map((payment) => (
+                    <div
+                      key={payment.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 12,
+                        padding: '14px 4px',
+                        borderBottom: '1px solid var(--ln-line)',
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <div>
+                        <p style={{ fontSize: 14, fontWeight: 500, margin: 0, color: 'var(--ln-ink)', textTransform: 'capitalize' }}>{payment.plan_type} Plan</p>
+                        <p className="ln-num" style={{ fontSize: 12, color: 'var(--ln-ink-4)', margin: '4px 0 0' }}>
+                          {payment.paid_at
+                            ? new Date(payment.paid_at).toLocaleDateString()
+                            : new Date(payment.created_at).toLocaleDateString()}
+                        </p>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                      <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                        <p className="ln-num" style={{ fontSize: 16, fontWeight: 600, margin: 0, color: 'var(--ln-ink)' }}>${payment.amount.toFixed(2)}</p>
+                        <span className={payment.status === 'succeeded' ? 'ln-chip is-ok' : 'ln-chip is-warn'}>
+                          {payment.status}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* View Details Dialog */}
@@ -952,7 +1052,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
           {viewingSubmission && (
             <div className="space-y-4">
               {viewingSubmission.ad_image_url && (
-                <div className="rounded-lg overflow-hidden border bg-muted">
+                <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--ln-line)', background: 'var(--ln-surface-2)' }}>
                   <img
                     src={viewingSubmission.ad_image_url}
                     alt={viewingSubmission.ad_title || 'Ad image'}
@@ -967,9 +1067,9 @@ export const UserAdvertisingDashboard: React.FC = () => {
                   <p className="text-sm text-muted-foreground">Company</p>
                   <p className="text-lg font-semibold">{viewingSubmission.company_name}</p>
                 </div>
-                <Badge className={`${(statusConfig[viewingSubmission.status] || statusConfig.pending_review).color} text-white`}>
+                <span className={(statusConfig[viewingSubmission.status] || statusConfig.pending_review).chip}>
                   {(statusConfig[viewingSubmission.status] || statusConfig.pending_review).label}
-                </Badge>
+                </span>
               </div>
 
               <div className="grid sm:grid-cols-2 gap-4 text-sm">
@@ -990,9 +1090,9 @@ export const UserAdvertisingDashboard: React.FC = () => {
                 {viewingSubmission.website && (
                   <div>
                     <p className="text-muted-foreground">Website</p>
-                    <a 
-                      href={viewingSubmission.website} 
-                      target="_blank" 
+                    <a
+                      href={viewingSubmission.website}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="font-medium text-primary hover:underline"
                     >
@@ -1025,9 +1125,9 @@ export const UserAdvertisingDashboard: React.FC = () => {
                   {viewingSubmission.ad_click_url && (
                     <p className="font-medium">
                       Click URL:{' '}
-                      <a 
-                        href={viewingSubmission.ad_click_url} 
-                        target="_blank" 
+                      <a
+                        href={viewingSubmission.ad_click_url}
+                        target="_blank"
                         rel="noopener noreferrer"
                         className="text-primary hover:underline break-all"
                       >
@@ -1047,9 +1147,9 @@ export const UserAdvertisingDashboard: React.FC = () => {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setViewingSubmission(null)}>
+            <button className="ln-btn" onClick={() => setViewingSubmission(null)}>
               Close
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1171,14 +1271,14 @@ export const UserAdvertisingDashboard: React.FC = () => {
               <p className="text-xs text-muted-foreground">
                 Upload a new image, GIF, or video to replace the current media. Leave empty to keep existing media.
               </p>
-              
+
               {/* Current Media Preview */}
               {editFormData.ad_image_url && !editPreviewUrl && (
                 <div className="mt-2">
                   <p className="text-xs text-muted-foreground mb-2">Current Media:</p>
                   <div className="relative w-full border rounded-lg overflow-hidden bg-muted" style={{ maxHeight: '200px' }}>
-                    {editFormData.ad_image_url.toLowerCase().includes('.mp4') || 
-                     editFormData.ad_image_url.toLowerCase().includes('.webm') || 
+                    {editFormData.ad_image_url.toLowerCase().includes('.mp4') ||
+                     editFormData.ad_image_url.toLowerCase().includes('.webm') ||
                      editFormData.ad_image_url.toLowerCase().includes('.mov') ? (
                       <video
                         src={editFormData.ad_image_url}
@@ -1209,9 +1309,9 @@ export const UserAdvertisingDashboard: React.FC = () => {
                   disabled={isSaving || isUploading}
                 />
                 {isUploading ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <Loader2 className="h-4 w-4 animate-spin" style={{ color: 'var(--ln-brand)' }} />
                 ) : (
-                  <Upload className="h-4 w-4 text-muted-foreground" />
+                  <Upload className="h-4 w-4" style={{ color: 'var(--ln-ink-4)' }} />
                 )}
               </div>
 
@@ -1219,7 +1319,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
               {editPreviewUrl && editMediaFile && (
                 <div className="mt-2">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm text-primary">
+                    <p className="text-sm" style={{ color: 'var(--ln-brand)' }}>
                       New Media: {editMediaFile.name}
                       {editMediaType && (
                         <span className="ml-2 text-xs text-muted-foreground">
@@ -1227,10 +1327,10 @@ export const UserAdvertisingDashboard: React.FC = () => {
                         </span>
                       )}
                     </p>
-                    <Button
+                    <button
                       type="button"
-                      variant="ghost"
-                      size="sm"
+                      className="ln-btn"
+                      style={{ height: 28, width: 28, padding: 0, justifyContent: 'center' }}
                       onClick={() => {
                         if (editPreviewUrl.startsWith('blob:')) {
                           URL.revokeObjectURL(editPreviewUrl);
@@ -1239,10 +1339,9 @@ export const UserAdvertisingDashboard: React.FC = () => {
                         setEditMediaType(null);
                         setEditPreviewUrl(null);
                       }}
-                      className="h-6 w-6 p-0"
                     >
                       <X className="h-3 w-3" />
-                    </Button>
+                    </button>
                   </div>
                   <div className="relative w-full border rounded-lg overflow-hidden bg-muted" style={{ maxHeight: '200px' }}>
                     {editMediaType === 'video' ? (
@@ -1277,19 +1376,19 @@ export const UserAdvertisingDashboard: React.FC = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditingSubmission(null)}>
+            <button className="ln-btn" onClick={() => setEditingSubmission(null)}>
               Cancel
-            </Button>
-            <Button onClick={handleSaveEdit} disabled={isSaving || isUploading}>
+            </button>
+            <button className="ln-btn is-primary" onClick={handleSaveEdit} disabled={isSaving || isUploading}>
               {isSaving || isUploading ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   {isUploading ? 'Uploading...' : 'Saving...'}
                 </>
               ) : (
                 'Save Changes'
               )}
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1314,28 +1413,33 @@ export const UserAdvertisingDashboard: React.FC = () => {
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDeletingSubmission(null)}>
+            <button className="ln-btn" onClick={() => setDeletingSubmission(null)}>
               Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={isDeleting}>
+            </button>
+            <button
+              className="ln-btn"
+              style={{ color: 'var(--ln-crit)', borderColor: 'color-mix(in oklab, var(--ln-crit) 35%, transparent)' }}
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
               {isDeleting ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   Deleting...
                 </>
               ) : (
                 <>
-                  <Trash2 className="w-4 h-4 mr-2" />
+                  <Trash2 className="w-4 h-4" />
                   Delete
                 </>
               )}
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 };
 
 export default UserAdvertisingDashboard;
-

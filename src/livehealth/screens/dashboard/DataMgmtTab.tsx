@@ -17,6 +17,10 @@ export function DataMgmtTab({ range, isMobile, isTabletDown }: Props) {
   const { outbreaks, loading } = useLiveOutbreaks(range, 600);
   const [filter, setFilter] = useState("");
   const [importOpen, setImportOpen] = useState(false);
+  // Export scope — mirrors the old DataExportTable's All / Filtered / Current-page choice.
+  const [scope, setScope] = useState<"all" | "filtered" | "page">("filtered");
+
+  const PAGE_SIZE = 50;
 
   const filtered = useMemo(() => {
     if (!filter) return outbreaks;
@@ -31,9 +35,16 @@ export function DataMgmtTab({ range, isMobile, isTabletDown }: Props) {
     );
   }, [outbreaks, filter]);
 
+  // Rows that an export writes, per the selected scope.
+  const exportData = useMemo(() => {
+    if (scope === "all") return outbreaks;
+    if (scope === "page") return filtered.slice(0, PAGE_SIZE);
+    return filtered;
+  }, [scope, outbreaks, filtered]);
+
   const handleExportCsv = () => {
     const headers = ["id", "city", "country", "disease", "source", "cases", "deaths", "severity", "updated"];
-    const rows = filtered.map((o) =>
+    const rows = exportData.map((o) =>
       [
         o.id,
         JSON.stringify(o.city),
@@ -51,7 +62,7 @@ export function DataMgmtTab({ range, isMobile, isTabletDown }: Props) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `outbreak-signals-${range}.csv`;
+    a.download = `outbreak-signals-${range}-${scope}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -72,7 +83,7 @@ export function DataMgmtTab({ range, isMobile, isTabletDown }: Props) {
     doc.setFontSize(10);
     doc.setTextColor(110);
     doc.text(
-      `Range: ${range} · ${filtered.length} of ${outbreaks.length} events · generated ${stamp.toLocaleString()}`,
+      `Range: ${range} · scope: ${scope} · ${exportData.length} of ${outbreaks.length} events · generated ${stamp.toLocaleString()}`,
       40,
       58
     );
@@ -105,7 +116,7 @@ export function DataMgmtTab({ range, isMobile, isTabletDown }: Props) {
     const fmtDate = (t: number) =>
       new Date(t).toLocaleString("en-US", { month: "short", day: "2-digit", year: "numeric" });
 
-    filtered.slice(0, 400).forEach((o) => {
+    exportData.slice(0, 400).forEach((o) => {
       if (y > 540) {
         doc.addPage();
         y = 60;
@@ -138,7 +149,7 @@ export function DataMgmtTab({ range, isMobile, isTabletDown }: Props) {
       40,
       560
     );
-    doc.save(`outbreak-signals-${range}.pdf`);
+    doc.save(`outbreak-signals-${range}-${scope}.pdf`);
   };
 
   return (
@@ -164,7 +175,24 @@ export function DataMgmtTab({ range, isMobile, isTabletDown }: Props) {
               <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}>traceable.</span>
             </h2>
           </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <select
+              value={scope}
+              onChange={(e) => setScope(e.target.value as "all" | "filtered" | "page")}
+              title="Choose how many rows to export"
+              style={{
+                background: "var(--ln-surface-2)",
+                border: "1px solid var(--ln-line-2)",
+                padding: "6px 8px",
+                fontSize: 12,
+                color: "var(--ln-ink)",
+                borderRadius: 6,
+              }}
+            >
+              <option value="all">All data ({outbreaks.length})</option>
+              <option value="filtered">Filtered ({filtered.length})</option>
+              <option value="page">Current page ({Math.min(PAGE_SIZE, filtered.length)})</option>
+            </select>
             <button className="ln-btn" onClick={handleExportCsv}>
               <Icon.ArrowR /> Export CSV
             </button>
@@ -213,7 +241,7 @@ export function DataMgmtTab({ range, isMobile, isTabletDown }: Props) {
         <span className="ln-chip">{range} range</span>
         <div style={{ flex: 1 }} />
         <span style={{ fontFamily: "var(--ln-font-mono)", fontSize: 11, color: "var(--ln-ink-3)" }}>
-          {loading ? "loading…" : `showing 1–${Math.min(50, filtered.length)} of ${outbreaks.length}`}
+          {loading ? "loading…" : `showing 1–${Math.min(PAGE_SIZE, filtered.length)} of ${outbreaks.length}`}
         </span>
       </div>
 
@@ -243,7 +271,7 @@ export function DataMgmtTab({ range, isMobile, isTabletDown }: Props) {
             <span>UPDATED</span>
             <span style={{ textAlign: "right" }}>SEV</span>
           </div>
-          {filtered.slice(0, 50).map((o) => (
+          {filtered.slice(0, PAGE_SIZE).map((o) => (
             <div
               key={o.id}
               style={{

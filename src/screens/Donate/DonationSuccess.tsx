@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { CheckCircle, Loader2, ArrowRight, Heart, Sparkles } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 
@@ -75,110 +73,172 @@ export const DonationSuccess: React.FC = () => {
     verifyPayment();
   }, [sessionId, verificationAttempts]);
 
+  const pageShell: React.CSSProperties = {
+    minHeight: '100vh',
+    background: 'var(--ln-bg)',
+    color: 'var(--ln-ink)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '32px 20px',
+  };
+
   if (isVerifying) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-green-50 to-background flex items-center justify-center p-4">
-        <Card className="max-w-md w-full">
-          <CardContent className="pt-8 pb-8 text-center">
-            <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
-            <h2 className="text-xl font-semibold mb-2">Verifying Donation...</h2>
-            <p className="text-muted-foreground mb-4">
-              Please wait while we confirm your donation.
+      <div className="ln-app" style={pageShell}>
+        <div
+          style={{
+            width: '100%',
+            maxWidth: 560,
+            border: '1px solid var(--ln-line)',
+            background: 'var(--ln-surface)',
+            padding: '48px 32px',
+            textAlign: 'center',
+          }}
+        >
+          <Loader2
+            className="w-12 h-12 animate-spin"
+            style={{ color: 'var(--ln-brand)', margin: '0 auto 18px' }}
+          />
+          <h2 className="ln-display" style={{ fontSize: 22, margin: '0 0 8px', letterSpacing: '-0.01em' }}>
+            Verifying Donation...
+          </h2>
+          <p style={{ color: 'var(--ln-ink-3)', fontSize: 13.5, margin: 0 }}>
+            Please wait while we confirm your donation.
+          </p>
+          {verificationAttempts > 3 && (
+            <p style={{ color: 'var(--ln-ink-4)', fontSize: 12.5, fontStyle: 'italic', margin: '14px 0 0' }}>
+              This may take a few moments. Your donation is being processed...
             </p>
-            {verificationAttempts > 3 && (
-              <p className="text-sm text-muted-foreground italic">
-                This may take a few moments. Your donation is being processed...
-              </p>
-            )}
-          </CardContent>
-        </Card>
+          )}
+        </div>
       </div>
     );
   }
 
+  const impactItems: { title: string; body: string }[] = [
+    {
+      title: 'Supporting Global Health',
+      body: 'Your contribution helps expand data coverage to underserved regions',
+    },
+    {
+      title: 'Enhancing Technology',
+      body: 'Funding AI improvements and early warning systems',
+    },
+    {
+      title: 'Free Access for All',
+      body: 'Helping maintain free access for public health organizations',
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 to-background flex items-center justify-center p-4">
-      <Card className="max-w-lg w-full shadow-lg border-green-200">
-        <CardContent className="pt-8 pb-8 text-center">
-          {/* Success Icon with animation */}
-          <div className="relative w-20 h-20 mx-auto mb-6">
-            <div className="absolute inset-0 bg-green-100 rounded-full animate-ping opacity-25" />
-            <div className="relative w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
-              <CheckCircle className="w-12 h-12 text-green-500" />
-            </div>
-            <Sparkles className="absolute -top-2 -right-2 w-6 h-6 text-yellow-500 animate-bounce" />
+    <div className="ln-app" style={pageShell}>
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 640,
+          border: '1px solid var(--ln-line)',
+          background: 'var(--ln-surface)',
+          padding: '44px 32px 36px',
+          textAlign: 'center',
+        }}
+      >
+        {/* Success Icon */}
+        <div style={{ position: 'relative', width: 84, height: 84, margin: '0 auto 22px' }}>
+          <div
+            style={{
+              width: 84,
+              height: 84,
+              borderRadius: '50%',
+              background: 'color-mix(in oklab, #4ee0c4 16%, transparent)',
+              border: '1px solid color-mix(in oklab, #4ee0c4 40%, transparent)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <CheckCircle className="w-12 h-12" style={{ color: '#4ee0c4' }} />
           </div>
+          <Sparkles
+            className="w-6 h-6"
+            style={{ position: 'absolute', top: -6, right: -6, color: 'var(--ln-warn)' }}
+          />
+        </div>
 
-          {/* Title */}
-          <h1 className="text-3xl font-bold mb-2">Thank You! 🎉</h1>
-          <p className="text-muted-foreground mb-8">
-            Your generous donation helps us expand global health surveillance and make life-saving information accessible worldwide.
+        {/* Title */}
+        <span className="ln-eyebrow">Donation received</span>
+        <h1 className="ln-display" style={{ fontSize: 34, margin: '8px 0 12px', letterSpacing: '-0.02em' }}>
+          Thank You
+        </h1>
+        <p style={{ color: 'var(--ln-ink-3)', fontSize: 14, lineHeight: 1.5, margin: '0 auto 30px', maxWidth: 480 }}>
+          Your generous donation helps us expand global health surveillance and make life-saving
+          information accessible worldwide.
+        </p>
+
+        {/* Impact Section */}
+        <div
+          style={{
+            border: '1px solid var(--ln-line)',
+            background: 'var(--ln-surface-2)',
+            padding: '20px 22px',
+            marginBottom: 30,
+            textAlign: 'left',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+            <Heart className="w-4 h-4" style={{ color: '#4ee0c4' }} />
+            <span className="ln-display" style={{ fontSize: 16, letterSpacing: '-0.01em' }}>Your Impact</span>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {impactItems.map((item) => (
+              <div key={item.title} style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                <span
+                  style={{
+                    flex: '0 0 auto',
+                    marginTop: 1,
+                    width: 22,
+                    height: 22,
+                    borderRadius: '50%',
+                    background: 'color-mix(in oklab, #4ee0c4 18%, transparent)',
+                    border: '1px solid color-mix(in oklab, #4ee0c4 40%, transparent)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <CheckCircle className="w-3.5 h-3.5" style={{ color: '#4ee0c4' }} />
+                </span>
+                <div>
+                  <p style={{ fontSize: 13.5, fontWeight: 600, margin: 0, color: 'var(--ln-ink)' }}>{item.title}</p>
+                  <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '3px 0 0', lineHeight: 1.45 }}>
+                    {item.body}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <Link to="/" className="ln-btn is-primary" style={{ justifyContent: 'center', width: '100%' }}>
+            <ArrowRight className="w-4 h-4" />
+            Return to Home
+          </Link>
+          <Link to="/map" className="ln-btn" style={{ justifyContent: 'center', width: '100%' }}>
+            Explore the Map
+          </Link>
+        </div>
+
+        {/* Receipt Info */}
+        {sessionId && (
+          <p style={{ fontSize: 11.5, color: 'var(--ln-ink-4)', margin: '22px 0 0' }}>
+            A receipt has been sent to your email (if provided)
           </p>
-
-          {/* Impact Message */}
-          <div className="bg-muted/50 rounded-lg p-6 mb-8 text-left">
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <Heart className="w-5 h-5 text-primary" />
-              Your Impact
-            </h3>
-            <ul className="space-y-3 text-sm">
-              <li className="flex items-start gap-3">
-                <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-white text-xs font-bold">✓</span>
-                </div>
-                <div>
-                  <span className="font-medium">Supporting Global Health</span>
-                  <p className="text-muted-foreground">Your contribution helps expand data coverage to underserved regions</p>
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-white text-xs font-bold">✓</span>
-                </div>
-                <div>
-                  <span className="font-medium">Enhancing Technology</span>
-                  <p className="text-muted-foreground">Funding AI improvements and early warning systems</p>
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-white text-xs font-bold">✓</span>
-                </div>
-                <div>
-                  <span className="font-medium">Free Access for All</span>
-                  <p className="text-muted-foreground">Helping maintain free access for public health organizations</p>
-                </div>
-              </li>
-            </ul>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="space-y-3">
-            <Button asChild className="w-full" size="lg">
-              <Link to="/">
-                <ArrowRight className="w-4 h-4 mr-2" />
-                Return to Home
-              </Link>
-            </Button>
-            
-            <Button asChild variant="outline" className="w-full" size="lg">
-              <Link to="/map">
-                Explore the Map
-              </Link>
-            </Button>
-          </div>
-
-          {/* Receipt Info */}
-          {sessionId && (
-            <p className="text-xs text-muted-foreground mt-6">
-              A receipt has been sent to your email (if provided)
-            </p>
-          )}
-        </CardContent>
-      </Card>
+        )}
+      </div>
     </div>
   );
 };
 
 export default DonationSuccess;
-

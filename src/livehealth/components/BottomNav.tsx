@@ -22,6 +22,7 @@ export function BottomNav() {
   const tHome = useT("Home");
   const tMap = useT("Map");
   const tTrends = useT("Trends");
+  const tIndex = useT("Index");
   const tFeed = useT("Feed");
   const tAlerts = useT("Alerts");
 
@@ -40,6 +41,13 @@ export function BottomNav() {
       label: tTrends,
       icon: <Icon.Chart />,
       match: (p: string, s: string) => p === "/dashboard" && !s.includes("tab=predictions"),
+    },
+    {
+      to: "/global-health-index",
+      label: tIndex,
+      icon: <Icon.Pulse />,
+      match: (p: string) =>
+        p === "/global-health-index" || p.startsWith("/global-health-index/"),
     },
     {
       to: "/news",

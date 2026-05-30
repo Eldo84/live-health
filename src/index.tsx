@@ -17,10 +17,12 @@ import { DashboardScreen } from "./livehealth/screens/Dashboard";
 import { NewsScreen } from "./livehealth/screens/News";
 import { GlobalHealthIndexScreen } from "./livehealth/screens/GlobalHealthIndex";
 import { WeeklyReportScreen } from "./livehealth/screens/WeeklyReport";
+import AdvertiseScreen from "./livehealth/screens/Advertise";
 
 // Auxiliary pages kept from the existing app (still needed for payments, donations, admin, etc.)
 import PartnershipScreen from "./livehealth/screens/Partnership";
 import PrivacyPolicyScreen from "./livehealth/screens/PrivacyPolicy";
+import SettingsScreen from "./livehealth/screens/Settings";
 import {
   PaymentPage,
   PaymentSuccess,
@@ -62,6 +64,8 @@ createRoot(document.getElementById("app") as HTMLElement).render(
                   <Route element={<LiveHealthHost />}>
                     <Route path="/" element={<LandingRoute />} />
                     <Route path="/map" element={<MapScreen />} />
+                    {/* Advertise — public conversion page; form gates submit on auth itself */}
+                    <Route path="/advertise" element={<AdvertiseScreen />} />
                     <Route
                       path="/dashboard"
                       element={<ProtectedRoute><DashboardScreen /></ProtectedRoute>}
@@ -74,6 +78,15 @@ createRoot(document.getElementById("app") as HTMLElement).render(
                     <Route
                       path="/global-health-index"
                       element={<ProtectedRoute><GlobalHealthIndexScreen /></ProtectedRoute>}
+                    />
+                    <Route
+                      path="/settings"
+                      element={<ProtectedRoute><SettingsScreen /></ProtectedRoute>}
+                    />
+                    {/* My Ads — themed page; rides the LiveHealth+ chrome (TopBar + BottomNav) */}
+                    <Route
+                      path="/dashboard/advertising"
+                      element={<ProtectedRoute><UserAdvertisingDashboard /></ProtectedRoute>}
                     />
                   </Route>
 
@@ -110,11 +123,6 @@ createRoot(document.getElementById("app") as HTMLElement).render(
                   {/* Donation callbacks stay public so Stripe returns always land */}
                   <Route path="/donate/success" element={<DonationSuccess />} />
                   <Route path="/donate/cancelled" element={<DonationCancelled />} />
-
-                  {/* User advertising dashboard */}
-                  <Route path="/dashboard/advertising" element={<AppLayout />}>
-                    <Route index element={<ProtectedRoute><UserAdvertisingDashboard /></ProtectedRoute>} />
-                  </Route>
 
                   {/* Admin routes — themed shell matching LiveHealth+ chrome */}
                   <Route path="/admin" element={<ProtectedRoute><AdminShell /></ProtectedRoute>}>

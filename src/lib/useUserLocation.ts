@@ -14,16 +14,16 @@ export function useUserLocation(autoRequest = true) {
   const [error, setError] = useState<string | null>(null);
   const hasRequestedRef = useRef(false);
 
-  const requestLocation = async () => {
+  const requestLocation = async (): Promise<UserLocation | null> => {
     if (hasRequestedRef.current && location) {
       // Already have location, don't request again
-      return;
+      return location;
     }
 
     if (!navigator.geolocation) {
       const errorMsg = "Geolocation is not supported by your browser";
       setError(errorMsg);
-      return;
+      return null;
     }
 
     setIsRequesting(true);
@@ -50,20 +50,24 @@ export function useUserLocation(autoRequest = true) {
       const geocodeResult = await reverseGeocodeWithOpenCage(latitude, longitude);
 
       if (geocodeResult) {
-        setLocation({
+        const resolved: UserLocation = {
           coordinates,
           country: geocodeResult.country,
           city: geocodeResult.city,
-        });
+        };
+        setLocation(resolved);
         hasRequestedRef.current = true;
+        return resolved;
       } else {
         // If reverse geocoding fails, we still have coordinates
         // Try to find country from our lookup table (this is a fallback)
-        setLocation({
+        const resolved: UserLocation = {
           coordinates,
           country: "Unknown",
-        });
+        };
+        setLocation(resolved);
         setError("Could not determine country from location");
+        return resolved;
       }
     } catch (err: any) {
       let errorMessage = "Failed to get your location";
@@ -80,6 +84,7 @@ export function useUserLocation(autoRequest = true) {
 
       setError(errorMessage);
       console.error("Geolocation error:", err);
+      return null;
     } finally {
       setIsRequesting(false);
     }

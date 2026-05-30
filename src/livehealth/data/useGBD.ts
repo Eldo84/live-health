@@ -156,6 +156,43 @@ export function useGbdDiseaseEstimates(
   return { rows, loading };
 }
 
+// All rows for ONE cause across several measures in a single query — powers the
+// mobile 2×2 burden cards (Prevalence / Incidence / Deaths / DALYs at once).
+export function useGbdDiseaseMultiMeasure(
+  causeId: string | null,
+  measures: readonly string[]
+) {
+  const [rows, setRows] = useState<GbdEstimate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const measureKey = measures.join(",");
+  useEffect(() => {
+    if (!causeId) {
+      setRows([]);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    supabase
+      .from("gbd_estimates")
+      .select("iso3, cause_id, year, measure, rate, lower, upper, source")
+      .eq("cause_id", causeId)
+      .in("measure", measures as string[])
+      .order("year")
+      .then(({ data }) => {
+        if (!cancelled) {
+          setRows(data || []);
+          setLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+    // measureKey captures the measures array contents for the dep check.
+  }, [causeId, measureKey]);
+  return { rows, loading };
+}
+
 // All cause-level rows for ONE country at ONE measure — powers the
 // "burden ranking across all causes" chart.
 export function useGbdCountryAllCauses(

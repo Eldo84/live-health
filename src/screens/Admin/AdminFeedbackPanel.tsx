@@ -1,18 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { 
-  Dialog, DialogContent, DialogDescription, DialogFooter, 
-  DialogHeader, DialogTitle 
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter,
+  DialogHeader, DialogTitle
 } from '@/components/ui/dialog';
-import { 
-  Loader2, MessageSquare, CheckCircle, XCircle, ArrowLeft,
-  Search, Shield, User, Calendar, Edit, FileText
+import {
+  Loader2, MessageSquare, ArrowLeft,
+  Search, User, Calendar, Edit, FileText
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
@@ -32,12 +27,12 @@ interface FeedbackSubmission {
   updated_at: string;
 }
 
-const statusConfig: Record<string, { label: string; color: string; bgColor: string }> = {
-  new: { label: 'New', color: 'text-blue-600', bgColor: 'bg-blue-500' },
-  acknowledged: { label: 'Acknowledged', color: 'text-purple-600', bgColor: 'bg-purple-500' },
-  in_progress: { label: 'In Progress', color: 'text-yellow-600', bgColor: 'bg-yellow-500' },
-  resolved: { label: 'Resolved', color: 'text-green-600', bgColor: 'bg-green-500' },
-  closed: { label: 'Closed', color: 'text-gray-600', bgColor: 'bg-gray-500' },
+const statusConfig: Record<string, { label: string; color: string; chip: string }> = {
+  new: { label: 'New', color: 'var(--ln-info, #6ab7ff)', chip: 'ln-chip is-info' },
+  acknowledged: { label: 'Acknowledged', color: '#c79cff', chip: 'ln-chip' },
+  in_progress: { label: 'In Progress', color: 'var(--ln-warn)', chip: 'ln-chip is-warn' },
+  resolved: { label: 'Resolved', color: 'var(--ln-brand)', chip: 'ln-chip is-ok' },
+  closed: { label: 'Closed', color: 'var(--ln-ink-3)', chip: 'ln-chip' },
 };
 
 const feedbackTypeConfig: Record<string, { label: string; icon: string }> = {
@@ -197,8 +192,16 @@ export const AdminFeedbackPanel: React.FC = () => {
 
   if (authLoading || isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div
+        style={{
+          minHeight: 'calc(100vh - 140px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'var(--ln-bg)',
+        }}
+      >
+        <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--ln-brand)' }} />
       </div>
     );
   }
@@ -207,183 +210,240 @@ export const AdminFeedbackPanel: React.FC = () => {
     return null;
   }
 
+  const feedbackStats: { label: string; value: number; color: string }[] = [
+    { label: 'New', value: newCount, color: statusConfig.new.color },
+    { label: 'Acknowledged', value: acknowledgedCount, color: statusConfig.acknowledged.color },
+    { label: 'In Progress', value: inProgressCount, color: statusConfig.in_progress.color },
+    { label: 'Resolved', value: resolvedCount, color: statusConfig.resolved.color },
+    { label: 'Closed', value: closedCount, color: statusConfig.closed.color },
+  ];
+
+  const feedbackTabs: { id: string; label: string; count: number }[] = [
+    { id: 'all', label: 'All', count: totalCount },
+    { id: 'new', label: 'New', count: newCount },
+    { id: 'acknowledged', label: 'Acknowledged', count: acknowledgedCount },
+    { id: 'in_progress', label: 'In Progress', count: inProgressCount },
+    { id: 'resolved', label: 'Resolved', count: resolvedCount },
+    { id: 'closed', label: 'Closed', count: closedCount },
+  ];
+
   return (
-    <div className="min-h-screen bg-background">
+    <div style={{ background: 'var(--ln-bg)', color: 'var(--ln-ink)', minHeight: 'calc(100vh - 140px)' }}>
       {/* Header */}
-      <div className="border-b bg-card">
-        <div className="container mx-auto px-4 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button variant="ghost" size="sm" onClick={() => navigate('/admin')}>
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Admin Dashboard
-              </Button>
-              <div className="flex items-center gap-2">
-                <MessageSquare className="w-6 h-6 text-primary" />
-                <div>
-                  <h1 className="text-2xl font-bold">Feedback Management</h1>
-                  <p className="text-muted-foreground">View and manage user feedback submissions</p>
-                </div>
-              </div>
-            </div>
-            <Badge variant="outline" className="text-primary border-primary">
-              Admin Access
-            </Badge>
+      <div
+        style={{
+          padding: '22px 28px',
+          borderBottom: '1px solid var(--ln-line)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 12,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <button className="ln-btn" onClick={() => navigate('/admin')}>
+            <ArrowLeft className="w-4 h-4" />
+            Back
+          </button>
+          <div>
+            <span className="ln-eyebrow">Inbox</span>
+            <h1 className="ln-display" style={{ fontSize: 26, margin: '4px 0 0', letterSpacing: '-0.02em' }}>
+              Feedback management
+            </h1>
+            <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '4px 0 0' }}>
+              View and manage user feedback submissions
+            </p>
           </div>
         </div>
+        <span className="ln-chip is-ok">Admin access</span>
       </div>
 
-      <div className="container mx-auto px-4 py-6">
+      <div style={{ padding: '22px 28px 40px' }}>
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>New</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600">{newCount}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Acknowledged</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-purple-600">{acknowledgedCount}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>In Progress</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-yellow-600">{inProgressCount}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Resolved</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{resolvedCount}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardDescription>Closed</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-gray-600">{closedCount}</div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Tabs */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle>Feedback Submissions ({totalCount})</CardTitle>
-              <div className="flex items-center gap-2">
-                <Search className="w-4 h-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search feedback..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-64"
-                />
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+            gap: 14,
+            marginBottom: 22,
+          }}
+        >
+          {feedbackStats.map((s) => (
+            <div
+              key={s.label}
+              style={{
+                border: '1px solid var(--ln-line)',
+                background: 'var(--ln-surface)',
+                padding: '14px 16px',
+                position: 'relative',
+                overflow: 'hidden',
+              }}
+            >
+              <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 2, background: s.color }} />
+              <div className="ln-eyebrow">{s.label}</div>
+              <div className="ln-num" style={{ fontSize: 24, color: s.color, marginTop: 6, fontWeight: 500 }}>
+                {s.value}
               </div>
             </div>
-          </CardHeader>
-          <CardContent>
-            <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-6">
-                <TabsTrigger value="all">All ({totalCount})</TabsTrigger>
-                <TabsTrigger value="new">New ({newCount})</TabsTrigger>
-                <TabsTrigger value="acknowledged">Acknowledged ({acknowledgedCount})</TabsTrigger>
-                <TabsTrigger value="in_progress">In Progress ({inProgressCount})</TabsTrigger>
-                <TabsTrigger value="resolved">Resolved ({resolvedCount})</TabsTrigger>
-                <TabsTrigger value="closed">Closed ({closedCount})</TabsTrigger>
-              </TabsList>
+          ))}
+        </div>
 
-              <TabsContent value={activeTab} className="mt-4">
-                {filteredSubmissions.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No feedback found
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {filteredSubmissions.map((submission) => (
-                      <Card key={submission.id} className="hover:shadow-md transition-shadow">
-                        <CardContent className="pt-6">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1 space-y-3">
-                              <div className="flex items-center gap-3">
-                                <span className="text-2xl">
-                                  {feedbackTypeConfig[submission.feedback_type]?.icon || '📝'}
-                                </span>
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <h3 className="font-semibold text-lg">
-                                      {feedbackTypeConfig[submission.feedback_type]?.label || submission.feedback_type}
-                                    </h3>
-                                    <Badge className={statusConfig[submission.status].bgColor}>
-                                      {statusConfig[submission.status].label}
-                                    </Badge>
-                                  </div>
-                                  <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                                    <div className="flex items-center gap-1">
-                                      <User className="w-4 h-4" />
-                                      <span>{submission.user_email}</span>
-                                    </div>
-                                    <div className="flex items-center gap-1">
-                                      <Calendar className="w-4 h-4" />
-                                      <span>{new Date(submission.created_at).toLocaleDateString()}</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                              
-                              <div className="bg-muted/50 rounded-lg p-4">
-                                <p className="text-sm whitespace-pre-wrap">{submission.message}</p>
-                              </div>
+        {/* List */}
+        <div style={{ border: '1px solid var(--ln-line)', background: 'var(--ln-surface)' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              padding: '16px 18px',
+              borderBottom: '1px solid var(--ln-line)',
+              flexWrap: 'wrap',
+            }}
+          >
+            <span className="ln-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}>
+              Feedback submissions{' '}
+              <span className="ln-num" style={{ fontSize: 14, color: 'var(--ln-ink-3)' }}>({totalCount})</span>
+            </span>
+            <div style={{ position: 'relative', width: 260, maxWidth: '100%' }}>
+              <span
+                style={{
+                  position: 'absolute',
+                  left: 10,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--ln-ink-4)',
+                  display: 'inline-flex',
+                }}
+              >
+                <Search className="w-4 h-4" />
+              </span>
+              <input
+                className="ln-input"
+                style={{ paddingLeft: 32 }}
+                placeholder="Search feedback..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
 
-                              {submission.admin_notes && (
-                                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-3 border border-blue-200 dark:border-blue-800">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <FileText className="w-4 h-4 text-blue-600" />
-                                    <span className="text-sm font-semibold text-blue-600">Admin Notes</span>
-                                  </div>
-                                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                                    {submission.admin_notes}
-                                  </p>
-                                  {submission.reviewed_at && (
-                                    <p className="text-xs text-muted-foreground mt-2">
-                                      Updated {new Date(submission.reviewed_at).toLocaleString()}
-                                    </p>
-                                  )}
-                                </div>
-                              )}
+          {/* Tab nav */}
+          <div
+            style={{
+              display: 'flex',
+              gap: 4,
+              padding: '10px 18px 0',
+              borderBottom: '1px solid var(--ln-line)',
+              overflowX: 'auto',
+            }}
+          >
+            {feedbackTabs.map((t) => {
+              const active = activeTab === t.id;
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => setActiveTab(t.id)}
+                  style={{
+                    padding: '8px 12px',
+                    fontSize: 12.5,
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    color: active ? 'var(--ln-ink)' : 'var(--ln-ink-3)',
+                    borderBottom: active ? '1.5px solid var(--ln-brand)' : '1.5px solid transparent',
+                  }}
+                >
+                  {t.label}{' '}
+                  <span className="ln-num" style={{ color: 'var(--ln-ink-4)' }}>({t.count})</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div style={{ padding: 18 }}>
+            {filteredSubmissions.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--ln-ink-3)', fontSize: 13 }}>
+                No feedback found
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {filteredSubmissions.map((submission) => (
+                  <div
+                    key={submission.id}
+                    style={{ border: '1px solid var(--ln-line)', background: 'var(--ln-surface-2)', padding: 16 }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+                      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                          <span style={{ fontSize: 22 }}>
+                            {feedbackTypeConfig[submission.feedback_type]?.icon || '📝'}
+                          </span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                              <h3 style={{ fontSize: 15, fontWeight: 600, margin: 0, color: 'var(--ln-ink)' }}>
+                                {feedbackTypeConfig[submission.feedback_type]?.label || submission.feedback_type}
+                              </h3>
+                              <span className={statusConfig[submission.status].chip}>
+                                {statusConfig[submission.status].label}
+                              </span>
                             </div>
-                            
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openReviewDialog(submission)}
-                              className="ml-4"
-                            >
-                              <Edit className="w-4 h-4 mr-2" />
-                              Update
-                            </Button>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 4, fontSize: 12.5, color: 'var(--ln-ink-3)' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <User className="w-4 h-4" />
+                                <span>{submission.user_email}</span>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <Calendar className="w-4 h-4" />
+                                <span>{new Date(submission.created_at).toLocaleDateString()}</span>
+                              </div>
+                            </div>
                           </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                        </div>
+
+                        <div style={{ background: 'var(--ln-surface-3)', border: '1px solid var(--ln-line-2)', padding: 14 }}>
+                          <p style={{ fontSize: 12.5, whiteSpace: 'pre-wrap', margin: 0, color: 'var(--ln-ink-2)' }}>
+                            {submission.message}
+                          </p>
+                        </div>
+
+                        {submission.admin_notes && (
+                          <div
+                            style={{
+                              background: 'color-mix(in oklab, var(--ln-info, #6ab7ff) 8%, transparent)',
+                              border: '1px solid color-mix(in oklab, var(--ln-info, #6ab7ff) 30%, transparent)',
+                              padding: 12,
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                              <FileText className="w-4 h-4" style={{ color: 'var(--ln-info, #6ab7ff)' }} />
+                              <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ln-info, #6ab7ff)' }}>Admin Notes</span>
+                            </div>
+                            <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', whiteSpace: 'pre-wrap', margin: 0 }}>
+                              {submission.admin_notes}
+                            </p>
+                            {submission.reviewed_at && (
+                              <p style={{ fontSize: 11, color: 'var(--ln-ink-4)', marginTop: 8, fontFamily: 'var(--ln-font-mono)' }}>
+                                Updated {new Date(submission.reviewed_at).toLocaleString()}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      <button className="ln-btn" style={{ flex: '0 0 auto' }} onClick={() => openReviewDialog(submission)}>
+                        <Edit className="w-4 h-4" />
+                        Update
+                      </button>
+                    </div>
                   </div>
-                )}
-              </TabsContent>
-            </Tabs>
-          </CardContent>
-        </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Review Dialog */}
@@ -446,19 +506,19 @@ export const AdminFeedbackPanel: React.FC = () => {
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={closeReviewDialog} disabled={isProcessing}>
+            <button className="ln-btn" onClick={closeReviewDialog} disabled={isProcessing}>
               Cancel
-            </Button>
-            <Button onClick={handleUpdateStatus} disabled={isProcessing}>
+            </button>
+            <button className="ln-btn is-primary" onClick={handleUpdateStatus} disabled={isProcessing}>
               {isProcessing ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   Updating...
                 </>
               ) : (
                 'Update Status'
               )}
-            </Button>
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
