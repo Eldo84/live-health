@@ -108,7 +108,7 @@
     "viewArticle": "Voir l'article",
     "viewSummary": "Voir le résumé",
     "generatingSummary": "Génération du résumé...",
-    "deepseekApiKeyError": "Veuillez vous assurer que DEEPSEEK_API_KEY est configuré dans votre fonction edge Supabase.",
+    "deepseekApiKeyError": "Veuillez vous assurer que DEEPSEEK_API_KEY est configuré dans le backend IA de LiveHealth+.",
     "keyFacts": "Faits clés",
     "symptoms": "Symptômes",
     "transmission": "Transmission",

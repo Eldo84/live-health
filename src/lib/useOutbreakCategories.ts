@@ -21,7 +21,7 @@ export function useOutbreakCategories() {
         const supabaseKey = envVars?.VITE_SUPABASE_ANON_KEY;
 
         if (!supabaseUrl || !supabaseKey) {
-          throw new Error("Missing Supabase configuration");
+          throw new Error("Missing LiveHealth+ database configuration");
         }
 
         const response = await fetch(

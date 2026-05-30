@@ -43,7 +43,7 @@ export const DiseaseRecommendationsDialog: React.FC<DiseaseRecommendationsDialog
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       if (!supabaseUrl) {
-        throw new Error("Missing Supabase configuration");
+        throw new Error("Missing LiveHealth+ database configuration");
       }
 
       // First try to get from database

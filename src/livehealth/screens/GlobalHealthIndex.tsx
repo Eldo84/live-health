@@ -335,7 +335,7 @@ export function GlobalHealthIndexScreen() {
                   border: "1px solid color-mix(in oklab, var(--ln-brand) 40%, transparent)",
                 }}
               >
-                LIVE · SUPABASE
+                LIVE · LIVEHEALTH+ DB
               </span>
             </div>
             <div
@@ -358,8 +358,8 @@ export function GlobalHealthIndexScreen() {
               />
             </div>
             <div style={{ marginTop: 10, fontSize: 11.5, color: "var(--ln-ink-3)", lineHeight: 1.5 }}>
-              Continent fills come from `outbreak_signals` grouped by region risk level. Pulsing
-              dots are individual high-severity outbreak signals from the live surveillance feed.
+              Continent fills come from the LiveHealth+ database, grouped by region risk level.
+              Pulsing dots are individual high-severity events from the live surveillance feed.
             </div>
           </div>
         </div>
@@ -480,7 +480,7 @@ export function GlobalHealthIndexScreen() {
             <li>
               <b style={{ color: "var(--ln-ink-2)" }}>LiveHealth+ surveillance feed</b> — the
               choropleth fills and pulsing outbreak markers on the world map, plus the live risk
-              chips in the country table. Real-time from `outbreak_signals` in Supabase.
+              chips in the country table. Streamed in real time from the LiveHealth+ database.
             </li>
             <li>
               The metric cards reflect the latest available value for the selected country + year.

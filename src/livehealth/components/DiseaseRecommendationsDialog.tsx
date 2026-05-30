@@ -36,7 +36,7 @@ export function DiseaseRecommendationsDialog({ open, onClose, diseaseName }: Pro
     forceRegen ? setRegenerating(true) : setLoading(true);
     try {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      if (!supabaseUrl) throw new Error("Missing Supabase configuration");
+      if (!supabaseUrl) throw new Error("Missing LiveHealth+ database configuration");
 
       // Cache lookup first (unless we're explicitly regenerating).
       if (!forceRegen) {

@@ -74,7 +74,7 @@ export function useGroundedForecasts(limit = 8): GroundedForecastsResult {
         setLoading(true);
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-        if (!supabaseUrl || !supabaseKey) throw new Error("Missing Supabase configuration");
+        if (!supabaseUrl || !supabaseKey) throw new Error("Missing LiveHealth+ database configuration");
 
         const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
         const params = new URLSearchParams();

@@ -50,7 +50,7 @@ export const WeeklyReport = (): JSX.Element => {
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 
         if (!supabaseUrl) {
-          throw new Error("Missing Supabase configuration");
+          throw new Error("Missing LiveHealth+ database configuration");
         }
 
         // Get the current session token

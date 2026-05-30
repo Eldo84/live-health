@@ -50,7 +50,7 @@ export function useWeeklyReports(limit = 8): UseWeeklyReportResult {
         setLoading(true);
         const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
         const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-        if (!supabaseUrl || !supabaseKey) throw new Error("Missing Supabase configuration");
+        if (!supabaseUrl || !supabaseKey) throw new Error("Missing LiveHealth+ database configuration");
 
         const params = new URLSearchParams();
         params.set("select", "id,report_date,week_start_date,week_end_date,generated_at,diseases,recommendations");
