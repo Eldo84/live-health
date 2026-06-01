@@ -1331,7 +1331,7 @@ function LandingDonate() {
   const tHead1 = useT("Open surveillance is");
   const tHead2 = useT("cheaper than the next outbreak.");
   const tBody = useT(
-    "We're a non-profit cooperative. Donations cover the ingestion pipeline, translations, hosting, and keep the API free for ministries and researchers."
+    "OutbreakNow is operated by EldoNova+ Technologies. Donations cover the ingestion pipeline, translations, hosting, and keep the API free for ministries and researchers."
   );
   const tDonate = useT("Donate");
   return (
@@ -1465,7 +1465,7 @@ function LandingFooter() {
             }}
           >
             {useT(
-              "LiveHealth+ is an open surveillance infrastructure operated by the LiveHealth Cooperative, a non-profit organisation registered in Geneva."
+              "OutbreakNow is an open surveillance infrastructure operated by EldoNova+ Technologies, based in New York."
             )}
           </p>
           <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap" }}>
@@ -1549,8 +1549,8 @@ function LandingFooter() {
           color: "var(--ln-ink-4)",
         }}
       >
-        <span>© {new Date().getFullYear()} LiveHealth Cooperative · Geneva, CH</span>
-        <span>Build 2026.05.26-r3 · API v3.4 · Forecast v3.2</span>
+        <span>© {new Date().getFullYear()} EldoNova+ Technologies - New York, NY</span>
+        <span>Version 2.0</span>
         <span>
           Status: <span style={{ color: "var(--ln-brand)" }}>● ALL SYSTEMS OPERATIONAL</span>
         </span>

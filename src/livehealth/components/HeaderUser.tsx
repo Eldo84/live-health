@@ -253,7 +253,7 @@ const HELP_TIPS: { title: string; body: string }[] = [
 
 function HelpModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
-    <Modal open={open} onClose={onClose} eyebrow="LiveHealth+" title="Help & tips" width={520}>
+    <Modal open={open} onClose={onClose} eyebrow="OutbreakNow" title="Help & tips" width={520}>
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         {HELP_TIPS.map((t) => (
           <div key={t.title}>

@@ -89,7 +89,7 @@ export function DonateDialog({ open, onClose }: Props) {
       width={520}
     >
       <p style={{ fontSize: 12.5, color: "var(--ln-ink-3)", margin: "0 0 16px", lineHeight: 1.5 }}>
-        LiveHealth+ is operated by a non-profit cooperative. Your donation funds the surveillance pipeline,
+        OutbreakNow is operated by EldoNova+ Technologies. Your donation funds the surveillance pipeline,
         translations, and the open API — keeping the platform free for ministries, researchers, and the public.
       </p>
 

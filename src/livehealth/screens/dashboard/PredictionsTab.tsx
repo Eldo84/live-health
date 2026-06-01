@@ -360,7 +360,7 @@ function ForecastCard({
         <span style={{ color: "var(--ln-ink-4)" }}>
           Model:{" "}
           <span style={{ color: "var(--ln-ink-3)" }}>
-            {grounded ? "LiveHealth+ signal model" : "DeepSeek Chat"}
+            {grounded ? "OutbreakNow signal model" : "DeepSeek Chat"}
           </span>
         </span>
         <span style={{ color: ACCENT }}>Target: {p.targetDate}</span>

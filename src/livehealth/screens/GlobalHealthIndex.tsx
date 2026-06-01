@@ -370,7 +370,7 @@ export function GlobalHealthIndexScreen() {
             <p style={{ fontSize: 13.5, color: "var(--ln-ink-2)", maxWidth: 760, margin: "4px 0 0", lineHeight: 1.5 }}>
               Sources: IHME Global Burden of Disease 2023 (Deaths / DALYs / YLLs / YLDs / Incidence / Prevalence,
               age-standardized rates, 10 causes, 204 countries, 95% CI bounds), World Bank Open Data (country
-              indicators), WHO GHO (malaria incidence), and the LiveHealth+ surveillance feed.
+              indicators), WHO GHO (malaria incidence), and the OutbreakNow surveillance feed.
             </p>
           </div>
         )}
@@ -477,7 +477,7 @@ export function GlobalHealthIndexScreen() {
                   border: "1px solid color-mix(in oklab, var(--ln-brand) 40%, transparent)",
                 }}
               >
-                LIVE · LIVEHEALTH+ DB
+                LIVE · OUTBREAKNOW DB
               </span>
             </div>
             <div
@@ -500,7 +500,7 @@ export function GlobalHealthIndexScreen() {
               />
             </div>
             <div style={{ marginTop: 10, fontSize: 11.5, color: "var(--ln-ink-3)", lineHeight: 1.5 }}>
-              Continent fills come from the LiveHealth+ database, grouped by region risk level.
+              Continent fills come from the OutbreakNow database, grouped by region risk level.
               Pulsing dots are individual high-severity events from the live surveillance feed.
             </div>
           </div>
@@ -636,9 +636,9 @@ export function GlobalHealthIndexScreen() {
               signup, CC-BY-NC-SA 3.0.
             </li>
             <li>
-              <b style={{ color: "var(--ln-ink-2)" }}>LiveHealth+ surveillance feed</b> — the
+              <b style={{ color: "var(--ln-ink-2)" }}>OutbreakNow surveillance feed</b> — the
               choropleth fills and pulsing outbreak markers on the world map, plus the live risk
-              chips in the country table. Streamed in real time from the LiveHealth+ database.
+              chips in the country table. Streamed in real time from the OutbreakNow database.
             </li>
             <li>
               The metric cards reflect the latest available value for the selected country + year.

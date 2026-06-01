@@ -78,7 +78,7 @@ export function DataMgmtTab({ range, isMobile, isTabletDown }: Props) {
     const stamp = new Date();
     doc.setFont("helvetica", "bold");
     doc.setFontSize(16);
-    doc.text("LiveHealth+ · Outbreak signals", 40, 40);
+    doc.text("OutbreakNow · Outbreak signals", 40, 40);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     doc.setTextColor(110);
@@ -145,7 +145,7 @@ export function DataMgmtTab({ range, isMobile, isTabletDown }: Props) {
     doc.setFontSize(8);
     doc.setTextColor(140);
     doc.text(
-      "Source: LiveHealth+ surveillance feed · case_count_mentioned / mortality_count_mentioned aggregated by signal.",
+      "Source: OutbreakNow surveillance feed · case_count_mentioned / mortality_count_mentioned aggregated by signal.",
       40,
       560
     );

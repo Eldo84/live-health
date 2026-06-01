@@ -8,7 +8,7 @@ const OutbreakMap = () => {
   return (
     <>
       <Helmet>
-        <title>Live Outbreak Map | LiveHealth+</title>
+        <title>Live Outbreak Map | OutbreakNow</title>
         <meta name="description" content="Explore real-time global outbreak insights on an interactive map." />
         <link rel="canonical" href={canonical} />
       </Helmet>

@@ -28,9 +28,8 @@ export function Logo({ size = 14, color = "var(--ln-brand)" }: LogoProps) {
         />
       </div>
       <div style={{ fontFamily: "var(--ln-font-mono)", fontSize: 12, letterSpacing: "0.16em", fontWeight: 500 }}>
-        <span style={{ color: "var(--ln-ink)" }}>LIVE</span>
-        <span style={{ color }}>HEALTH</span>
-        <span style={{ color: "var(--ln-ink-3)" }}>/+</span>
+        <span style={{ color: "var(--ln-ink)" }}>OUTBREAK</span>
+        <span style={{ color }}>NOW</span>
       </div>
     </div>
   );

@@ -75,6 +75,56 @@
   animation: ln-pulse-soft 2s infinite ease-in-out;
 }
 
+/* Category-breakdown donut cluster: a ring of category-colored segments with
+   the total count in the center. */
+.ln-cluster-pie {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(7, 10, 13, 0.92);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+}
+.ln-cluster-pie svg {
+  position: absolute;
+  inset: 0;
+}
+.ln-pie-slice {
+  cursor: pointer;
+  transition: opacity 0.12s ease;
+}
+.ln-pie-slice:hover {
+  opacity: 0.8;
+}
+
+/* Tooltip shown while pointing at a cluster pie slice: category + its diseases. */
+.ln-slice-tip {
+  position: absolute;
+  z-index: 1000;
+  transform: translate(-50%, calc(-100% - 12px));
+  pointer-events: none;
+  background: var(--ln-elev-bg, #0a0d10);
+  border: 1px solid var(--ln-line-3, rgba(255, 255, 255, 0.16));
+  border-radius: 6px;
+  padding: 6px 9px;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
+  max-width: 210px;
+  white-space: normal;
+}
+.ln-slice-tip-cat {
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 2px;
+  word-break: break-word;
+}
+.ln-slice-tip-dis {
+  font-size: 10px;
+  color: var(--ln-ink-2, #c7ced4);
+  line-height: 1.35;
+  word-break: break-word;
+}
+
 /* Tile + container appearance to fit the dark theme. */
 .leaflet-container {
   background: #07090c;

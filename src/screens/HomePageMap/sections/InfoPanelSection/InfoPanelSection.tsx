@@ -146,7 +146,7 @@ export const InfoPanelSection = (): JSX.Element => {
 
           <div className="flex items-center justify-between pt-6 pb-0 px-0 w-full border-t [border-top-style:solid] border-[#eaebf024]">
             <div className="[font-family:'Roboto',Helvetica] font-normal text-[#dbdbdbd9] text-base text-center tracking-[-0.10px] leading-6 whitespace-nowrap">
-              © 2025 Live Health+. All Rights Reserved.
+              © 2025 OutbreakNow. All Rights Reserved.
             </div>
 
             <div className="inline-flex items-start gap-6">

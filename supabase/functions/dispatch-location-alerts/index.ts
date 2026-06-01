@@ -143,14 +143,19 @@ Deno.serve(async (req: Request) => {
     const { windowHours = 6 } = await req.json().catch(() => ({}));
     const since = new Date(Date.now() - windowHours * 3600 * 1000).toISOString();
 
-    // Candidate signals in the recent window (any severity; we gate per-user).
+    // Candidate signals newly INGESTED in the recent window (any severity; we
+    // gate per-user). NOTE: window on `created_at` (when we surfaced the
+    // signal), NOT `detected_at` (the source article's publish date). Articles
+    // are frequently days old when ingested, so filtering on detected_at meant
+    // freshly-ingested outbreaks were already outside the window and never
+    // alerted. location_alert_log dedups so a user is alerted at most once.
     const { data: signalsRaw, error: sigErr } = await supabase
       .from("outbreak_signals")
       .select(
         "id, disease_id, detected_disease_name, country_id, city, latitude, longitude, severity_assessment, case_count_mentioned, detected_at",
       )
-      .gte("detected_at", since)
-      .order("detected_at", { ascending: false });
+      .gte("created_at", since)
+      .order("created_at", { ascending: false });
     if (sigErr) throw sigErr;
     const signals = (signalsRaw || []) as Signal[];
 

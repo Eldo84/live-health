@@ -22,10 +22,10 @@ export default function PrivacyPolicyScreen() {
   return (
     <div className="ln-app" style={{ minHeight: "100vh", background: "var(--ln-bg)", color: "var(--ln-ink)" }}>
       <Helmet>
-        <title>Privacy Policy | LiveHealth+</title>
+        <title>Privacy Policy | OutbreakNow</title>
         <meta
           name="description"
-          content="LiveHealth+ Privacy Policy — how we collect, use, and protect your information."
+          content="OutbreakNow Privacy Policy — how we collect, use, and protect your information."
         />
         <link rel="canonical" href={canonical} />
       </Helmet>
@@ -118,7 +118,7 @@ export default function PrivacyPolicyScreen() {
         <div style={{ maxWidth: 860, margin: "0 auto", display: "flex", flexDirection: "column", gap: 32 }}>
           <Block title="Introduction">
             <p>
-              LiveHealth+ ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy
+              OutbreakNow ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy
               explains how we collect, use, disclose, and safeguard your information when you visit our website{" "}
               <a
                 href="https://outbreaknow.org"
@@ -307,7 +307,7 @@ export default function PrivacyPolicyScreen() {
             color: "var(--ln-ink-4)",
           }}
         >
-          <span>© {new Date().getFullYear()} LiveHealth Cooperative · Geneva, CH</span>
+          <span>© {new Date().getFullYear()} EldoNova+ Technologies - New York, NY</span>
           <span>
             <Link to="/privacy" style={{ color: "var(--ln-ink-3)", textDecoration: "none", marginRight: 14 }}>
               Privacy

@@ -7,6 +7,8 @@ import { LanguageSelector } from "../components/LanguageSelector";
 import { AlertTicker } from "../components/AlertTicker";
 import { AdCard } from "../components/AdCard";
 import { useLiveOutbreaks, type LiveOutbreak } from "../data/useLiveOutbreaks";
+import { useOutbreakCategoriesLive } from "../data/useOutbreakCategoriesLive";
+import { getCategoryColor } from "../lib/categoryColors";
 import { useLiveAlerts } from "../data/useLiveAlerts";
 import { useLiveSponsored } from "../data/useLiveSponsored";
 import { useUserLocation } from "../../lib/useUserLocation";
@@ -37,6 +39,19 @@ export function MobileMapScreen() {
   const { alerts } = useLiveAlerts(20, "24h");
   const { ads } = useLiveSponsored({ location: "map" });
   const { location: userLocation } = useUserLocation();
+  const { categories } = useOutbreakCategoriesLive();
+
+  // diseaseId → category label, so map cluster donuts color each point with the
+  // curated palette. Largest category wins when a disease spans more than one.
+  const categoryLabelByDisease = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of categories) {
+      for (const did of c.diseaseIds) {
+        if (!m.has(did)) m.set(did, c.label);
+      }
+    }
+    return m;
+  }, [categories]);
 
   // Translated UI labels.
   const tAll = useT("All");
@@ -150,6 +165,10 @@ export function MobileMapScreen() {
           onSelect={(o) => setSelected(o)}
           focusOn={userLocation?.coordinates ? (userLocation.coordinates as [number, number]) : null}
           focusRadiusKm={3000}
+          clusterCategoryFor={(o) => {
+            const label = (o.diseaseId ? categoryLabelByDisease.get(o.diseaseId) : null) || "Other";
+            return { label, color: getCategoryColor(label) };
+          }}
         />
       </div>
 
@@ -206,9 +225,8 @@ export function MobileMapScreen() {
                 color: "var(--ln-ink)",
               }}
             >
-              <span>LIVE</span>
-              <span style={{ color: ACCENT }}>HEALTH</span>
-              <span style={{ color: "var(--ln-ink-3)" }}>/+</span>
+              <span>OUTBREAK</span>
+              <span style={{ color: ACCENT }}>NOW</span>
             </div>
           </Link>
           <div style={{ display: "flex", gap: 10, alignItems: "center", color: "var(--ln-ink-2)" }}>

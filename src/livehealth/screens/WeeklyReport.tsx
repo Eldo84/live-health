@@ -346,7 +346,7 @@ export function WeeklyReportScreen() {
                 Generated automatically each Friday at 08:00 UTC from the previous 7 days of outbreak
                 signals. Disease counts reflect <em>new</em> signals detected in our pipeline, not
                 officially-confirmed case totals. Recommendations are AI-drafted and reviewed by
-                LiveHealth+ public health editors before publication.
+                OutbreakNow public health editors before publication.
               </p>
               <div style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <Link to="/dashboard" className="ln-btn">

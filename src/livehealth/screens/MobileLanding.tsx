@@ -557,7 +557,7 @@ export function MobileLandingScreen() {
           <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}>cheaper than the next outbreak.</span>
         </h2>
         <p style={{ fontSize: 13, color: "var(--ln-ink-2)", lineHeight: 1.5, margin: "0 0 14px" }}>
-          We're a non-profit cooperative. Donations keep the pipeline and API free.
+          OutbreakNow is operated by EldoNova+ Technologies. Donations keep the pipeline and API free.
         </p>
         <button
           className="ln-btn is-primary"
@@ -621,7 +621,7 @@ export function MobileLandingScreen() {
             color: "var(--ln-ink-4)",
           }}
         >
-          © {new Date().getFullYear()} OutbreakNow · Operated by EldoNova+ Technologies
+          © {new Date().getFullYear()} EldoNova+ Technologies - New York, NY
         </div>
       </footer>
     </div>

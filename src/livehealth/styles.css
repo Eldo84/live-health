@@ -3,34 +3,36 @@
    ────────────────────────────────────────────────────────── */
 
 :root, .ln-theme-dark {
-  --ln-bg:        #0a0d10;
-  --ln-surface:   #11161b;
-  --ln-surface-2: #161c23;
-  --ln-surface-3: #1d242c;
+  /* Dark mode uses the pre-redesign brand palette: teal-slate background
+     (#2A4149) with a cyan accent (#66DBE1). */
+  --ln-bg:        #2a4149;
+  --ln-surface:   #314b54;
+  --ln-surface-2: #395560;
+  --ln-surface-3: #43616d;
   --ln-line:      rgba(255,255,255,0.06);
   --ln-line-2:    rgba(255,255,255,0.10);
   --ln-line-3:    rgba(255,255,255,0.16);
 
   --ln-ink:       #f0f3f6;
-  --ln-ink-2:     #b8c1cc;
-  --ln-ink-3:     #7a8794;
-  --ln-ink-4:     #4d5862;
+  --ln-ink-2:     #c8d0d9;
+  --ln-ink-3:     #aeb9c3;
+  --ln-ink-4:     #87929d;
 
-  --ln-topbar:    #0c1014;
-  --ln-rail:      #0c1014;
-  --ln-map-bg:    radial-gradient(ellipse at center, #0e141a 0%, #07090c 100%);
+  --ln-topbar:    #243842;
+  --ln-rail:      #243842;
+  --ln-map-bg:    radial-gradient(ellipse at center, #2f4953 0%, #22353d 100%);
   --ln-map-dot-land: rgba(232,238,243,0.55);
   --ln-map-dot-sea:  rgba(232,238,243,0.08);
   --ln-map-graticule: rgba(255,255,255,0.025);
   --ln-map-region-stroke: rgba(255,255,255,0.06);
   --ln-dotgrid-dot: rgba(255,255,255,0.045);
-  --ln-overlay-bg: rgba(12,16,20,0.85);
-  --ln-elev-bg:    rgba(7,10,13,0.92);
-  --ln-marker-stroke: #0a0d10;
+  --ln-overlay-bg: rgba(36,56,64,0.88);
+  --ln-elev-bg:    rgba(28,44,50,0.94);
+  --ln-marker-stroke: #2a4149;
 
-  --ln-brand:     #4ee0c4;
-  --ln-brand-2:   #2bb59b;
-  --ln-brand-ink: #06231d;
+  --ln-brand:     #66dbe1;
+  --ln-brand-2:   #4eb7bd;
+  --ln-brand-ink: #0a2730;
   --ln-warn:      #ffb547;
   --ln-crit:      #ff4a5c;
   --ln-info:      #6ab7ff;

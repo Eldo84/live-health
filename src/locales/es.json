@@ -108,7 +108,7 @@
     "viewArticle": "Ver artículo",
     "viewSummary": "Ver resumen",
     "generatingSummary": "Generando resumen...",
-    "deepseekApiKeyError": "Asegúrese de que DEEPSEEK_API_KEY esté configurado en el backend de IA de LiveHealth+.",
+    "deepseekApiKeyError": "Asegúrese de que DEEPSEEK_API_KEY esté configurado en el backend de IA de OutbreakNow.",
     "keyFacts": "Datos clave",
     "symptoms": "Síntomas",
     "transmission": "Transmisión",

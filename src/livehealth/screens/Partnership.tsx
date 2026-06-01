@@ -100,10 +100,10 @@ export default function PartnershipScreen() {
   return (
     <div className="ln-app" style={{ minHeight: "100vh", background: "var(--ln-bg)", color: "var(--ln-ink)" }}>
       <Helmet>
-        <title>Become a Partner | LiveHealth+</title>
+        <title>Become a Partner | OutbreakNow</title>
         <meta
           name="description"
-          content="Partner with LiveHealth+ to build the next generation of real-time global outbreak intelligence and save lives."
+          content="Partner with OutbreakNow to build the next generation of real-time global outbreak intelligence and save lives."
         />
         <link rel="canonical" href={canonical} />
       </Helmet>
@@ -508,7 +508,7 @@ function SimpleFooter() {
           color: "var(--ln-ink-4)",
         }}
       >
-        <span>© {new Date().getFullYear()} LiveHealth Cooperative · Geneva, CH</span>
+        <span>© {new Date().getFullYear()} EldoNova+ Technologies - New York, NY</span>
         <span>
           <Link to="/privacy" style={{ color: "var(--ln-ink-3)", textDecoration: "none", marginRight: 14 }}>
             Privacy

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MapContainer, Marker, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
 import L, { DivIcon, type Map as LMap } from "leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
@@ -36,6 +36,11 @@ interface LiveMapProps {
   focusRadiusKm?: number;
   /** Receives the Leaflet map instance once it's mounted. */
   onReady?: (map: LMap) => void;
+  /** When provided, clusters render a pie of their points' disease categories
+      (curated palette) with the count in the center; hovering a slice shows its
+      category + diseases. Individual markers stay severity-colored. Without it,
+      clusters fall back to a single severity-colored count bubble. */
+  clusterCategoryFor?: (o: LiveOutbreak) => ClusterCategory | undefined;
 }
 
 const CARTO_ATTRIBUTION =
@@ -99,19 +104,101 @@ function buildMarkerIcon(o: LiveOutbreak, isSelected: boolean, pulse: boolean): 
   });
 }
 
+// One category's share of a cluster, for the pie + hover tooltip.
+type PieSlice = { label: string; color: string; count: number; diseases: string[] };
+
+// Category color + label stashed on each marker so the cluster can read them.
+type ClusterCategory = { label: string; color: string };
+
+const escAttr = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+// "Cholera, Measles +3 more" — the first few diseases in a slice.
+function diseasesText(diseases: string[]): string {
+  const shown = diseases.slice(0, 3).join(", ");
+  const more = diseases.length - 3;
+  return more > 0 ? `${shown} +${more} more` : shown || "Multiple outbreaks";
+}
+
+// Pie icon for a cluster: one wedge per disease-category (curated colors), each
+// individually hoverable (carries its category + disease list in data-* attrs
+// read by SliceHover), with the total count in a center hole. Mirrors the
+// legacy map's pie clusters but built on the curated category palette.
+function buildClusterPie(slices: PieSlice[], total: number, size: number): string {
+  const cx = size / 2;
+  const r = size / 2 - 1;
+  const pt = (a: number): [number, number] => [cx + r * Math.sin(a), cx - r * Math.cos(a)];
+  let a0 = 0;
+  const wedges = slices
+    .map((s) => {
+      const frac = total > 0 ? s.count / total : 0;
+      const a1 = a0 + frac * 2 * Math.PI;
+      const data =
+        `class="ln-pie-slice" data-cat-label="${escAttr(s.label)}" data-cat-color="${s.color}" ` +
+        `data-cat-diseases="${escAttr(diseasesText(s.diseases))}"`;
+      const title = `<title>${escAttr(s.label)} — ${escAttr(diseasesText(s.diseases))}</title>`;
+      let shape: string;
+      if (frac >= 1) {
+        shape = `<circle cx="${cx}" cy="${cx}" r="${r}" fill="${s.color}" ${data}>${title}</circle>`;
+      } else {
+        const [x1, y1] = pt(a0);
+        const [x2, y2] = pt(a1);
+        const large = a1 - a0 > Math.PI ? 1 : 0;
+        const d = `M ${cx} ${cx} L ${x1.toFixed(2)} ${y1.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${x2.toFixed(2)} ${y2.toFixed(2)} Z`;
+        shape = `<path d="${d}" fill="${s.color}" ${data}>${title}</path>`;
+      }
+      a0 = a1;
+      return shape;
+    })
+    .join("");
+  const hole = Math.round(size * 0.32);
+  const fontSize = total >= 100 ? Math.round(size * 0.26) : Math.round(size * 0.32);
+  return `
+    <div class="ln-cluster-pie" style="width:${size}px;height:${size}px">
+      <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+        ${wedges}
+        <circle cx="${cx}" cy="${cx}" r="${hole}" fill="rgba(7,10,13,0.92)" stroke="rgba(255,255,255,0.14)" stroke-width="1"/>
+        <text x="${cx}" y="${cx}" text-anchor="middle" dominant-baseline="central" fill="#ffffff" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-weight="600" font-size="${fontSize}" style="pointer-events:none">${total}</text>
+      </svg>
+    </div>`;
+}
+
 function clusterIconFactory(cluster: any) {
   const children = cluster.getAllChildMarkers();
+  const count = cluster.getChildCount();
+  // Aggregate points by disease category for the pie; track max severity for the
+  // single-color fallback when no category info is supplied.
+  const byCat = new Map<string, PieSlice>();
   let maxSev = 1;
   for (const child of children) {
-    const s = (child.options as any)?.lnSeverity ?? 1;
+    const opts = (child.options as any) || {};
+    const s = opts.lnSeverity ?? 1;
     if (s > maxSev) maxSev = s;
+    const cat = opts.lnCat as ClusterCategory | undefined;
+    if (cat) {
+      const e = byCat.get(cat.label) || { label: cat.label, color: cat.color, count: 0, diseases: [] };
+      e.count += 1;
+      const d = opts.lnDisease;
+      if (d && !e.diseases.includes(d)) e.diseases.push(d);
+      byCat.set(cat.label, e);
+    }
   }
-  const color = severityColor(maxSev);
-  const count = cluster.getChildCount();
+
+  if (byCat.size === 0) {
+    const color = severityColor(maxSev);
+    return L.divIcon({
+      html: `<div class="ln-cluster" style="--c:${color}"><span class="ln-cluster-pulse"></span><span class="ln-cluster-inner">${count}</span></div>`,
+      className: "ln-cluster-wrap",
+      iconSize: [36, 36],
+    });
+  }
+
+  const size = count > 99 ? 48 : count > 20 ? 44 : 40;
+  const slices = [...byCat.values()].sort((a, b) => b.count - a.count);
   return L.divIcon({
-    html: `<div class="ln-cluster" style="--c:${color}"><span class="ln-cluster-pulse"></span><span class="ln-cluster-inner">${count}</span></div>`,
+    html: buildClusterPie(slices, count, size),
     className: "ln-cluster-wrap",
-    iconSize: [36, 36],
+    iconSize: [size, size],
   });
 }
 
@@ -137,6 +224,43 @@ function FocusOn({ point, radiusKm }: { point: [number, number] | null; radiusKm
   return null;
 }
 
+// Hovered pie-slice tooltip data (cursor position relative to the map container).
+type SliceTip = { x: number; y: number; label: string; color: string; diseases: string };
+
+// Watches the map container for the cursor entering a cluster pie slice (which
+// carry data-cat-* attrs) and reports the slice's category + diseases so the
+// parent can show a styled tooltip — the clean equivalent of the legacy map's
+// permanent per-slice tooltip, without its global handlers/MutationObserver.
+function SliceHover({ onTip }: { onTip: (t: SliceTip | null) => void }) {
+  const map = useMap();
+  useEffect(() => {
+    const el = map.getContainer();
+    const onMove = (e: MouseEvent) => {
+      const slice = (e.target as Element | null)?.closest?.("[data-cat-label]");
+      if (slice) {
+        const rect = el.getBoundingClientRect();
+        onTip({
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top,
+          label: slice.getAttribute("data-cat-label") || "",
+          color: slice.getAttribute("data-cat-color") || "#fff",
+          diseases: slice.getAttribute("data-cat-diseases") || "",
+        });
+      } else {
+        onTip(null);
+      }
+    };
+    const onLeave = () => onTip(null);
+    el.addEventListener("mousemove", onMove);
+    el.addEventListener("mouseleave", onLeave);
+    return () => {
+      el.removeEventListener("mousemove", onMove);
+      el.removeEventListener("mouseleave", onLeave);
+    };
+  }, [map, onTip]);
+  return null;
+}
+
 export function LiveMap({
   outbreaks,
   selectedId,
@@ -149,7 +273,10 @@ export function LiveMap({
   focusOn,
   focusRadiusKm = 2000,
   onReady,
+  clusterCategoryFor,
 }: LiveMapProps) {
+  const [sliceTip, setSliceTip] = useState<SliceTip | null>(null);
+  const handleTip = useCallback((t: SliceTip | null) => setSliceTip(t), []);
   const tiles = TILE_CONFIGS[mapType];
   // Which marker's popup is open — used to fetch ministry data only for the
   // open point instead of all markers at once.
@@ -174,14 +301,25 @@ export function LiveMap({
     };
   }, [selectedId, pulse]);
 
-  const markerNodes = outbreaks.map((o) => (
+  const markerNodes = outbreaks.map((o) => {
+    const cat = clusterCategoryFor?.(o);
+    return (
     <Marker
-      key={o.id}
+      // Key includes the category so markers re-mount (and re-stash their
+      // options) once categories load asynchronously — otherwise the cluster
+      // pie would keep the stale category captured at first mount.
+      key={`${o.id}:${cat?.label || ""}`}
       position={[o.lat, o.lng]}
       icon={iconFor(o)}
-      // Stash severity onto the Leaflet marker so the cluster icon can read it.
+      // Stash severity + category + disease onto the Leaflet marker so the
+      // cluster pie can read them (severity drives the fallback, category the
+      // slices, disease the per-slice hover list).
       ref={(instance: any) => {
-        if (instance) instance.options.lnSeverity = o.severity;
+        if (instance) {
+          instance.options.lnSeverity = o.severity;
+          instance.options.lnCat = cat;
+          instance.options.lnDisease = o.disease;
+        }
       }}
       eventHandlers={{
         mouseover: () => onHover && onHover(o),
@@ -217,9 +355,11 @@ export function LiveMap({
         </Popup>
       )}
     </Marker>
-  ));
+    );
+  });
 
   return (
+    <div style={{ position: "relative", width: "100%", height: "100%" }}>
     <MapContainer
       center={[15, 5]}
       zoom={2}
@@ -249,6 +389,7 @@ export function LiveMap({
       )}
       <MapTouches onMap={handleMap} />
       <FocusOn point={focusOn ?? null} radiusKm={focusRadiusKm} />
+      <SliceHover onTip={handleTip} />
 
       {cluster ? (
         <MarkerClusterGroup
@@ -265,6 +406,15 @@ export function LiveMap({
         markerNodes
       )}
     </MapContainer>
+      {sliceTip && (
+        <div className="ln-slice-tip" style={{ left: sliceTip.x, top: sliceTip.y }}>
+          <div className="ln-slice-tip-cat" style={{ color: sliceTip.color }}>
+            {sliceTip.label}
+          </div>
+          {sliceTip.diseases && <div className="ln-slice-tip-dis">{sliceTip.diseases}</div>}
+        </div>
+      )}
+    </div>
   );
 }
 

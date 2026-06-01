@@ -203,7 +203,7 @@ export const PaymentSuccess: React.FC = () => {
         <span className="ln-eyebrow">Payment confirmed</span>
         <h1 className="ln-display" style={{ fontSize: 30, margin: '6px 0 8px', letterSpacing: '-0.02em' }}>Payment Successful!</h1>
         <p style={{ color: 'var(--ln-ink-3)', fontSize: 13.5, margin: '0 0 32px' }}>
-          Thank you for advertising with LiveHealth+. Your ad is now being activated and will start reaching people across the platform.
+          Thank you for advertising with OutbreakNow. Your ad is now being activated and will start reaching people across the platform.
         </p>
 
         {/* What's Next */}

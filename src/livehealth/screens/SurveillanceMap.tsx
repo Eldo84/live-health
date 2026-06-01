@@ -18,6 +18,7 @@ import { DiseaseRecommendationsDialog } from "../components/DiseaseRecommendatio
 import { useLiveOutbreaks, type LiveOutbreak } from "../data/useLiveOutbreaks";
 import { useLiveAlerts } from "../data/useLiveAlerts";
 import { useOutbreakCategoriesLive } from "../data/useOutbreakCategoriesLive";
+import { getCategoryColor } from "../lib/categoryColors";
 import { useDashboardStats } from "../../lib/useDashboardStats";
 import { useHealthMinistry } from "../../lib/useHealthMinistry";
 import { useUserLocation } from "../../lib/useUserLocation";
@@ -209,11 +210,23 @@ export function SurveillanceMapScreen() {
       categories.map((c) => ({
         id: c.id,
         label: c.label,
-        color: c.color,
+        color: getCategoryColor(c.label),
         count: outbreaks.filter((o) => matchesCategory(o.diseaseId, c.id)).length,
       })),
     [categories, outbreaks, matchesCategory]
   );
+
+  // diseaseId → category label (largest category wins), so map cluster donuts
+  // can color each point with the curated palette via getCategoryColor().
+  const categoryLabelByDisease = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of categories) {
+      for (const did of c.diseaseIds) {
+        if (!m.has(did)) m.set(did, c.label);
+      }
+    }
+    return m;
+  }, [categories]);
 
   const visibleOutbreaks = useMemo(() => {
     return outbreaks
@@ -737,11 +750,11 @@ export function SurveillanceMapScreen() {
                         textAlign: "left",
                         cursor: "pointer",
                         background: on ? "rgba(255,255,255,0.04)" : "transparent",
-                        border: on ? `1px solid ${c.color}55` : "1px solid transparent",
+                        border: on ? `1px solid ${getCategoryColor(c.label)}55` : "1px solid transparent",
                         color: "var(--ln-ink)",
                       }}
                     >
-                      <span style={{ width: 8, height: 8, background: c.color, borderRadius: 2 }} />
+                      <span style={{ width: 8, height: 8, background: getCategoryColor(c.label), borderRadius: 2 }} />
                       <span style={{ fontSize: 12, color: "var(--ln-ink)" }}>{c.label}</span>
                       <span className="ln-num" style={{ fontSize: 10.5, color: "var(--ln-ink-3)" }}>
                         {count}
@@ -943,7 +956,9 @@ export function SurveillanceMapScreen() {
               gap: isMobile ? 6 : 10,
               zIndex: 500,
               pointerEvents: "none",
-              flexWrap: "wrap",
+              // Stay on one line on desktop/tablet — wrapping let the right-hand
+              // AI-signal bar spill onto the map and collide with the legend.
+              flexWrap: isMobile ? "wrap" : "nowrap",
             }}
           >
             <KPI
@@ -983,7 +998,12 @@ export function SurveillanceMapScreen() {
                 display: isMobile ? "none" : "flex",
                 alignItems: "center",
                 gap: 10,
-                maxWidth: isTabletDown ? 320 : undefined,
+                maxWidth: isTabletDown ? 320 : 420,
+                // Let this shrink/clip instead of wrapping onto the map when the
+                // KPI row runs out of room.
+                flexShrink: 1,
+                minWidth: 0,
+                overflow: "hidden",
               }}
             >
               <Icon.Sparkles style={{ color: ACCENT }} />
@@ -1049,7 +1069,8 @@ export function SurveillanceMapScreen() {
                   left: 8,
                   fontFamily: "var(--ln-font-mono)",
                   fontSize: 10,
-                  color: "var(--ln-ink-4)",
+                  color: "rgba(233,238,242,0.9)",
+                  textShadow: "0 1px 3px rgba(0,0,0,0.85), 0 0 2px rgba(0,0,0,0.6)",
                   letterSpacing: "0.1em",
                   zIndex: 500,
                   pointerEvents: "none",
@@ -1064,12 +1085,20 @@ export function SurveillanceMapScreen() {
                   right: 8,
                   fontFamily: "var(--ln-font-mono)",
                   fontSize: 10,
-                  color: "var(--ln-ink-4)",
+                  color: "rgba(233,238,242,0.9)",
+                  textShadow: "0 1px 3px rgba(0,0,0,0.85), 0 0 2px rgba(0,0,0,0.6)",
                   zIndex: 500,
                   pointerEvents: "none",
                 }}
               >
-                {visibleOutbreaks.length} POINTS · {loading ? "LOADING" : "LIVE"}
+                {visibleOutbreaks.length} POINTS ·{" "}
+                {loading ? (
+                  "LOADING"
+                ) : (
+                  <span style={{ color: "var(--ln-crit)" }}>
+                    <span className="ln-blink">●</span> LIVE
+                  </span>
+                )}
               </span>
 
               <LiveMap
@@ -1089,6 +1118,10 @@ export function SurveillanceMapScreen() {
                 onReady={(m) => {
                   mapInstance.current = m;
                   setMapReady(true);
+                }}
+                clusterCategoryFor={(o) => {
+                  const label = (o.diseaseId ? categoryLabelByDisease.get(o.diseaseId) : null) || "Other";
+                  return { label, color: getCategoryColor(label) };
                 }}
               />
 
@@ -1264,7 +1297,7 @@ export function SurveillanceMapScreen() {
                   style={{
                     position: "absolute",
                     left: 8,
-                    top: 30,
+                    top: 48,
                     zIndex: 500,
                     width: 192,
                     background: "var(--ln-overlay-bg)",
