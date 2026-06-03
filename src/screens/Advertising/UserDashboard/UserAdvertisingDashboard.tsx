@@ -14,6 +14,8 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications, Notification } from '@/lib/useNotifications';
+import { T } from "../../../livehealth/components/T";
+import { useT } from "../../../livehealth/lib/useT";
 
 interface Submission {
   id: string;
@@ -76,6 +78,26 @@ export const UserAdvertisingDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { notifications, unreadCount, markAsRead, markAllAsRead, handleNotificationClick } = useNotifications();
+
+  // Translated strings for toasts and attributes (rules-of-hooks: top level only)
+  const tError = useT("Error");
+  const tFailedLoad = useT("Failed to load dashboard data");
+  const tInvalidFileType = useT("Invalid file type");
+  const tInvalidFileMsg = useT("Please select an image (JPG, PNG, WebP), GIF, or short video (MP4, WebM, MOV).");
+  const tFileTooLarge = useT("File too large");
+  const tFileSmallerThan = useT("Please select a file smaller than");
+  const tCannotEdit = useT("Cannot Edit");
+  const tCannotEditMsg = useT("You can only edit submissions that are pending review, have changes requested, or are cancelled/rejected.");
+  const tUploadFailed = useT("Upload Failed");
+  const tUploadFailedMsg = useT("Media upload failed. Your other changes will still be saved.");
+  const tSuccess = useT("Success");
+  const tSubmissionUpdated = useT("Submission updated successfully");
+  const tFailedUpdate = useT("Failed to update submission");
+  const tSubmissionDeleted = useT("Submission deleted successfully");
+  const tFailedDelete = useT("Failed to delete submission. You may only delete submissions that are pending, cancelled, or rejected.");
+  const tAdImageAlt = useT("Ad image");
+  const tCurrentAdMediaAlt = useT("Current ad media");
+  const tPreviewAlt = useT("Preview");
 
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [activeAds, setActiveAds] = useState<SponsoredContent[]>([]);
@@ -217,8 +239,8 @@ export const UserAdvertisingDashboard: React.FC = () => {
     } catch (error: any) {
       console.error('Error fetching data:', error);
       toast({
-        title: "Error",
-        description: "Failed to load dashboard data",
+        title: tError,
+        description: tFailedLoad,
         variant: "destructive",
       });
     } finally {
@@ -252,8 +274,8 @@ export const UserAdvertisingDashboard: React.FC = () => {
     const detectedType = getMediaType(file);
     if (!detectedType) {
       toast({
-        title: "Invalid file type",
-        description: "Please select an image (JPG, PNG, WebP), GIF, or short video (MP4, WebM, MOV).",
+        title: tInvalidFileType,
+        description: tInvalidFileMsg,
         variant: "destructive"
       });
       return;
@@ -264,8 +286,8 @@ export const UserAdvertisingDashboard: React.FC = () => {
 
     if (file.size > maxSize) {
       toast({
-        title: "File too large",
-        description: `Please select a file smaller than ${maxSizeMB}MB.`,
+        title: tFileTooLarge,
+        description: `${tFileSmallerThan} ${maxSizeMB}MB.`,
         variant: "destructive"
       });
       return;
@@ -334,8 +356,8 @@ export const UserAdvertisingDashboard: React.FC = () => {
       if (uploadError) {
         console.error('Media upload error:', uploadError);
         toast({
-          title: "Upload Failed",
-          description: "Media upload failed. Your other changes will still be saved.",
+          title: tUploadFailed,
+          description: tUploadFailedMsg,
           variant: "destructive"
         });
         return null;
@@ -358,8 +380,8 @@ export const UserAdvertisingDashboard: React.FC = () => {
   const handleEdit = (submission: Submission) => {
     if (!canEditOrDelete(submission)) {
       toast({
-        title: "Cannot Edit",
-        description: "You can only edit submissions that are pending review, have changes requested, or are cancelled/rejected.",
+        title: tCannotEdit,
+        description: tCannotEditMsg,
         variant: "destructive",
       });
       return;
@@ -424,8 +446,8 @@ export const UserAdvertisingDashboard: React.FC = () => {
       if (error) throw error;
 
       toast({
-        title: "Success",
-        description: "Submission updated successfully",
+        title: tSuccess,
+        description: tSubmissionUpdated,
       });
 
       fetchData();
@@ -437,8 +459,8 @@ export const UserAdvertisingDashboard: React.FC = () => {
     } catch (error: any) {
       console.error('Error updating submission:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to update submission",
+        title: tError,
+        description: error.message || tFailedUpdate,
         variant: "destructive",
       });
     } finally {
@@ -460,8 +482,8 @@ export const UserAdvertisingDashboard: React.FC = () => {
       if (error) throw error;
 
       toast({
-        title: "Success",
-        description: "Submission deleted successfully",
+        title: tSuccess,
+        description: tSubmissionDeleted,
       });
 
       fetchData();
@@ -469,8 +491,8 @@ export const UserAdvertisingDashboard: React.FC = () => {
     } catch (error: any) {
       console.error('Error deleting submission:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to delete submission. You may only delete submissions that are pending, cancelled, or rejected.",
+        title: tError,
+        description: error.message || tFailedDelete,
         variant: "destructive",
       });
     } finally {
@@ -551,21 +573,21 @@ export const UserAdvertisingDashboard: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <Link to="/map" className="ln-btn">
             <ArrowLeft className="w-4 h-4" />
-            Back to Map
+            <T>Back to Map</T>
           </Link>
           <div>
-            <span className="ln-eyebrow">Advertiser console</span>
+            <span className="ln-eyebrow"><T>Advertiser console</T></span>
             <h1 className="ln-display" style={{ fontSize: 26, margin: '4px 0 0', letterSpacing: '-0.02em' }}>
-              My ads
+              <T>My ads</T>
             </h1>
             <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '4px 0 0' }}>
-              Manage your ads and view analytics
+              <T>Manage your ads and view analytics</T>
             </p>
           </div>
         </div>
         <Link to="/advertise" className="ln-btn is-primary">
           <Plus className="w-4 h-4" />
-          New Ad
+          <T>New Ad</T>
         </Link>
       </div>
 
@@ -599,7 +621,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
                   gap: 6,
                 }}
               >
-                {t.label}
+                <T>{t.label}</T>
                 {typeof t.count === 'number' && (
                   <span className="ln-num" style={{ color: 'var(--ln-ink-4)' }}>({t.count})</span>
                 )}
@@ -635,11 +657,11 @@ export const UserAdvertisingDashboard: React.FC = () => {
                   }}
                 >
                   <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 2, background: s.color }} />
-                  <div className="ln-eyebrow">{s.label}</div>
+                  <div className="ln-eyebrow"><T>{s.label}</T></div>
                   <div className="ln-num" style={{ fontSize: 32, color: s.color, margin: '8px 0 4px', fontWeight: 500 }}>
                     {s.value}
                   </div>
-                  <p style={{ fontSize: 12, color: 'var(--ln-ink-3)', margin: 0 }}>{s.sub}</p>
+                  <p style={{ fontSize: 12, color: 'var(--ln-ink-3)', margin: 0 }}><T>{s.sub}</T></p>
                 </div>
               ))}
             </div>
@@ -662,9 +684,9 @@ export const UserAdvertisingDashboard: React.FC = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                   <CreditCard className="w-7 h-7" style={{ color: 'var(--ln-warn)' }} />
                   <div>
-                    <p style={{ fontSize: 14, fontWeight: 600, margin: 0, color: 'var(--ln-ink)' }}>Payment Required</p>
+                    <p style={{ fontSize: 14, fontWeight: 600, margin: 0, color: 'var(--ln-ink)' }}><T>Payment Required</T></p>
                     <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '4px 0 0' }}>
-                      You have approved submissions waiting for payment
+                      <T>You have approved submissions waiting for payment</T>
                     </p>
                   </div>
                 </div>
@@ -672,7 +694,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
                   to={`/advertising/payment/${submissions.find(s => s.status === 'approved_pending_payment' && s.user_id === user.id)?.id}`}
                   className="ln-btn is-primary"
                 >
-                  Complete Payment
+                  <T>Complete Payment</T>
                 </Link>
               </div>
             )}
@@ -680,15 +702,15 @@ export const UserAdvertisingDashboard: React.FC = () => {
             {/* Recent Activity */}
             <div style={{ border: '1px solid var(--ln-line)', background: 'var(--ln-surface)' }}>
               <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--ln-line)' }}>
-                <span className="ln-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}>Recent submissions</span>
+                <span className="ln-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}><T>Recent submissions</T></span>
               </div>
               <div style={{ padding: 18 }}>
                 {submissions.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '32px 0' }}>
                     <FileText className="w-12 h-12" style={{ color: 'var(--ln-ink-4)', margin: '0 auto 16px' }} />
-                    <p style={{ color: 'var(--ln-ink-3)', fontSize: 13, marginBottom: 16 }}>No submissions yet</p>
+                    <p style={{ color: 'var(--ln-ink-3)', fontSize: 13, marginBottom: 16 }}><T>No submissions yet</T></p>
                     <Link to="/advertise" className="ln-btn is-primary" style={{ display: 'inline-flex' }}>
-                      Create Your First Ad
+                      <T>Create Your First Ad</T>
                     </Link>
                   </div>
                 ) : (
@@ -712,19 +734,19 @@ export const UserAdvertisingDashboard: React.FC = () => {
                           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                             <span className={status.chip}>
                               {status.icon}
-                              <span style={{ marginLeft: 4 }}>{status.label}</span>
+                              <span style={{ marginLeft: 4 }}><T>{status.label}</T></span>
                             </span>
                             <div>
                               <p style={{ fontSize: 14, fontWeight: 500, margin: 0, color: 'var(--ln-ink)' }}>{submission.company_name}</p>
                               <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '2px 0 0', textTransform: 'capitalize' }}>
-                                {submission.selected_plan} Plan
+                                {submission.selected_plan} <T>Plan</T>
                               </p>
                             </div>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                             {submission.status === 'approved_pending_payment' && user && submission.user_id === user.id && (
                               <Link to={`/advertising/payment/${submission.id}`} className="ln-btn is-primary">
-                                Pay Now
+                                <T>Pay Now</T>
                               </Link>
                             )}
                             <span className="ln-num" style={{ fontSize: 12, color: 'var(--ln-ink-4)' }}>
@@ -756,14 +778,14 @@ export const UserAdvertisingDashboard: React.FC = () => {
               }}
             >
               <div>
-                <span className="ln-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}>Notifications</span>
+                <span className="ln-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}><T>Notifications</T></span>
                 <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '4px 0 0' }}>
-                  Real-time updates about your advertising applications
+                  <T>Real-time updates about your advertising applications</T>
                 </p>
               </div>
               {unreadCount > 0 && (
                 <button className="ln-btn" onClick={markAllAsRead}>
-                  Mark all as read
+                  <T>Mark all as read</T>
                 </button>
               )}
             </div>
@@ -771,7 +793,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
               {notifications.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '32px 0' }}>
                   <Bell className="w-12 h-12" style={{ color: 'var(--ln-ink-4)', margin: '0 auto 16px' }} />
-                  <p style={{ color: 'var(--ln-ink-3)', fontSize: 13 }}>No notifications yet</p>
+                  <p style={{ color: 'var(--ln-ink-3)', fontSize: 13 }}><T>No notifications yet</T></p>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -849,15 +871,15 @@ export const UserAdvertisingDashboard: React.FC = () => {
         {activeTab === 'submissions' && (
           <div style={{ border: '1px solid var(--ln-line)', background: 'var(--ln-surface)' }}>
             <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--ln-line)' }}>
-              <span className="ln-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}>All submissions</span>
+              <span className="ln-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}><T>All submissions</T></span>
               <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '4px 0 0' }}>
-                Track the status of your advertising applications
+                <T>Track the status of your advertising applications</T>
               </p>
             </div>
             <div style={{ padding: 18 }}>
               {submissions.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--ln-ink-3)', fontSize: 13 }}>
-                  No submissions found
+                  <T>No submissions found</T>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -881,26 +903,26 @@ export const UserAdvertisingDashboard: React.FC = () => {
                           </span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5, color: 'var(--ln-ink-3)' }}>
-                          <span style={{ textTransform: 'capitalize' }}>{submission.selected_plan} Plan</span>
+                          <span style={{ textTransform: 'capitalize' }}>{submission.selected_plan} <T>Plan</T></span>
                           <span>•</span>
                           <span className="ln-num">{new Date(submission.created_at).toLocaleDateString()}</span>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, flexWrap: 'wrap' }}>
                           <button className="ln-btn" onClick={() => setViewingSubmission(submission)}>
                             <Eye className="w-4 h-4" />
-                            View
+                            <T>View</T>
                           </button>
                           {submission.status === 'approved_pending_payment' && user && submission.user_id === user.id && (
                             <Link to={`/advertising/payment/${submission.id}`} className="ln-btn is-primary">
                               <CreditCard className="w-4 h-4" />
-                              Complete Payment
+                              <T>Complete Payment</T>
                             </Link>
                           )}
                           {canEditOrDelete(submission) && (
                             <>
                               <button className="ln-btn" onClick={() => handleEdit(submission)}>
                                 <Edit className="w-4 h-4" />
-                                Edit
+                                <T>Edit</T>
                               </button>
                               <button
                                 className="ln-btn"
@@ -908,7 +930,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
                                 onClick={() => setDeletingSubmission(submission)}
                               >
                                 <Trash2 className="w-4 h-4" />
-                                Delete
+                                <T>Delete</T>
                               </button>
                             </>
                           )}
@@ -926,15 +948,15 @@ export const UserAdvertisingDashboard: React.FC = () => {
         {activeTab === 'active-ads' && (
           <div style={{ border: '1px solid var(--ln-line)', background: 'var(--ln-surface)' }}>
             <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--ln-line)' }}>
-              <span className="ln-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}>Active advertisements</span>
+              <span className="ln-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}><T>Active advertisements</T></span>
               <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '4px 0 0' }}>
-                Your currently running ads and their performance
+                <T>Your currently running ads and their performance</T>
               </p>
             </div>
             <div style={{ padding: 18 }}>
               {activeAds.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--ln-ink-3)', fontSize: 13 }}>
-                  No active ads
+                  <T>No active ads</T>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -953,30 +975,30 @@ export const UserAdvertisingDashboard: React.FC = () => {
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 8, flexWrap: 'wrap' }}>
                             <h3 style={{ fontSize: 15, fontWeight: 600, margin: 0, color: 'var(--ln-ink)' }}>{ad.title}</h3>
                             <span className={ad.is_active ? 'ln-chip is-ok' : 'ln-chip'}>
-                              {ad.is_active ? 'Active' : 'Inactive'}
+                              {ad.is_active ? <T>Active</T> : <T>Inactive</T>}
                             </span>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12.5, color: 'var(--ln-ink-3)', marginBottom: 10, flexWrap: 'wrap' }}>
-                            <span style={{ textTransform: 'capitalize' }}>{ad.plan_type} Plan</span>
+                            <span style={{ textTransform: 'capitalize' }}>{ad.plan_type} <T>Plan</T></span>
                             <span>•</span>
-                            <span>Ends: <span className="ln-num">{new Date(ad.end_date).toLocaleDateString()}</span></span>
+                            <span><T>Ends:</T> <span className="ln-num">{new Date(ad.end_date).toLocaleDateString()}</span></span>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                               <Eye className="w-4 h-4" style={{ color: 'var(--ln-ink-4)' }} />
                               <span style={{ fontSize: 12.5, color: 'var(--ln-ink-2)' }}>
-                                <span className="ln-num">{adAnalytics[ad.id]?.views ?? ad.view_count}</span> views
+                                <span className="ln-num">{adAnalytics[ad.id]?.views ?? ad.view_count}</span> <T>views</T>
                               </span>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                               <MousePointerClick className="w-4 h-4" style={{ color: 'var(--ln-ink-4)' }} />
                               <span style={{ fontSize: 12.5, color: 'var(--ln-ink-2)' }}>
-                                <span className="ln-num">{adAnalytics[ad.id]?.clicks ?? ad.click_count}</span> clicks
+                                <span className="ln-num">{adAnalytics[ad.id]?.clicks ?? ad.click_count}</span> <T>clicks</T>
                               </span>
                             </div>
                             {((adAnalytics[ad.id]?.views ?? ad.view_count) > 0) && (
                               <span style={{ fontSize: 12.5, color: 'var(--ln-ink-3)' }}>
-                                CTR: <span className="ln-num">{(((adAnalytics[ad.id]?.clicks ?? ad.click_count) / (adAnalytics[ad.id]?.views ?? ad.view_count)) * 100).toFixed(2)}%</span>
+                                <T>CTR:</T> <span className="ln-num">{(((adAnalytics[ad.id]?.clicks ?? ad.click_count) / (adAnalytics[ad.id]?.views ?? ad.view_count)) * 100).toFixed(2)}%</span>
                               </span>
                             )}
                           </div>
@@ -994,15 +1016,15 @@ export const UserAdvertisingDashboard: React.FC = () => {
         {activeTab === 'payments' && (
           <div style={{ border: '1px solid var(--ln-line)', background: 'var(--ln-surface)' }}>
             <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--ln-line)' }}>
-              <span className="ln-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}>Payment history</span>
+              <span className="ln-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}><T>Payment history</T></span>
               <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '4px 0 0' }}>
-                Your payment transactions
+                <T>Your payment transactions</T>
               </p>
             </div>
             <div style={{ padding: 18 }}>
               {payments.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--ln-ink-3)', fontSize: 13 }}>
-                  No payments yet
+                  <T>No payments yet</T>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
@@ -1020,7 +1042,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
                       }}
                     >
                       <div>
-                        <p style={{ fontSize: 14, fontWeight: 500, margin: 0, color: 'var(--ln-ink)', textTransform: 'capitalize' }}>{payment.plan_type} Plan</p>
+                        <p style={{ fontSize: 14, fontWeight: 500, margin: 0, color: 'var(--ln-ink)', textTransform: 'capitalize' }}>{payment.plan_type} <T>Plan</T></p>
                         <p className="ln-num" style={{ fontSize: 12, color: 'var(--ln-ink-4)', margin: '4px 0 0' }}>
                           {payment.paid_at
                             ? new Date(payment.paid_at).toLocaleDateString()
@@ -1046,8 +1068,8 @@ export const UserAdvertisingDashboard: React.FC = () => {
       <Dialog open={!!viewingSubmission} onOpenChange={() => setViewingSubmission(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto px-6">
           <DialogHeader>
-            <DialogTitle>Submission Details</DialogTitle>
-            <DialogDescription>Full information for your ad submission</DialogDescription>
+            <DialogTitle><T>Submission Details</T></DialogTitle>
+            <DialogDescription><T>Full information for your ad submission</T></DialogDescription>
           </DialogHeader>
           {viewingSubmission && (
             <div className="space-y-4">
@@ -1055,7 +1077,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
                 <div style={{ borderRadius: 8, overflow: 'hidden', border: '1px solid var(--ln-line)', background: 'var(--ln-surface-2)' }}>
                   <img
                     src={viewingSubmission.ad_image_url}
-                    alt={viewingSubmission.ad_title || 'Ad image'}
+                    alt={viewingSubmission.ad_title || tAdImageAlt}
                     className="w-full h-52 object-cover"
                     loading="lazy"
                   />
@@ -1064,32 +1086,32 @@ export const UserAdvertisingDashboard: React.FC = () => {
 
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Company</p>
+                  <p className="text-sm text-muted-foreground"><T>Company</T></p>
                   <p className="text-lg font-semibold">{viewingSubmission.company_name}</p>
                 </div>
                 <span className={(statusConfig[viewingSubmission.status] || statusConfig.pending_review).chip}>
-                  {(statusConfig[viewingSubmission.status] || statusConfig.pending_review).label}
+                  <T>{(statusConfig[viewingSubmission.status] || statusConfig.pending_review).label}</T>
                 </span>
               </div>
 
               <div className="grid sm:grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-muted-foreground">Contact Name</p>
+                  <p className="text-muted-foreground"><T>Contact Name</T></p>
                   <p className="font-medium">{viewingSubmission.contact_name}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Email</p>
+                  <p className="text-muted-foreground"><T>Email</T></p>
                   <p className="font-medium">{viewingSubmission.email}</p>
                 </div>
                 {viewingSubmission.phone && (
                   <div>
-                    <p className="text-muted-foreground">Phone</p>
+                    <p className="text-muted-foreground"><T>Phone</T></p>
                     <p className="font-medium">{viewingSubmission.phone}</p>
                   </div>
                 )}
                 {viewingSubmission.website && (
                   <div>
-                    <p className="text-muted-foreground">Website</p>
+                    <p className="text-muted-foreground"><T>Website</T></p>
                     <a
                       href={viewingSubmission.website}
                       target="_blank"
@@ -1104,27 +1126,27 @@ export const UserAdvertisingDashboard: React.FC = () => {
 
               <div className="grid sm:grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-muted-foreground">Plan</p>
+                  <p className="text-muted-foreground"><T>Plan</T></p>
                   <p className="font-medium capitalize">{viewingSubmission.selected_plan}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Payment Status</p>
+                  <p className="text-muted-foreground"><T>Payment Status</T></p>
                   <p className="font-medium capitalize">{viewingSubmission.payment_status.replace('_', ' ')}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Submitted</p>
+                  <p className="text-muted-foreground"><T>Submitted</T></p>
                   <p className="font-medium">{new Date(viewingSubmission.created_at).toLocaleString()}</p>
                 </div>
               </div>
 
               {(viewingSubmission.ad_title || viewingSubmission.ad_click_url || viewingSubmission.ad_location) && (
                 <div className="space-y-2 text-sm">
-                  <p className="text-muted-foreground">Ad Details</p>
-                  {viewingSubmission.ad_title && <p className="font-medium">Title: {viewingSubmission.ad_title}</p>}
-                  {viewingSubmission.ad_location && <p className="font-medium">Location: {viewingSubmission.ad_location}</p>}
+                  <p className="text-muted-foreground"><T>Ad Details</T></p>
+                  {viewingSubmission.ad_title && <p className="font-medium"><T>Title:</T> {viewingSubmission.ad_title}</p>}
+                  {viewingSubmission.ad_location && <p className="font-medium"><T>Location:</T> {viewingSubmission.ad_location}</p>}
                   {viewingSubmission.ad_click_url && (
                     <p className="font-medium">
-                      Click URL:{' '}
+                      <T>Click URL:</T>{' '}
                       <a
                         href={viewingSubmission.ad_click_url}
                         target="_blank"
@@ -1140,7 +1162,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
 
               {viewingSubmission.description && (
                 <div className="text-sm space-y-1">
-                  <p className="text-muted-foreground">Description</p>
+                  <p className="text-muted-foreground"><T>Description</T></p>
                   <p>{viewingSubmission.description}</p>
                 </div>
               )}
@@ -1148,7 +1170,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
           )}
           <DialogFooter>
             <button className="ln-btn" onClick={() => setViewingSubmission(null)}>
-              Close
+              <T>Close</T>
             </button>
           </DialogFooter>
         </DialogContent>
@@ -1169,15 +1191,15 @@ export const UserAdvertisingDashboard: React.FC = () => {
       }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto px-6">
           <DialogHeader>
-            <DialogTitle>Edit Submission</DialogTitle>
+            <DialogTitle><T>Edit Submission</T></DialogTitle>
             <DialogDescription>
-              Update your advertising submission details
+              <T>Update your advertising submission details</T>
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="company_name">Company Name *</Label>
+                <Label htmlFor="company_name"><T>Company Name *</T></Label>
                 <Input
                   id="company_name"
                   value={editFormData.company_name}
@@ -1186,7 +1208,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="contact_name">Contact Name *</Label>
+                <Label htmlFor="contact_name"><T>Contact Name *</T></Label>
                 <Input
                   id="contact_name"
                   value={editFormData.contact_name}
@@ -1197,7 +1219,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="email">Email *</Label>
+                <Label htmlFor="email"><T>Email *</T></Label>
                 <Input
                   id="email"
                   type="email"
@@ -1207,7 +1229,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phone">Phone</Label>
+                <Label htmlFor="phone"><T>Phone</T></Label>
                 <Input
                   id="phone"
                   value={editFormData.phone}
@@ -1216,7 +1238,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="website">Website</Label>
+              <Label htmlFor="website"><T>Website</T></Label>
               <Input
                 id="website"
                 value={editFormData.website}
@@ -1224,7 +1246,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
+              <Label htmlFor="description"><T>Description</T></Label>
               <Textarea
                 id="description"
                 value={editFormData.description}
@@ -1233,7 +1255,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="ad_title">Ad Title</Label>
+              <Label htmlFor="ad_title"><T>Ad Title</T></Label>
               <Input
                 id="ad_title"
                 value={editFormData.ad_title}
@@ -1241,7 +1263,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="ad_click_url">Ad Click URL</Label>
+              <Label htmlFor="ad_click_url"><T>Ad Click URL</T></Label>
               <Input
                 id="ad_click_url"
                 value={editFormData.ad_click_url}
@@ -1252,7 +1274,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
             <div className="space-y-2">
               <Label htmlFor="ad_location" className="flex items-center gap-2">
                 <MapPin className="w-4 h-4" />
-                Ad Location
+                <T>Ad Location</T>
               </Label>
               <Input
                 id="ad_location"
@@ -1266,16 +1288,16 @@ export const UserAdvertisingDashboard: React.FC = () => {
             <div className="space-y-2 border-t pt-4">
               <Label htmlFor="edit_media" className="flex items-center gap-2">
                 <Eye className="w-4 h-4" />
-                Ad Media (Optional)
+                <T>Ad Media (Optional)</T>
               </Label>
               <p className="text-xs text-muted-foreground">
-                Upload a new image, GIF, or video to replace the current media. Leave empty to keep existing media.
+                <T>Upload a new image, GIF, or video to replace the current media. Leave empty to keep existing media.</T>
               </p>
 
               {/* Current Media Preview */}
               {editFormData.ad_image_url && !editPreviewUrl && (
                 <div className="mt-2">
-                  <p className="text-xs text-muted-foreground mb-2">Current Media:</p>
+                  <p className="text-xs text-muted-foreground mb-2"><T>Current Media:</T></p>
                   <div className="relative w-full border rounded-lg overflow-hidden bg-muted" style={{ maxHeight: '200px' }}>
                     {editFormData.ad_image_url.toLowerCase().includes('.mp4') ||
                      editFormData.ad_image_url.toLowerCase().includes('.webm') ||
@@ -1289,7 +1311,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
                     ) : (
                       <img
                         src={editFormData.ad_image_url}
-                        alt="Current ad media"
+                        alt={tCurrentAdMediaAlt}
                         className="w-full h-full object-contain"
                         style={{ maxHeight: '200px' }}
                       />
@@ -1320,10 +1342,10 @@ export const UserAdvertisingDashboard: React.FC = () => {
                 <div className="mt-2">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm" style={{ color: 'var(--ln-brand)' }}>
-                      New Media: {editMediaFile.name}
+                      <T>New Media:</T> {editMediaFile.name}
                       {editMediaType && (
                         <span className="ml-2 text-xs text-muted-foreground">
-                          ({(editMediaType === 'video' ? 'Video' : editMediaType === 'gif' ? 'GIF' : editMediaType === 'animation' ? 'Animation' : 'Image')})
+                          ({editMediaType === 'video' ? <T>Video</T> : editMediaType === 'gif' ? 'GIF' : editMediaType === 'animation' ? <T>Animation</T> : <T>Image</T>})
                         </span>
                       )}
                     </p>
@@ -1354,7 +1376,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
                     ) : (
                       <img
                         src={editPreviewUrl}
-                        alt="Preview"
+                        alt={tPreviewAlt}
                         className="w-full h-full object-contain"
                         style={{ maxHeight: '200px' }}
                       />
@@ -1365,7 +1387,7 @@ export const UserAdvertisingDashboard: React.FC = () => {
 
               {/* Media URL Input (Alternative) */}
               <div className="mt-2">
-                <p className="text-xs text-muted-foreground mb-2">Or enter media URL:</p>
+                <p className="text-xs text-muted-foreground mb-2"><T>Or enter media URL:</T></p>
                 <Input
                   placeholder="https://example.com/media.jpg or .mp4"
                   value={editFormData.ad_image_url}
@@ -1377,16 +1399,16 @@ export const UserAdvertisingDashboard: React.FC = () => {
           </div>
           <DialogFooter>
             <button className="ln-btn" onClick={() => setEditingSubmission(null)}>
-              Cancel
+              <T>Cancel</T>
             </button>
             <button className="ln-btn is-primary" onClick={handleSaveEdit} disabled={isSaving || isUploading}>
               {isSaving || isUploading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  {isUploading ? 'Uploading...' : 'Saving...'}
+                  {isUploading ? <T>Uploading...</T> : <T>Saving...</T>}
                 </>
               ) : (
-                'Save Changes'
+                <T>Save Changes</T>
               )}
             </button>
           </DialogFooter>
@@ -1397,24 +1419,24 @@ export const UserAdvertisingDashboard: React.FC = () => {
       <Dialog open={!!deletingSubmission} onOpenChange={() => setDeletingSubmission(null)}>
         <DialogContent className="px-6">
           <DialogHeader>
-            <DialogTitle>Delete Submission</DialogTitle>
+            <DialogTitle><T>Delete Submission</T></DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this submission? This action cannot be undone.
+              <T>Are you sure you want to delete this submission? This action cannot be undone.</T>
             </DialogDescription>
           </DialogHeader>
           {deletingSubmission && (
             <div className="py-4">
               <p className="text-sm text-muted-foreground">
-                <strong>Company:</strong> {deletingSubmission.company_name}
+                <strong><T>Company:</T></strong> {deletingSubmission.company_name}
               </p>
               <p className="text-sm text-muted-foreground mt-2">
-                <strong>Plan:</strong> {deletingSubmission.selected_plan}
+                <strong><T>Plan:</T></strong> {deletingSubmission.selected_plan}
               </p>
             </div>
           )}
           <DialogFooter>
             <button className="ln-btn" onClick={() => setDeletingSubmission(null)}>
-              Cancel
+              <T>Cancel</T>
             </button>
             <button
               className="ln-btn"
@@ -1425,12 +1447,12 @@ export const UserAdvertisingDashboard: React.FC = () => {
               {isDeleting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Deleting...
+                  <T>Deleting...</T>
                 </>
               ) : (
                 <>
                   <Trash2 className="w-4 h-4" />
-                  Delete
+                  <T>Delete</T>
                 </>
               )}
             </button>

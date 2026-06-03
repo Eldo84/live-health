@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Icon } from "./Icon";
+import { T } from "./T";
+import { useT } from "../lib/useT";
 
 interface ExtractedSignal {
   signal_id: string;
@@ -29,6 +31,11 @@ interface Props {
 // articles. Lighter port of the old CityExtractionStatus — keeps stats + recent
 // signal table, drops the disease-summary dialog (that's a separate flow now).
 export function CityExtractionPanel({ isMobile }: Props) {
+  const tTotalSignals = useT("Total signals");
+  const tWithCity = useT("With city");
+  const tMissingCity = useT("Missing city");
+  const tUniqueCities = useT("Unique cities (recent)");
+  const tOfTotal = useT("of total");
   const [signals, setSignals] = useState<ExtractedSignal[]>([]);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -151,17 +158,17 @@ export function CityExtractionPanel({ isMobile }: Props) {
           borderBottom: "1px solid var(--ln-line)",
         }}
       >
-        <span className="ln-eyebrow">Pipeline · location extraction</span>
+        <span className="ln-eyebrow"><T>Pipeline · location extraction</T></span>
         <h2
           className="ln-display"
           style={{ fontSize: isMobile ? 20 : 24, margin: "6px 0 4px", letterSpacing: "-0.02em" }}
         >
-          City resolution{" "}
-          <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}>quality.</span>
+          <T>City resolution</T>{" "}
+          <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}><T>quality.</T></span>
         </h2>
         <p style={{ fontSize: 12.5, color: "var(--ln-ink-3)", margin: 0, lineHeight: 1.5 }}>
-          How well downstream signals carry a city-level location. Improves map precision and
-          country dossiers.
+          <T>How well downstream signals carry a city-level location. Improves map precision and
+          country dossiers.</T>
         </p>
       </div>
 
@@ -172,22 +179,22 @@ export function CityExtractionPanel({ isMobile }: Props) {
           borderBottom: "1px solid var(--ln-line)",
         }}
       >
-        <KPI label="Total signals" value={stats ? stats.total.toLocaleString() : "—"} mono />
+        <KPI label={tTotalSignals} value={stats ? stats.total.toLocaleString() : "—"} mono />
         <KPI
-          label="With city"
+          label={tWithCity}
           value={stats ? stats.withCity.toLocaleString() : "—"}
-          sub={stats ? `${pct}% of total` : undefined}
+          sub={stats ? `${pct}% ${tOfTotal}` : undefined}
           accent="var(--ln-brand)"
           mono
         />
         <KPI
-          label="Missing city"
+          label={tMissingCity}
           value={stats ? (stats.total - stats.withCity).toLocaleString() : "—"}
           accent="var(--ln-warn)"
           mono
         />
         <KPI
-          label="Unique cities (recent)"
+          label={tUniqueCities}
           value={stats ? stats.uniqueCities.toLocaleString() : "—"}
           accent="var(--ln-info)"
           mono
@@ -206,7 +213,7 @@ export function CityExtractionPanel({ isMobile }: Props) {
           }}
         >
           <span className="ln-eyebrow" style={{ marginRight: 6 }}>
-            Top cities (recent)
+            <T>Top cities (recent)</T>
           </span>
           {stats.topCities.map((c) => (
             <span
@@ -257,19 +264,19 @@ export function CityExtractionPanel({ isMobile }: Props) {
               background: "var(--ln-surface)",
             }}
           >
-            <span>LOCATION</span>
-            <span>DISEASE / HEADLINE</span>
-            <span>SOURCE</span>
-            <span style={{ textAlign: "right" }}>CASES</span>
-            <span style={{ textAlign: "right" }}>DEATHS</span>
-            <span>DETECTED</span>
+            <span><T>LOCATION</T></span>
+            <span><T>DISEASE / HEADLINE</T></span>
+            <span><T>SOURCE</T></span>
+            <span style={{ textAlign: "right" }}><T>CASES</T></span>
+            <span style={{ textAlign: "right" }}><T>DEATHS</T></span>
+            <span><T>DETECTED</T></span>
           </div>
           {loading && (
-            <div style={{ padding: "16px 22px", fontSize: 12, color: "var(--ln-ink-3)" }}>Loading…</div>
+            <div style={{ padding: "16px 22px", fontSize: 12, color: "var(--ln-ink-3)" }}><T>Loading…</T></div>
           )}
           {!loading && signals.length === 0 && !error && (
             <div style={{ padding: "16px 22px", fontSize: 12, color: "var(--ln-ink-3)" }}>
-              No city-resolved signals yet.
+              <T>No city-resolved signals yet.</T>
             </div>
           )}
           {signals.map((s) => (
@@ -345,7 +352,7 @@ export function CityExtractionPanel({ isMobile }: Props) {
                         maxWidth: 220,
                       }}
                     >
-                      {s.article_title || "(article)"}
+                      {s.article_title || <T>(article)</T>}
                     </span>
                     <Icon.ArrowR />
                   </a>

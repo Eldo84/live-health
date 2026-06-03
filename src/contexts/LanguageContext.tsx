@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { trackLanguageChange } from "../lib/analytics";
+import { ensureBundle } from "../livehealth/locales";
 
 export type Language = "en" | "fr" | "es" | "ar" | "de" | "pt" | "it" | "ru" | "ja" | "zh";
 
@@ -56,6 +57,25 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return saved && SUPPORTED_LANGUAGES.some(l => l.code === saved) ? saved : "en";
   });
 
+  // Gate the first paint until the saved language's bundle is loaded, so a
+  // non-English visitor never sees a flash of English on initial load. English
+  // needs no bundle, so it's ready immediately.
+  const [ready, setReady] = useState<boolean>(() => {
+    const saved = localStorage.getItem("app_language") as Language;
+    const initial = saved && SUPPORTED_LANGUAGES.some(l => l.code === saved) ? saved : "en";
+    return initial === "en";
+  });
+
+  useEffect(() => {
+    let cancelled = false;
+    ensureBundle(language).then(() => {
+      if (!cancelled) setReady(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []); // run once for the initially-active language
+
   useEffect(() => {
     // Save to localStorage when language changes
     localStorage.setItem("app_language", language);
@@ -70,8 +90,12 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [language]);
 
   const setLanguage = useCallback((lang: Language) => {
-    setLanguageState(lang);
-    trackLanguageChange(lang);
+    // Load the bundle first, then switch — keeps the swap atomic (no flash of
+    // English between applying the language and its translations arriving).
+    ensureBundle(lang).then(() => {
+      setLanguageState(lang);
+      trackLanguageChange(lang);
+    });
   }, []);
 
   const getNestedValue = (obj: any, path: string): string => {
@@ -93,7 +117,7 @@ export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   return (
     <LanguageContext.Provider value={{ language, setLanguage, t }}>
-      {children}
+      {ready ? children : null}
     </LanguageContext.Provider>
   );
 };

@@ -1,6 +1,5 @@
 import { Button } from "../../../../components/ui/button";
 import { Input } from "../../../../components/ui/input";
-import outbreakNowLogo from "@/assets/outbreaknow-logo.png";
 
 const resourcesLinks = [
   { label: "Disclaimer" },
@@ -44,7 +43,7 @@ export const InfoPanelSection = (): JSX.Element => {
               <img
                 className="h-16 w-auto object-contain"
                 alt="OutbreakNow Logo"
-                src={outbreakNowLogo}
+                src="/brand/outbreaknow-full-dark.svg"
               />
 
               <div className="w-[247px] [font-family:'Roboto',Helvetica] font-normal text-[#dbdbdbd9] text-base tracking-[-0.10px] leading-6">

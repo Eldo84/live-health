@@ -6,6 +6,8 @@ import { CityExtractionPanel } from "../../components/CityExtractionPanel";
 import { useLiveOutbreaks } from "../../data/useLiveOutbreaks";
 import { timeAgo } from "../../lib/utils";
 import type { TimeRange } from "../../lib/timeRange";
+import { T } from "../../components/T";
+import { useT } from "../../lib/useT";
 
 interface Props {
   range: TimeRange;
@@ -14,6 +16,11 @@ interface Props {
 }
 
 export function DataMgmtTab({ range, isMobile, isTabletDown }: Props) {
+  const tChooseRows = useT("Choose how many rows to export");
+  const tFilterEvents = useT("Filter events…");
+  const tAllData = useT("All data");
+  const tFiltered = useT("Filtered");
+  const tCurrentPage = useT("Current page");
   const { outbreaks, loading } = useLiveOutbreaks(range, 600);
   const [filter, setFilter] = useState("");
   const [importOpen, setImportOpen] = useState(false);
@@ -166,20 +173,20 @@ export function DataMgmtTab({ range, isMobile, isTabletDown }: Props) {
           }}
         >
           <div>
-            <span className="ln-eyebrow">Data management</span>
+            <span className="ln-eyebrow"><T>Data management</T></span>
             <h2
               className="ln-display"
               style={{ fontSize: isMobile ? 22 : 30, margin: "6px 0 0", letterSpacing: "-0.02em" }}
             >
-              Every event,{" "}
-              <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}>traceable.</span>
+              <T>Every event,</T>{" "}
+              <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}><T>traceable.</T></span>
             </h2>
           </div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             <select
               value={scope}
               onChange={(e) => setScope(e.target.value as "all" | "filtered" | "page")}
-              title="Choose how many rows to export"
+              title={tChooseRows}
               style={{
                 background: "var(--ln-surface-2)",
                 border: "1px solid var(--ln-line-2)",
@@ -189,20 +196,20 @@ export function DataMgmtTab({ range, isMobile, isTabletDown }: Props) {
                 borderRadius: 6,
               }}
             >
-              <option value="all">All data ({outbreaks.length})</option>
-              <option value="filtered">Filtered ({filtered.length})</option>
-              <option value="page">Current page ({Math.min(PAGE_SIZE, filtered.length)})</option>
+              <option value="all">{tAllData} ({outbreaks.length})</option>
+              <option value="filtered">{tFiltered} ({filtered.length})</option>
+              <option value="page">{tCurrentPage} ({Math.min(PAGE_SIZE, filtered.length)})</option>
             </select>
             <button className="ln-btn" onClick={handleExportCsv}>
-              <Icon.ArrowR /> Export CSV
+              <Icon.ArrowR /> <T>Export CSV</T>
             </button>
             {!isMobile && (
               <button className="ln-btn" onClick={handleExportPdf}>
-                <Icon.ArrowR /> Export PDF
+                <Icon.ArrowR /> <T>Export PDF</T>
               </button>
             )}
             <button className="ln-btn is-primary" onClick={() => setImportOpen(true)}>
-              <Icon.Plus /> Import
+              <Icon.Plus /> <T>Import</T>
             </button>
           </div>
         </div>
@@ -232,16 +239,22 @@ export function DataMgmtTab({ range, isMobile, isTabletDown }: Props) {
           </span>
           <input
             className="ln-input"
-            placeholder="Filter events…"
+            placeholder={tFilterEvents}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           />
         </div>
-        <span className="ln-chip is-ok">{filtered.length} rows</span>
-        <span className="ln-chip">{range} range</span>
+        <span className="ln-chip is-ok">{filtered.length} <T>rows</T></span>
+        <span className="ln-chip">{range} <T>range</T></span>
         <div style={{ flex: 1 }} />
         <span style={{ fontFamily: "var(--ln-font-mono)", fontSize: 11, color: "var(--ln-ink-3)" }}>
-          {loading ? "loading…" : `showing 1–${Math.min(PAGE_SIZE, filtered.length)} of ${outbreaks.length}`}
+          {loading ? (
+            <T>loading…</T>
+          ) : (
+            <>
+              <T>showing</T> 1–{Math.min(PAGE_SIZE, filtered.length)} <T>of</T> {outbreaks.length}
+            </>
+          )}
         </span>
       </div>
 
@@ -262,14 +275,14 @@ export function DataMgmtTab({ range, isMobile, isTabletDown }: Props) {
               background: "var(--ln-surface)",
             }}
           >
-            <span>ID</span>
-            <span>LOCATION</span>
-            <span>DISEASE</span>
-            <span>SOURCE</span>
-            <span style={{ textAlign: "right" }}>CASES</span>
-            <span style={{ textAlign: "right" }}>DEATHS</span>
-            <span>UPDATED</span>
-            <span style={{ textAlign: "right" }}>SEV</span>
+            <span><T>ID</T></span>
+            <span><T>LOCATION</T></span>
+            <span><T>DISEASE</T></span>
+            <span><T>SOURCE</T></span>
+            <span style={{ textAlign: "right" }}><T>CASES</T></span>
+            <span style={{ textAlign: "right" }}><T>DEATHS</T></span>
+            <span><T>UPDATED</T></span>
+            <span style={{ textAlign: "right" }}><T>SEV</T></span>
           </div>
           {filtered.slice(0, PAGE_SIZE).map((o) => (
             <div
@@ -373,7 +386,7 @@ export function DataMgmtTab({ range, isMobile, isTabletDown }: Props) {
                   color: "var(--ln-ink-3)",
                 }}
               >
-                {timeAgo(o.updated)} ago
+                {timeAgo(o.updated)} <T>ago</T>
               </span>
               <span style={{ textAlign: "right" }}>
                 <SeverityBar s={o.severity} />

@@ -1,4 +1,5 @@
 import { severityColor } from "../lib/utils";
+import { T } from "./T";
 
 export function SeverityBar({ s }: { s: number }) {
   return (
@@ -20,5 +21,5 @@ export function SeverityBar({ s }: { s: number }) {
 
 export function RiskPill({ value }: { value: number }) {
   const lvl = value >= 0.75 ? "is-crit" : value >= 0.55 ? "is-warn" : value >= 0.35 ? "is-info" : "is-ok";
-  return <span className={`ln-chip ${lvl}`}>RISK {(value * 10).toFixed(1)}</span>;
+  return <span className={`ln-chip ${lvl}`}><T>RISK</T> {(value * 10).toFixed(1)}</span>;
 }

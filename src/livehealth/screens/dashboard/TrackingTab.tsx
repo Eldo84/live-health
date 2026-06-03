@@ -5,6 +5,8 @@ import { useLiveOutbreaks } from "../../data/useLiveOutbreaks";
 import { timeAgo } from "../../lib/utils";
 import type { TimeRange } from "../../lib/timeRange";
 import { TrendsCompare } from "./TrendsCompare";
+import { T } from "../../components/T";
+import { useT } from "../../lib/useT";
 
 const ACCENT = "#4ee0c4";
 
@@ -15,6 +17,16 @@ interface Props {
 }
 
 export function TrackingTab({ range, isMobile, isTabletDown }: Props) {
+  const tNoOutbreaksInRange = useT("No outbreaks in range");
+  const tCurveInfo = useT(
+    "Modeled cumulative-case curve (logistic S-growth) from the index case to today. Dashed markers flag detection, confirmation, escalation and the projected peak. Hover the curve to read the running total on any day; the real reported total is in the metrics panel."
+  );
+  const tSpreadMap = useT("Spread map");
+  const tSpreadTitle = useT("Where it travelled, week by week");
+  const tSpreadInfoPre = useT("Each panel adds the locations reporting");
+  const tSpreadInfoPost = useT(
+    "up to that point, accumulated across six equal time slices — a proxy for geographic spread from the first signal to now. Hover a week for its location and case totals."
+  );
   const { outbreaks } = useLiveOutbreaks(range, 600);
 
   // Pre-sort the largest outbreaks for the selector dropdown — these are the
@@ -70,12 +82,12 @@ export function TrackingTab({ range, isMobile, isTabletDown }: Props) {
           }}
         >
           <div>
-            <span className="ln-eyebrow">Single-outbreak lifecycle</span>
+            <span className="ln-eyebrow"><T>Single-outbreak lifecycle</T></span>
             <h2
               className="ln-display"
               style={{ fontSize: isMobile ? 22 : 30, margin: "6px 0 0", letterSpacing: "-0.02em" }}
             >
-              The <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}>life</span> of an outbreak.
+              <T>The</T> <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}><T>life</T></span> <T>of an outbreak.</T>
             </h2>
           </div>
           <select
@@ -92,7 +104,7 @@ export function TrackingTab({ range, isMobile, isTabletDown }: Props) {
               maxWidth: 320,
             }}
           >
-            {candidates.length === 0 && <option>No outbreaks in range</option>}
+            {candidates.length === 0 && <option>{tNoOutbreaksInRange}</option>}
             {candidates.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.disease} · {c.city || c.country}
@@ -105,7 +117,7 @@ export function TrackingTab({ range, isMobile, isTabletDown }: Props) {
       {selected ? (
         <>
           <div style={{ padding: isMobile ? "16px 14px" : "22px 22px", borderBottom: "1px solid var(--ln-line)" }}>
-            <span className="ln-eyebrow">Outbreak stages</span>
+            <span className="ln-eyebrow"><T>Outbreak stages</T></span>
             <div
               style={{
                 display: "grid",
@@ -133,7 +145,7 @@ export function TrackingTab({ range, isMobile, isTabletDown }: Props) {
                       color: s.done ? "var(--ln-brand)" : s.active ? "var(--ln-warn)" : "var(--ln-ink-4)",
                     }}
                   >
-                    {s.l}
+                    <T>{s.l}</T>
                   </div>
                   <div
                     className="ln-num"
@@ -143,9 +155,11 @@ export function TrackingTab({ range, isMobile, isTabletDown }: Props) {
                       color: s.active ? "var(--ln-ink)" : "var(--ln-ink-3)",
                     }}
                   >
-                    {s.d}
+                    {s.dWord ? <T>{s.d}</T> : s.d}
                   </div>
-                  <div style={{ fontSize: 11, color: "var(--ln-ink-3)", marginTop: 4 }}>{s.sub}</div>
+                  <div style={{ fontSize: 11, color: "var(--ln-ink-3)", marginTop: 4 }}>
+                    {s.subWord ? <T>{s.sub}</T> : s.sub}
+                  </div>
                   {!isMobile && !isTabletDown && i < arr.length - 1 && (
                     <div
                       style={{
@@ -179,16 +193,16 @@ export function TrackingTab({ range, isMobile, isTabletDown }: Props) {
               }}
             >
               <span className="ln-eyebrow">
-                Cumulative cases · {selected.disease} · {selected.city || selected.country}
+                <T>Cumulative cases</T> · {selected.disease} · {selected.city || selected.country}
               </span>
               <h3 style={{ fontSize: 16, margin: "4px 0 14px", fontWeight: 500, display: "flex", alignItems: "center" }}>
-                From index case to today
-                <InfoDot text="Modeled cumulative-case curve (logistic S-growth) from the index case to today. Dashed markers flag detection, confirmation, escalation and the projected peak. Hover the curve to read the running total on any day; the real reported total is in the metrics panel." />
+                <T>From index case to today</T>
+                <InfoDot text={tCurveInfo} />
               </h3>
               <TrackingCurve cases={selected.cases} />
             </div>
             <div style={{ padding: isMobile ? 14 : 22 }}>
-              <span className="ln-eyebrow">Outbreak metrics</span>
+              <span className="ln-eyebrow"><T>Outbreak metrics</T></span>
               <div
                 style={{
                   display: "grid",
@@ -206,9 +220,9 @@ export function TrackingTab({ range, isMobile, isTabletDown }: Props) {
                       borderLeft: `2px solid ${m.c}`,
                     }}
                   >
-                    <div className="ln-eyebrow">{m.l}</div>
+                    <div className="ln-eyebrow"><T>{m.l}</T></div>
                     <div className="ln-num" style={{ fontSize: 20, fontWeight: 500, marginTop: 4 }}>
-                      {m.v}
+                      {m.vWord ? <T>{m.v}</T> : m.v}
                     </div>
                   </div>
                 ))}
@@ -218,11 +232,11 @@ export function TrackingTab({ range, isMobile, isTabletDown }: Props) {
 
           <div style={{ borderBottom: "1px solid var(--ln-line)" }}>
             <PaneHead
-              eyebrow="Spread map"
-              title="Where it travelled, week by week"
+              eyebrow={tSpreadMap}
+              title={tSpreadTitle}
               right={
                 <InfoDot
-                  text={`Each panel adds the locations reporting ${selected.disease} up to that point, accumulated across six equal time slices — a proxy for geographic spread from the first signal to now. Hover a week for its location and case totals.`}
+                  text={`${tSpreadInfoPre} ${selected.disease} ${tSpreadInfoPost}`}
                 />
               }
             />
@@ -248,7 +262,7 @@ export function TrackingTab({ range, isMobile, isTabletDown }: Props) {
                       padding: 12,
                     }}
                   >
-                    <div className="ln-eyebrow">Wk {i + 1}</div>
+                    <div className="ln-eyebrow"><T>Wk</T> {i + 1}</div>
                     <div
                       style={{
                         marginTop: 6,
@@ -293,19 +307,19 @@ export function TrackingTab({ range, isMobile, isTabletDown }: Props) {
                             justifyContent: "center",
                           }}
                         >
-                          <strong style={{ color: "var(--ln-ink)", fontSize: 11 }}>Week {i + 1} of 6</strong>
+                          <strong style={{ color: "var(--ln-ink)", fontSize: 11 }}><T>Week</T> {i + 1} <T>of 6</T></strong>
                           <span style={{ marginTop: 2 }}>
-                            {weekLocs} location{weekLocs === 1 ? "" : "s"} ·{" "}
-                            {weekCases > 0 ? weekCases.toLocaleString() : weekLocs} cases
+                            {weekLocs} {weekLocs === 1 ? <T>location</T> : <T>locations</T>} ·{" "}
+                            {weekCases > 0 ? weekCases.toLocaleString() : weekLocs} <T>cases</T>
                           </span>
                           <span style={{ marginTop: 2, color: "var(--ln-ink-3)" }}>
-                            cumulative spread of {selected.disease} to this point
+                            <T>cumulative spread of</T> {selected.disease} <T>to this point</T>
                           </span>
                         </div>
                       )}
                     </div>
                     <div className="ln-num" style={{ fontSize: 11, color: "var(--ln-ink-3)", marginTop: 6 }}>
-                      {weekCases > 0 ? weekCases.toLocaleString() : weekLocs} cases
+                      {weekCases > 0 ? weekCases.toLocaleString() : weekLocs} <T>cases</T>
                     </div>
                   </div>
                 );
@@ -315,7 +329,7 @@ export function TrackingTab({ range, isMobile, isTabletDown }: Props) {
         </>
       ) : (
         <div style={{ padding: 22, fontSize: 13, color: "var(--ln-ink-3)" }}>
-          No outbreaks in the selected range. Adjust the range pill above to pick one.
+          <T>No outbreaks in the selected range. Adjust the range pill above to pick one.</T>
         </div>
       )}
     </>
@@ -329,26 +343,32 @@ function buildStages(o: { updated: number; cases: number; severity: number }) {
   const fmt = (t: number) =>
     new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric" });
   return [
-    { l: "DETECTED", d: fmt(o.updated), sub: "1st signal", active: true, done: true },
-    { l: "CONFIRMED", d: fmt(o.updated), sub: `${Math.max(1, Math.floor(o.cases / 100))} cases`, active: true, done: true },
+    { l: "DETECTED", d: fmt(o.updated), dWord: false, sub: "1st signal", subWord: true, active: true, done: true },
+    { l: "CONFIRMED", d: fmt(o.updated), dWord: false, sub: `${Math.max(1, Math.floor(o.cases / 100))} cases`, subWord: false, active: true, done: true },
     {
       l: "ESCALATED",
       d: o.severity >= 3 ? fmt(o.updated) : "pending",
+      dWord: o.severity < 3,
       sub: o.severity >= 3 ? `${Math.floor(o.cases / 2)} cases` : "below threshold",
+      subWord: o.severity < 3,
       active: o.severity >= 3,
       done: o.severity >= 3,
     },
     {
       l: "PEAK",
       d: o.severity >= 4 ? fmt(o.updated) : "pending",
+      dWord: o.severity < 4,
       sub: o.severity >= 4 ? `${o.cases.toLocaleString()} cases` : "forecast",
+      subWord: o.severity < 4,
       active: o.severity >= 4,
       done: false,
     },
     {
       l: "CONTAINED",
       d: "forecast",
+      dWord: true,
       sub: "—",
+      subWord: false,
       active: false,
       done: false,
     },
@@ -365,20 +385,22 @@ function buildMetrics(o: {
   const cfr = o.cases > 0 ? ((o.deaths / o.cases) * 100).toFixed(2) + "%" : "—";
   const daysActive = Math.max(1, Math.floor((Date.now() - o.updated) / (24 * 60 * 60 * 1000))) + 1;
   return [
-    { l: "Total cases", v: o.cases > 0 ? o.cases.toLocaleString() : "—", c: "var(--ln-crit)" },
-    { l: "CFR", v: cfr, c: "var(--ln-warn)" },
+    { l: "Total cases", v: o.cases > 0 ? o.cases.toLocaleString() : "—", vWord: false, c: "var(--ln-crit)" },
+    { l: "CFR", v: cfr, vWord: false, c: "var(--ln-warn)" },
     {
       l: "Severity",
       v: o.severity >= 4 ? "Critical" : o.severity >= 3 ? "High" : "Moderate",
+      vWord: true,
       c: o.severity >= 4 ? "var(--ln-crit)" : "var(--ln-warn)",
     },
     {
       l: "Confidence",
       v: `${Math.round(o.confidence * 100)}%`,
+      vWord: false,
       c: "var(--ln-info)",
     },
-    { l: "Days reported", v: String(daysActive), c: "var(--ln-ink)" },
-    { l: "Deaths", v: o.deaths > 0 ? o.deaths.toLocaleString() : "—", c: "var(--ln-crit)" },
+    { l: "Days reported", v: String(daysActive), vWord: false, c: "var(--ln-ink)" },
+    { l: "Deaths", v: o.deaths > 0 ? o.deaths.toLocaleString() : "—", vWord: false, c: "var(--ln-crit)" },
   ];
 }
 
@@ -458,7 +480,7 @@ function TrackingCurve({ cases }: { cases: number }) {
                 fontFamily="var(--ln-font-mono)"
                 letterSpacing="0.06em"
               >
-                {m.l}
+                <T>{m.l}</T>
               </text>
             </g>
           );
@@ -496,11 +518,11 @@ function TrackingCurve({ cases }: { cases: number }) {
               marginBottom: 4,
             }}
           >
-            Day {hoverI + 1} of {days}
+            <T>Day</T> {hoverI + 1} <T>of</T> {days}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{ width: 8, height: 8, borderRadius: 2, background: ACCENT, flex: "0 0 8px" }} />
-            <span style={{ fontSize: 12, color: "var(--ln-ink-2)", flex: 1 }}>Cumulative</span>
+            <span style={{ fontSize: 12, color: "var(--ln-ink-2)", flex: 1 }}><T>Cumulative</T></span>
             <span className="ln-num" style={{ fontSize: 12, color: "var(--ln-ink)" }}>
               {cumulative[hoverI].toLocaleString()}
             </span>
@@ -515,7 +537,7 @@ function TrackingCurve({ cases }: { cases: number }) {
               lineHeight: 1.35,
             }}
           >
-            Modeled cases reported by this day.
+            <T>Modeled cases reported by this day.</T>
           </div>
         </div>
       )}
@@ -526,11 +548,12 @@ function TrackingCurve({ cases }: { cases: number }) {
 // Small "?" info affordance with a styled descriptive tooltip on hover/focus.
 function InfoDot({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
+  const tWhatIsThis = useT("What is this?");
   return (
     <span style={{ position: "relative", display: "inline-flex", verticalAlign: "middle", marginLeft: 6 }}>
       <button
         type="button"
-        aria-label="What is this?"
+        aria-label={tWhatIsThis}
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
         onFocus={() => setOpen(true)}

@@ -149,7 +149,7 @@ const Index = () => {
               className="transition-opacity hover:opacity-80 flex-shrink-0"
               aria-label="Return to home"
             >
-              <img src={outbreakNowLogo} alt="OutbreakNow Logo" className="h-16 md:h-20 lg:h-24 w-auto" />
+              <img src="/brand/outbreaknow-full-light.svg" alt="OutbreakNow Logo" className="h-16 md:h-20 lg:h-24 w-auto" />
             </button>
 
             {/* Desktop Navigation */}

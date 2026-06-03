@@ -12,6 +12,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { T } from '../../../livehealth/components/T';
+import { useT } from '../../../livehealth/lib/useT';
 
 interface Submission {
   id: string;
@@ -59,7 +61,57 @@ export const AdminAdvertisingPanel: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
+  // Placeholder / attribute translations
+  const tSearch = useT("Search by company or email...");
+  const tRejectionPlaceholder = useT("Explain why this submission is being rejected...");
+  const tNotesPlaceholder = useT("Add any notes for this submission...");
+  const tAdMedia = useT("Ad media");
+  const tFailedLoadVideo = useT("Failed to load video");
+  const tFailedLoadImage = useT("Failed to load image");
+  const tCheckUrlAccessible = useT("Please check if the URL is accessible.");
+
+  // Tab / stat label translations
+  const tPending = useT("Pending");
+  const tAll = useT("All");
+  const tActiveAds = useT("Active Ads");
+  const tTotalSubmissions = useT("Total Submissions");
+  const tTotalRevenue = useT("Total Revenue");
+
+  // Status label translations
+  const tPendingReview = useT("Pending Review");
+  const tAwaitingPayment = useT("Awaiting Payment");
+  const tChangesRequested = useT("Changes Requested");
+  const tRejected = useT("Rejected");
+  const tActive = useT("Active");
+  const tExpired = useT("Expired");
+  const tCancelled = useT("Cancelled");
+
+  // Toast / message translations
+  const tAccessDenied = useT("Access Denied");
+  const tNoAdminPrivileges = useT("You don't have admin privileges.");
+  const tError = useT("Error");
+  const tFailedLoadData = useT("Failed to load data. Some tables may not exist yet.");
+  const tSuccess = useT("Success");
+  const tSubmissionApproved = useT("Submission approved");
+  const tSubmissionRejected = useT("Submission rejected");
+  const tSubmissionUpdated = useT("Submission updated");
+  const tFailedUpdate = useT("Failed to update submission");
+  const tAdActivated = useT("Ad activated");
+  const tAdDeactivated = useT("Ad deactivated");
+  const tSubmissionDeleted = useT("Submission deleted successfully");
+  const tFailedDelete = useT("Failed to delete submission");
+
+  const statusLabels: Record<string, string> = {
+    pending_review: tPendingReview,
+    approved_pending_payment: tAwaitingPayment,
+    changes_requested: tChangesRequested,
+    rejected: tRejected,
+    active: tActive,
+    expired: tExpired,
+    cancelled: tCancelled,
+  };
+
   const [isAdmin, setIsAdmin] = useState(false);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [ads, setAds] = useState<SponsoredContent[]>([]);
@@ -100,8 +152,8 @@ export const AdminAdvertisingPanel: React.FC = () => {
 
       if (error || data?.role !== 'admin') {
         toast({
-          title: "Access Denied",
-          description: "You don't have admin privileges.",
+          title: tAccessDenied,
+          description: tNoAdminPrivileges,
           variant: "destructive",
         });
         navigate('/dashboard/advertising');
@@ -142,8 +194,8 @@ export const AdminAdvertisingPanel: React.FC = () => {
     } catch (error: any) {
       console.error('Error fetching data:', error);
       toast({
-        title: "Error",
-        description: "Failed to load data. Some tables may not exist yet.",
+        title: tError,
+        description: tFailedLoadData,
         variant: "destructive",
       });
     } finally {
@@ -186,8 +238,8 @@ export const AdminAdvertisingPanel: React.FC = () => {
       if (error) throw error;
 
       toast({
-        title: "Success",
-        description: `Submission ${reviewAction === 'approve' ? 'approved' : reviewAction === 'reject' ? 'rejected' : 'updated'}`,
+        title: tSuccess,
+        description: reviewAction === 'approve' ? tSubmissionApproved : reviewAction === 'reject' ? tSubmissionRejected : tSubmissionUpdated,
       });
 
       // Refresh data
@@ -197,8 +249,8 @@ export const AdminAdvertisingPanel: React.FC = () => {
     } catch (error: any) {
       console.error('Error updating submission:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to update submission",
+        title: tError,
+        description: error.message || tFailedUpdate,
         variant: "destructive",
       });
     } finally {
@@ -223,14 +275,14 @@ export const AdminAdvertisingPanel: React.FC = () => {
       if (error) throw error;
 
       toast({
-        title: "Success",
-        description: `Ad ${!currentStatus ? 'activated' : 'deactivated'}`,
+        title: tSuccess,
+        description: !currentStatus ? tAdActivated : tAdDeactivated,
       });
 
       fetchData();
     } catch (error: any) {
       toast({
-        title: "Error",
+        title: tError,
         description: error.message,
         variant: "destructive",
       });
@@ -250,8 +302,8 @@ export const AdminAdvertisingPanel: React.FC = () => {
       if (error) throw error;
 
       toast({
-        title: "Success",
-        description: "Submission deleted successfully",
+        title: tSuccess,
+        description: tSubmissionDeleted,
       });
 
       fetchData();
@@ -259,8 +311,8 @@ export const AdminAdvertisingPanel: React.FC = () => {
     } catch (error: any) {
       console.error('Error deleting submission:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to delete submission",
+        title: tError,
+        description: error.message || tFailedDelete,
         variant: "destructive",
       });
     } finally {
@@ -312,18 +364,18 @@ export const AdminAdvertisingPanel: React.FC = () => {
   }
 
   const reviewTabs: { id: string; label: string; count: number | null }[] = [
-    { id: 'pending', label: 'Pending', count: pendingCount },
-    { id: 'approved', label: 'Awaiting Payment', count: null },
-    { id: 'active', label: 'Active', count: null },
-    { id: 'rejected', label: 'Rejected', count: null },
-    { id: 'all', label: 'All', count: submissions.length },
+    { id: 'pending', label: tPending, count: pendingCount },
+    { id: 'approved', label: tAwaitingPayment, count: null },
+    { id: 'active', label: tActive, count: null },
+    { id: 'rejected', label: tRejected, count: null },
+    { id: 'all', label: tAll, count: submissions.length },
   ];
 
   const reviewStats: { label: string; value: string | number; color: string }[] = [
-    { label: 'Pending Review', value: pendingCount, color: 'var(--ln-warn)' },
-    { label: 'Active Ads', value: activeCount, color: 'var(--ln-brand)' },
-    { label: 'Total Submissions', value: submissions.length, color: 'var(--ln-info, #6ab7ff)' },
-    { label: 'Total Revenue', value: `$${totalRevenue}`, color: 'var(--ln-brand)' },
+    { label: tPendingReview, value: pendingCount, color: 'var(--ln-warn)' },
+    { label: tActiveAds, value: activeCount, color: 'var(--ln-brand)' },
+    { label: tTotalSubmissions, value: submissions.length, color: 'var(--ln-info, #6ab7ff)' },
+    { label: tTotalRevenue, value: `$${totalRevenue}`, color: 'var(--ln-brand)' },
   ];
 
   return (
@@ -343,19 +395,19 @@ export const AdminAdvertisingPanel: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <button className="ln-btn" onClick={() => navigate('/admin')}>
             <ArrowLeft className="w-4 h-4" />
-            Back
+            <T>Back</T>
           </button>
           <div>
-            <span className="ln-eyebrow">Advertising</span>
+            <span className="ln-eyebrow"><T>Advertising</T></span>
             <h1 className="ln-display" style={{ fontSize: 26, margin: '4px 0 0', letterSpacing: '-0.02em' }}>
-              Advertising panel
+              <T>Advertising panel</T>
             </h1>
             <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '4px 0 0' }}>
-              Manage advertising submissions
+              <T>Manage advertising submissions</T>
             </p>
           </div>
         </div>
-        <span className="ln-chip is-ok">Admin access</span>
+        <span className="ln-chip is-ok"><T>Admin access</T></span>
       </div>
 
       <div style={{ padding: '22px 28px 40px' }}>
@@ -401,7 +453,7 @@ export const AdminAdvertisingPanel: React.FC = () => {
               flexWrap: 'wrap',
             }}
           >
-            <span className="ln-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}>Submissions</span>
+            <span className="ln-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}><T>Submissions</T></span>
             <div style={{ position: 'relative', width: 260, maxWidth: '100%' }}>
               <span
                 style={{
@@ -418,7 +470,7 @@ export const AdminAdvertisingPanel: React.FC = () => {
               <input
                 className="ln-input"
                 style={{ paddingLeft: 32 }}
-                placeholder="Search by company or email..."
+                placeholder={tSearch}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -467,12 +519,13 @@ export const AdminAdvertisingPanel: React.FC = () => {
           <div style={{ padding: 18 }}>
             {filteredSubmissions.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--ln-ink-3)', fontSize: 13 }}>
-                No submissions found
+                <T>No submissions found</T>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                 {filteredSubmissions.map((submission) => {
                   const status = statusConfig[submission.status] || statusConfig.pending_review;
+                  const statusLabel = statusLabels[submission.status] || statusLabels.pending_review;
                   return (
                     <div
                       key={submission.id}
@@ -485,7 +538,7 @@ export const AdminAdvertisingPanel: React.FC = () => {
                           </h3>
                           <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '4px 0 0' }}>{submission.email}</p>
                         </div>
-                        <span className={status.chip}>{status.label}</span>
+                        <span className={status.chip}>{statusLabel}</span>
                       </div>
 
                       <div
@@ -498,19 +551,19 @@ export const AdminAdvertisingPanel: React.FC = () => {
                         }}
                       >
                         <div>
-                          <span style={{ color: 'var(--ln-ink-4)' }}>Contact</span>
+                          <span style={{ color: 'var(--ln-ink-4)' }}><T>Contact</T></span>
                           <p style={{ margin: '2px 0 0', fontWeight: 500, color: 'var(--ln-ink)' }}>{submission.contact_name}</p>
                         </div>
                         <div>
-                          <span style={{ color: 'var(--ln-ink-4)' }}>Plan</span>
+                          <span style={{ color: 'var(--ln-ink-4)' }}><T>Plan</T></span>
                           <p style={{ margin: '2px 0 0', fontWeight: 500, color: 'var(--ln-ink)', textTransform: 'capitalize' }}>{submission.selected_plan}</p>
                         </div>
                         <div>
-                          <span style={{ color: 'var(--ln-ink-4)' }}>Payment</span>
+                          <span style={{ color: 'var(--ln-ink-4)' }}><T>Payment</T></span>
                           <p style={{ margin: '2px 0 0', fontWeight: 500, color: 'var(--ln-ink)', textTransform: 'capitalize' }}>{submission.payment_status.replace('_', ' ')}</p>
                         </div>
                         <div>
-                          <span style={{ color: 'var(--ln-ink-4)' }}>Date</span>
+                          <span style={{ color: 'var(--ln-ink-4)' }}><T>Date</T></span>
                           <p
                             className="ln-num"
                             style={{ margin: '2px 0 0', fontWeight: 500, color: 'var(--ln-ink)' }}
@@ -522,7 +575,7 @@ export const AdminAdvertisingPanel: React.FC = () => {
 
                       {submission.description && (
                         <div style={{ fontSize: 12.5, marginBottom: 12 }}>
-                          <span style={{ color: 'var(--ln-ink-4)' }}>Description</span>
+                          <span style={{ color: 'var(--ln-ink-4)' }}><T>Description</T></span>
                           <p style={{ margin: '4px 0 0', color: 'var(--ln-ink-2)' }}>{submission.description}</p>
                         </div>
                       )}
@@ -538,14 +591,14 @@ export const AdminAdvertisingPanel: React.FC = () => {
                             marginBottom: 12,
                           }}
                         >
-                          <strong>Admin Notes:</strong> {submission.admin_notes}
+                          <strong><T>Admin Notes:</T></strong> {submission.admin_notes}
                         </div>
                       )}
 
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
                         <button className="ln-btn" onClick={() => setViewingSubmission(submission)}>
                           <Eye className="w-4 h-4" />
-                          View
+                          <T>View</T>
                         </button>
                         {submission.status === 'pending_review' && (
                           <>
@@ -557,7 +610,7 @@ export const AdminAdvertisingPanel: React.FC = () => {
                               }}
                             >
                               <CheckCircle className="w-4 h-4" />
-                              Approve
+                              <T>Approve</T>
                             </button>
                             <button
                               className="ln-btn"
@@ -567,7 +620,7 @@ export const AdminAdvertisingPanel: React.FC = () => {
                               }}
                             >
                               <AlertCircle className="w-4 h-4" />
-                              Request Changes
+                              <T>Request Changes</T>
                             </button>
                             <button
                               className="ln-btn"
@@ -578,7 +631,7 @@ export const AdminAdvertisingPanel: React.FC = () => {
                               }}
                             >
                               <XCircle className="w-4 h-4" />
-                              Reject
+                              <T>Reject</T>
                             </button>
                           </>
                         )}
@@ -588,7 +641,7 @@ export const AdminAdvertisingPanel: React.FC = () => {
                           onClick={() => setDeletingSubmission(submission)}
                         >
                           <Trash2 className="w-4 h-4" />
-                          Delete
+                          <T>Delete</T>
                         </button>
                       </div>
                     </div>
@@ -604,8 +657,8 @@ export const AdminAdvertisingPanel: React.FC = () => {
       <Dialog open={!!viewingSubmission} onOpenChange={() => setViewingSubmission(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto px-6">
           <DialogHeader>
-            <DialogTitle>Submission Details</DialogTitle>
-            <DialogDescription>Full submission information for review</DialogDescription>
+            <DialogTitle><T>Submission Details</T></DialogTitle>
+            <DialogDescription><T>Full submission information for review</T></DialogDescription>
           </DialogHeader>
           {viewingSubmission && (
             <div className="space-y-4">
@@ -619,7 +672,7 @@ export const AdminAdvertisingPanel: React.FC = () => {
                 return (
                   <div className="rounded-lg overflow-hidden border-2 border-primary/20 bg-muted">
                     <div className="p-2 bg-primary/10 border-b">
-                      <p className="text-sm font-semibold text-primary">Ad Media Preview</p>
+                      <p className="text-sm font-semibold text-primary"><T>Ad Media Preview</T></p>
                     </div>
                     <div className="relative w-full bg-black/5" style={{ minHeight: '200px', maxHeight: '500px' }}>
                       {isVideo ? (
@@ -636,17 +689,17 @@ export const AdminAdvertisingPanel: React.FC = () => {
                             if (parent && !parent.querySelector('.error-message')) {
                               const errorDiv = document.createElement('div');
                               errorDiv.className = 'error-message p-4 text-center text-red-500 bg-red-50 rounded';
-                              errorDiv.innerHTML = `<p class="font-semibold">Failed to load video</p><p class="text-xs mt-1 break-all">${mediaUrl}</p>`;
+                              errorDiv.innerHTML = `<p class="font-semibold">${tFailedLoadVideo}</p><p class="text-xs mt-1 break-all">${mediaUrl}</p>`;
                               parent.appendChild(errorDiv);
                             }
                           }}
                         >
-                          Your browser does not support the video tag.
+                          <T>Your browser does not support the video tag.</T>
                         </video>
                       ) : (
                         <img
                           src={mediaUrl}
-                          alt={viewingSubmission.ad_title || 'Ad media'}
+                          alt={viewingSubmission.ad_title || tAdMedia}
                           className="w-full h-full object-contain"
                           style={{ maxHeight: '500px', minHeight: '200px' }}
                           loading="lazy"
@@ -658,7 +711,7 @@ export const AdminAdvertisingPanel: React.FC = () => {
                             if (parent && !parent.querySelector('.error-message')) {
                               const errorDiv = document.createElement('div');
                               errorDiv.className = 'error-message p-4 text-center text-red-500 bg-red-50 rounded';
-                              errorDiv.innerHTML = `<p class="font-semibold">Failed to load image</p><p class="text-xs mt-1 break-all">${mediaUrl}</p><p class="text-xs mt-2">Please check if the URL is accessible.</p>`;
+                              errorDiv.innerHTML = `<p class="font-semibold">${tFailedLoadImage}</p><p class="text-xs mt-1 break-all">${mediaUrl}</p><p class="text-xs mt-2">${tCheckUrlAccessible}</p>`;
                               parent.appendChild(errorDiv);
                             }
                           }}
@@ -671,7 +724,7 @@ export const AdminAdvertisingPanel: React.FC = () => {
                       )}
                     </div>
                     <div className="p-3 bg-muted/50 border-t">
-                      <p className="text-xs font-medium text-muted-foreground mb-1">Media URL:</p>
+                      <p className="text-xs font-medium text-muted-foreground mb-1"><T>Media URL:</T></p>
                       <p className="text-xs text-muted-foreground break-all font-mono bg-background p-2 rounded border">
                         {mediaUrl}
                       </p>
@@ -681,7 +734,7 @@ export const AdminAdvertisingPanel: React.FC = () => {
                         rel="noopener noreferrer"
                         className="text-xs text-primary hover:underline mt-2 inline-block"
                       >
-                        Open in new tab →
+                        <T>Open in new tab</T> →
                       </a>
                     </div>
                   </div>
@@ -689,39 +742,39 @@ export const AdminAdvertisingPanel: React.FC = () => {
               })() : (
                 <div className="rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/30 p-8 text-center">
                   <Eye className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm font-medium text-muted-foreground">No Media Provided</p>
-                  <p className="text-xs text-muted-foreground mt-1">The advertiser did not upload any image, video, or GIF for this ad.</p>
+                  <p className="text-sm font-medium text-muted-foreground"><T>No Media Provided</T></p>
+                  <p className="text-xs text-muted-foreground mt-1"><T>The advertiser did not upload any image, video, or GIF for this ad.</T></p>
                 </div>
               )}
 
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Company</p>
+                  <p className="text-sm text-muted-foreground"><T>Company</T></p>
                   <p className="text-lg font-semibold">{viewingSubmission.company_name}</p>
                 </div>
                 <span className={(statusConfig[viewingSubmission.status] || statusConfig.pending_review).chip}>
-                  {(statusConfig[viewingSubmission.status] || statusConfig.pending_review).label}
+                  {statusLabels[viewingSubmission.status] || statusLabels.pending_review}
                 </span>
               </div>
 
               <div className="grid sm:grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-muted-foreground">Contact</p>
+                  <p className="text-muted-foreground"><T>Contact</T></p>
                   <p className="font-medium">{viewingSubmission.contact_name}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Email</p>
+                  <p className="text-muted-foreground"><T>Email</T></p>
                   <p className="font-medium">{viewingSubmission.email}</p>
                 </div>
                 {viewingSubmission.phone && (
                   <div>
-                    <p className="text-muted-foreground">Phone</p>
+                    <p className="text-muted-foreground"><T>Phone</T></p>
                     <p className="font-medium">{viewingSubmission.phone}</p>
                   </div>
                 )}
                 {viewingSubmission.website && (
                   <div>
-                    <p className="text-muted-foreground">Website</p>
+                    <p className="text-muted-foreground"><T>Website</T></p>
                     <a 
                       href={viewingSubmission.website} 
                       target="_blank" 
@@ -736,31 +789,31 @@ export const AdminAdvertisingPanel: React.FC = () => {
 
               <div className="grid sm:grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-muted-foreground">Plan</p>
+                  <p className="text-muted-foreground"><T>Plan</T></p>
                   <p className="font-medium capitalize">{viewingSubmission.selected_plan}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Payment Status</p>
+                  <p className="text-muted-foreground"><T>Payment Status</T></p>
                   <p className="font-medium capitalize">{viewingSubmission.payment_status.replace('_', ' ')}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Submitted</p>
+                  <p className="text-muted-foreground"><T>Submitted</T></p>
                   <p className="font-medium">{new Date(viewingSubmission.created_at).toLocaleString()}</p>
                 </div>
               </div>
 
               {/* Ad Details Section */}
               <div className="space-y-2 text-sm border-t pt-4">
-                <p className="text-muted-foreground font-semibold">Ad Details</p>
+                <p className="text-muted-foreground font-semibold"><T>Ad Details</T></p>
                 {viewingSubmission.ad_title && (
                   <div>
-                    <span className="text-muted-foreground">Title: </span>
+                    <span className="text-muted-foreground"><T>Title:</T> </span>
                     <span className="font-medium">{viewingSubmission.ad_title}</span>
                   </div>
                 )}
                 {viewingSubmission.ad_click_url && (
                   <div>
-                    <span className="text-muted-foreground">Click URL: </span>
+                    <span className="text-muted-foreground"><T>Click URL:</T> </span>
                     <a 
                       href={viewingSubmission.ad_click_url} 
                       target="_blank" 
@@ -773,32 +826,32 @@ export const AdminAdvertisingPanel: React.FC = () => {
                 )}
                 {viewingSubmission.ad_location && (
                   <div>
-                    <span className="text-muted-foreground">Location: </span>
+                    <span className="text-muted-foreground"><T>Location:</T> </span>
                     <span className="font-medium">{viewingSubmission.ad_location}</span>
                   </div>
                 )}
                 {!viewingSubmission.ad_title && !viewingSubmission.ad_click_url && !viewingSubmission.ad_location && (
-                  <p className="text-muted-foreground italic">No ad details provided</p>
+                  <p className="text-muted-foreground italic"><T>No ad details provided</T></p>
                 )}
               </div>
 
               {viewingSubmission.description && (
                 <div className="text-sm space-y-1">
-                  <p className="text-muted-foreground">Description</p>
+                  <p className="text-muted-foreground"><T>Description</T></p>
                   <p>{viewingSubmission.description}</p>
                 </div>
               )}
 
               {viewingSubmission.admin_notes && (
                 <div className="text-sm space-y-1">
-                  <p className="text-muted-foreground">Admin Notes</p>
+                  <p className="text-muted-foreground"><T>Admin Notes</T></p>
                   <p>{viewingSubmission.admin_notes}</p>
                 </div>
               )}
 
               {viewingSubmission.rejection_reason && (
                 <div className="text-sm space-y-1">
-                  <p className="text-muted-foreground">Rejection Reason</p>
+                  <p className="text-muted-foreground"><T>Rejection Reason</T></p>
                   <p>{viewingSubmission.rejection_reason}</p>
                 </div>
               )}
@@ -806,7 +859,7 @@ export const AdminAdvertisingPanel: React.FC = () => {
           )}
           <DialogFooter>
             <button className="ln-btn" onClick={() => setViewingSubmission(null)}>
-              Close
+              <T>Close</T>
             </button>
           </DialogFooter>
         </DialogContent>
@@ -817,23 +870,23 @@ export const AdminAdvertisingPanel: React.FC = () => {
         <DialogContent className="px-6">
           <DialogHeader>
             <DialogTitle>
-              {reviewAction === 'approve' && 'Approve Submission'}
-              {reviewAction === 'reject' && 'Reject Submission'}
-              {reviewAction === 'changes' && 'Request Changes'}
+              {reviewAction === 'approve' && <T>Approve Submission</T>}
+              {reviewAction === 'reject' && <T>Reject Submission</T>}
+              {reviewAction === 'changes' && <T>Request Changes</T>}
             </DialogTitle>
             <DialogDescription>
-              {reviewAction === 'approve' && 'The advertiser will receive a payment link after approval.'}
-              {reviewAction === 'reject' && 'Please provide a reason for rejection.'}
-              {reviewAction === 'changes' && 'Specify what changes are needed.'}
+              {reviewAction === 'approve' && <T>The advertiser will receive a payment link after approval.</T>}
+              {reviewAction === 'reject' && <T>Please provide a reason for rejection.</T>}
+              {reviewAction === 'changes' && <T>Specify what changes are needed.</T>}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             {reviewAction === 'reject' && (
               <div className="space-y-2">
-                <label className="text-sm font-medium">Rejection Reason *</label>
+                <label className="text-sm font-medium"><T>Rejection Reason</T> *</label>
                 <Textarea
-                  placeholder="Explain why this submission is being rejected..."
+                  placeholder={tRejectionPlaceholder}
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
                   rows={3}
@@ -842,9 +895,9 @@ export const AdminAdvertisingPanel: React.FC = () => {
             )}
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Admin Notes {reviewAction !== 'reject' && '(optional)'}</label>
+              <label className="text-sm font-medium"><T>Admin Notes</T> {reviewAction !== 'reject' && <T>(optional)</T>}</label>
               <Textarea
-                placeholder="Add any notes for this submission..."
+                placeholder={tNotesPlaceholder}
                 value={adminNotes}
                 onChange={(e) => setAdminNotes(e.target.value)}
                 rows={3}
@@ -854,7 +907,7 @@ export const AdminAdvertisingPanel: React.FC = () => {
 
           <DialogFooter>
             <button className="ln-btn" onClick={closeReviewDialog}>
-              Cancel
+              <T>Cancel</T>
             </button>
             <button
               className={reviewAction === 'reject' ? 'ln-btn' : 'ln-btn is-primary'}
@@ -865,9 +918,9 @@ export const AdminAdvertisingPanel: React.FC = () => {
               {isProcessing ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : null}
-              {reviewAction === 'approve' && 'Approve & Send Payment Link'}
-              {reviewAction === 'reject' && 'Reject Submission'}
-              {reviewAction === 'changes' && 'Request Changes'}
+              {reviewAction === 'approve' && <T>Approve & Send Payment Link</T>}
+              {reviewAction === 'reject' && <T>Reject Submission</T>}
+              {reviewAction === 'changes' && <T>Request Changes</T>}
             </button>
           </DialogFooter>
         </DialogContent>
@@ -877,30 +930,30 @@ export const AdminAdvertisingPanel: React.FC = () => {
       <Dialog open={!!deletingSubmission} onOpenChange={() => setDeletingSubmission(null)}>
         <DialogContent className="px-6">
           <DialogHeader>
-            <DialogTitle>Delete Submission</DialogTitle>
+            <DialogTitle><T>Delete Submission</T></DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this submission? This action cannot be undone and will also delete any associated sponsored content.
+              <T>Are you sure you want to delete this submission? This action cannot be undone and will also delete any associated sponsored content.</T>
             </DialogDescription>
           </DialogHeader>
           {deletingSubmission && (
             <div className="py-4">
               <p className="text-sm text-muted-foreground">
-                <strong>Company:</strong> {deletingSubmission.company_name}
+                <strong><T>Company:</T></strong> {deletingSubmission.company_name}
               </p>
               <p className="text-sm text-muted-foreground mt-2">
-                <strong>Email:</strong> {deletingSubmission.email}
+                <strong><T>Email:</T></strong> {deletingSubmission.email}
               </p>
               <p className="text-sm text-muted-foreground mt-2">
-                <strong>Plan:</strong> {deletingSubmission.selected_plan}
+                <strong><T>Plan:</T></strong> {deletingSubmission.selected_plan}
               </p>
               <p className="text-sm text-muted-foreground mt-2">
-                <strong>Status:</strong> {deletingSubmission.status}
+                <strong><T>Status:</T></strong> {deletingSubmission.status}
               </p>
             </div>
           )}
           <DialogFooter>
             <button className="ln-btn" onClick={() => setDeletingSubmission(null)} disabled={isDeleting}>
-              Cancel
+              <T>Cancel</T>
             </button>
             <button
               className="ln-btn"
@@ -911,12 +964,12 @@ export const AdminAdvertisingPanel: React.FC = () => {
               {isDeleting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Deleting...
+                  <T>Deleting...</T>
                 </>
               ) : (
                 <>
                   <Trash2 className="w-4 h-4" />
-                  Delete
+                  <T>Delete</T>
                 </>
               )}
             </button>

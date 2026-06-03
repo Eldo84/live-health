@@ -6,6 +6,8 @@ import { TopBar } from "./SurveillanceMap";
 import { useWeeklyReports, type DiseaseRecommendation } from "../data/useWeeklyReport";
 import { colorForDisease } from "../data/diseaseColors";
 import { useBreakpoint } from "../lib/useBreakpoint";
+import { T } from "../components/T";
+import { useT } from "../lib/useT";
 
 const ACCENT = "#4ee0c4";
 
@@ -15,6 +17,10 @@ export function WeeklyReportScreen() {
   const bp = useBreakpoint();
   const isMobile = bp === "mobile";
   const isTabletDown = bp !== "desktop";
+  const tOlderReport = useT("Older report");
+  const tNewerReport = useT("Newer report");
+  const tDeepDives = useT("Disease deep-dives");
+  const tDeepDivesTitle = useT("Specific recommendations by pathogen");
 
   const { reports, loading } = useWeeklyReports(12);
   const [idx, setIdx] = useState(0);
@@ -75,10 +81,10 @@ export function WeeklyReportScreen() {
                   letterSpacing: "0.1em",
                 }}
               >
-                ← BACK TO ANALYTICS
+                ← <T>BACK TO ANALYTICS</T>
               </Link>
               <span className="ln-eyebrow" style={{ display: "block", marginTop: 12 }}>
-                Weekly outbreak report
+                <T>Weekly outbreak report</T>
               </span>
               <h1
                 className="ln-display"
@@ -91,13 +97,13 @@ export function WeeklyReportScreen() {
               >
                 {report ? (
                   <>
-                    The week of{" "}
+                    <T>The week of</T>{" "}
                     <span style={{ color: ACCENT, fontStyle: "italic" }}>{fmtDate(report.week_start_date)}</span>
                   </>
                 ) : loading ? (
-                  "Loading…"
+                  <T>Loading…</T>
                 ) : (
-                  "No weekly reports yet"
+                  <T>No weekly reports yet</T>
                 )}
               </h1>
               {report && (
@@ -112,7 +118,7 @@ export function WeeklyReportScreen() {
                 className="ln-btn"
                 onClick={() => setIdx((i) => Math.min(reports.length - 1, i + 1))}
                 disabled={idx >= reports.length - 1}
-                title="Older report"
+                title={tOlderReport}
               >
                 ←
               </button>
@@ -126,12 +132,12 @@ export function WeeklyReportScreen() {
                 className="ln-btn"
                 onClick={() => setIdx((i) => Math.max(0, i - 1))}
                 disabled={idx <= 0}
-                title="Newer report"
+                title={tNewerReport}
               >
                 →
               </button>
               <button className="ln-btn" onClick={handlePrint}>
-                <Icon.News /> Print
+                <Icon.News /> <T>Print</T>
               </button>
             </div>
           </div>
@@ -139,8 +145,7 @@ export function WeeklyReportScreen() {
 
         {!report && !loading && (
           <div style={{ padding: 32, fontSize: 13, color: "var(--ln-ink-3)" }}>
-            No weekly reports have been generated yet. The weekly cron writes a new report each Friday at
-            08:00 UTC.
+            <T>No weekly reports have been generated yet. The weekly cron writes a new report each Friday at 08:00 UTC.</T>
           </div>
         )}
 
@@ -155,7 +160,7 @@ export function WeeklyReportScreen() {
                   background: "var(--ln-surface)",
                 }}
               >
-                <span className="ln-eyebrow">Editor's note</span>
+                <span className="ln-eyebrow"><T>Editor's note</T></span>
                 <p
                   style={{
                     fontSize: isMobile ? 15 : 17,
@@ -188,9 +193,9 @@ export function WeeklyReportScreen() {
                 }}
               >
                 <div>
-                  <span className="ln-eyebrow">Top {report.diseases.length} diseases this week</span>
+                  <span className="ln-eyebrow"><T>Top</T> {report.diseases.length} <T>diseases this week</T></span>
                   <h2 style={{ fontSize: 22, margin: "4px 0 0", fontWeight: 500 }}>
-                    By new case volume
+                    <T>By new case volume</T>
                   </h2>
                 </div>
                 {topDisease && (
@@ -201,9 +206,9 @@ export function WeeklyReportScreen() {
                       color: "var(--ln-ink-3)",
                     }}
                   >
-                    Leader:{" "}
+                    <T>Leader:</T>{" "}
                     <span style={{ color: ACCENT }}>{topDisease.disease_name}</span> ·{" "}
-                    {topDisease.new_cases.toLocaleString()} new
+                    {topDisease.new_cases.toLocaleString()} <T>new</T>
                   </div>
                 )}
               </div>
@@ -315,8 +320,8 @@ export function WeeklyReportScreen() {
             {report.recommendations.diseaseSpecific && report.recommendations.diseaseSpecific.length > 0 && (
               <section style={{ borderBottom: "1px solid var(--ln-line)" }}>
                 <PaneHead
-                  eyebrow="Disease deep-dives"
-                  title="Specific recommendations by pathogen"
+                  eyebrow={tDeepDives}
+                  title={tDeepDivesTitle}
                 />
                 <div>
                   {report.recommendations.diseaseSpecific.map((rec, i) => (
@@ -333,7 +338,7 @@ export function WeeklyReportScreen() {
                 background: "var(--ln-surface)",
               }}
             >
-              <span className="ln-eyebrow">About this report</span>
+              <span className="ln-eyebrow"><T>About this report</T></span>
               <p
                 style={{
                   fontSize: 12,
@@ -343,20 +348,19 @@ export function WeeklyReportScreen() {
                   maxWidth: 820,
                 }}
               >
-                Generated automatically each Friday at 08:00 UTC from the previous 7 days of outbreak
-                signals. Disease counts reflect <em>new</em> signals detected in our pipeline, not
-                officially-confirmed case totals. Recommendations are AI-drafted and reviewed by
-                OutbreakNow public health editors before publication.
+                <T>Generated automatically each Friday at 08:00 UTC from the previous 7 days of outbreak signals. Disease counts reflect</T>{" "}
+                <em><T>new</T></em>{" "}
+                <T>signals detected in our pipeline, not officially-confirmed case totals. Recommendations are AI-drafted and reviewed by OutbreakNow public health editors before publication.</T>
               </p>
               <div style={{ marginTop: 14, display: "flex", gap: 8, flexWrap: "wrap" }}>
                 <Link to="/dashboard" className="ln-btn">
-                  <Icon.Chart /> Back to Analytics
+                  <Icon.Chart /> <T>Back to Analytics</T>
                 </Link>
                 <Link to="/map" className="ln-btn">
-                  <Icon.Map /> Open live map
+                  <Icon.Map /> <T>Open live map</T>
                 </Link>
                 <Link to="/news" className="ln-btn">
-                  <Icon.News /> Today's news
+                  <Icon.News /> <T>Today's news</T>
                 </Link>
               </div>
             </section>
@@ -388,12 +392,12 @@ function RecommendationList({
   return (
     <div style={{ padding: isMobile ? "20px 14px" : "24px 28px" }}>
       <span className="ln-eyebrow" style={{ color: accent }}>
-        {eyebrow}
+        <T>{eyebrow}</T>
       </span>
-      <h2 style={{ fontSize: 18, margin: "4px 0 16px", fontWeight: 500 }}>{title}</h2>
+      <h2 style={{ fontSize: 18, margin: "4px 0 16px", fontWeight: 500 }}><T>{title}</T></h2>
       <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: 12 }}>
         {items.length === 0 ? (
-          <li style={{ fontSize: 13, color: "var(--ln-ink-3)" }}>No general recommendations published.</li>
+          <li style={{ fontSize: 13, color: "var(--ln-ink-3)" }}><T>No general recommendations published.</T></li>
         ) : (
           items.map((it, i) => (
             <li
@@ -482,7 +486,7 @@ function DiseaseRecRow({
         >
           <div>
             <span className="ln-eyebrow" style={{ color: "var(--ln-info)" }}>
-              For the public
+              <T>For the public</T>
             </span>
             <ul style={{ listStyle: "none", padding: 0, margin: "8px 0 0", display: "flex", flexDirection: "column", gap: 10 }}>
               {rec.userRecommendations.map((it, i) => (
@@ -511,7 +515,7 @@ function DiseaseRecRow({
           </div>
           <div style={{ marginTop: isMobile ? 16 : 0 }}>
             <span className="ln-eyebrow" style={{ color: "var(--ln-warn)" }}>
-              For medical staff
+              <T>For medical staff</T>
             </span>
             <ul style={{ listStyle: "none", padding: 0, margin: "8px 0 0", display: "flex", flexDirection: "column", gap: 10 }}>
               {rec.medicalPersonnelRecommendations.map((it, i) => (

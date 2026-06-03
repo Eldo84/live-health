@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Building2, GraduationCap, Hospital, Cpu, Heart, HandCoins, Globe2, TrendingUp, Shield, Lightbulb, Users, Zap, Loader2 } from "lucide-react";
-import outbreakNowLogo from "@/assets/outbreaknow-logo.png";
 import { Footer } from "@/components/Footer";
 import { useLanguage, SUPPORTED_LANGUAGES } from "@/contexts/LanguageContext";
 
@@ -94,7 +93,7 @@ const Partnership = () => {
         <div className="container-prose py-3">
           <div className="flex items-center gap-4">
             <Link to="/" className="transition-opacity hover:opacity-80">
-              <img src={outbreakNowLogo} alt="OutbreakNow Logo" className="h-24 w-auto" />
+              <img src="/brand/outbreaknow-full-light.svg" alt="OutbreakNow Logo" className="h-24 w-auto" />
             </Link>
             <div className="flex-1 flex items-center justify-end gap-4">
               <Link to="/">

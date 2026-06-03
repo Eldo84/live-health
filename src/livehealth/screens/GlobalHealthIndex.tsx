@@ -26,6 +26,8 @@ import { useLiveRegionRisk } from "../data/useLiveRegionRisk";
 import { useRegionalRiskLevels } from "../../lib/useRegionalRiskLevels";
 import { useLiveOutbreaks } from "../data/useLiveOutbreaks";
 import { useBreakpoint } from "../lib/useBreakpoint";
+import { T } from "../components/T";
+import { useT } from "../lib/useT";
 
 const ACCENT = "#4ee0c4";
 
@@ -70,6 +72,12 @@ export function GlobalHealthIndexScreen() {
   const bp = useBreakpoint();
   const isMobile = bp === "mobile";
   const isTabletDown = bp !== "desktop";
+
+  const tAllCategories = useT("All categories");
+  const tAllCountries = useT("All countries");
+  const tGlobalAverage = useT("Global average");
+  const tMeasureTitle = useT("Choose what to measure: mortality, total burden, disability, or case counts");
+  const tCiTitle = useT("Estimates with 95% uncertainty band");
 
   const { countries } = useGbdCountries();
   const causes = useGbdCauses();
@@ -177,7 +185,7 @@ export function GlobalHealthIndexScreen() {
                 onChange={(e) => setCategory(e.target.value)}
                 style={{ ...selStyle, width: "100%" }}
               >
-                <option value="all">All categories</option>
+                <option value="all">{tAllCategories}</option>
                 {categoryOptions.map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
@@ -187,7 +195,7 @@ export function GlobalHealthIndexScreen() {
                 onChange={(e) => setCountryIso(e.target.value)}
                 style={{ ...selStyle, width: "100%" }}
               >
-                <option value="global">All countries</option>
+                <option value="global">{tAllCountries}</option>
                 {countries.map((c) => (
                   <option key={c.iso3} value={c.iso3}>{c.name}</option>
                 ))}
@@ -202,7 +210,7 @@ export function GlobalHealthIndexScreen() {
                   letterSpacing: "0.08em",
                 }}
               >
-                YEAR
+                <T>YEAR</T>
               </span>
               <input
                 type="range"
@@ -236,7 +244,7 @@ export function GlobalHealthIndexScreen() {
               onChange={(e) => setCountryIso(e.target.value)}
               style={{ ...selStyle, width: "100%" }}
             >
-              <option value="global">Global average</option>
+              <option value="global">{tGlobalAverage}</option>
               {countries.map((c) => (
                 <option key={c.iso3} value={c.iso3}>{c.name}</option>
               ))}
@@ -254,7 +262,7 @@ export function GlobalHealthIndexScreen() {
               value={measure}
               onChange={(e) => setMeasure(e.target.value as Measure)}
               style={{ ...selStyle, width: "100%" }}
-              title="Choose what to measure: mortality, total burden, disability, or case counts"
+              title={tMeasureTitle}
             >
               {MEASURES.map((m) => (
                 <option key={m} value={m}>{m}</option>
@@ -262,7 +270,7 @@ export function GlobalHealthIndexScreen() {
             </select>
             <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
               <span style={{ fontSize: 11, color: "var(--ln-ink-3)", fontFamily: "var(--ln-font-mono)" }}>
-                YEAR
+                <T>YEAR</T>
               </span>
               <input
                 type="range"
@@ -286,8 +294,8 @@ export function GlobalHealthIndexScreen() {
                   whiteSpace: "nowrap",
                 }}
               >
-                REAL DATA · {coverage.rows.toLocaleString()} ROWS · {coverage.causes} CAUSES ·{" "}
-                {coverage.minYear}–{coverage.maxYear}
+                <T>REAL DATA</T> · {coverage.rows.toLocaleString()} <T>ROWS</T> · {coverage.causes}{" "}
+                <T>CAUSES</T> · {coverage.minYear}–{coverage.maxYear}
               </span>
             )}
           </div>
@@ -340,7 +348,7 @@ export function GlobalHealthIndexScreen() {
             country-snapshot header with the full source note. */}
         {isMobile ? (
           <div style={{ padding: "16px 16px 14px", borderBottom: "1px solid var(--ln-line)" }}>
-            <span className="ln-eyebrow">{disease?.category || "Burden of disease"}</span>
+            <span className="ln-eyebrow">{disease?.category || <T>Burden of disease</T>}</span>
             <h2
               className="ln-display"
               style={{ fontSize: 26, margin: "6px 0 4px", letterSpacing: "-0.025em", lineHeight: 1.05 }}
@@ -349,28 +357,28 @@ export function GlobalHealthIndexScreen() {
             </h2>
             <div style={{ fontSize: 13, color: "var(--ln-ink-3)", fontStyle: "italic" }}>
               {countryIso === "global"
-                ? "Global average"
+                ? tGlobalAverage
                 : countries.find((c) => c.iso3 === countryIso)?.name || "—"}{" "}
               · {year}
             </div>
           </div>
         ) : (
           <div style={{ padding: "24px 28px 18px", borderBottom: "1px solid var(--ln-line)" }}>
-            <span className="ln-eyebrow">Country health snapshot</span>
+            <span className="ln-eyebrow"><T>Country health snapshot</T></span>
             <h2
               className="ln-display"
               style={{ fontSize: 38, margin: "8px 0 6px", letterSpacing: "-0.025em" }}
             >
               {countryIso === "global"
-                ? "Global average"
+                ? tGlobalAverage
                 : countries.find((c) => c.iso3 === countryIso)?.name || "—"}
               <span style={{ color: "var(--ln-ink-4)" }}>,</span>{" "}
               <span style={{ color: "var(--ln-ink-3)", fontStyle: "italic" }}>{year}</span>
             </h2>
             <p style={{ fontSize: 13.5, color: "var(--ln-ink-2)", maxWidth: 760, margin: "4px 0 0", lineHeight: 1.5 }}>
-              Sources: IHME Global Burden of Disease 2023 (Deaths / DALYs / YLLs / YLDs / Incidence / Prevalence,
+              <T>Sources: IHME Global Burden of Disease 2023 (Deaths / DALYs / YLLs / YLDs / Incidence / Prevalence,
               age-standardized rates, 10 causes, 204 countries, 95% CI bounds), World Bank Open Data (country
-              indicators), WHO GHO (malaria incidence), and the OutbreakNow surveillance feed.
+              indicators), WHO GHO (malaria incidence), and the OutbreakNow surveillance feed.</T>
             </p>
           </div>
         )}
@@ -413,9 +421,9 @@ export function GlobalHealthIndexScreen() {
                 {measure} · {disease?.name ?? "—"}
               </span>
               <h3 style={{ fontSize: isMobile ? 15 : 18, margin: "4px 0 0", fontWeight: 500, lineHeight: 1.35 }}>
-                {MEASURE_DESC[measure]} ·{" "}
+                <T>{MEASURE_DESC[measure]}</T> ·{" "}
                 {countryIso === "global"
-                  ? "global mean across 204 countries"
+                  ? <T>global mean across 204 countries</T>
                   : countries.find((c) => c.iso3 === countryIso)?.name}
                 <span style={{ color: "var(--ln-ink-3)", fontStyle: "italic" }}>
                   {" "}({MEASURE_UNIT[measure]})
@@ -430,9 +438,9 @@ export function GlobalHealthIndexScreen() {
                 color: "var(--ln-brand)",
                 border: "1px solid color-mix(in oklab, var(--ln-brand) 40%, transparent)",
               }}
-              title="Estimates with 95% uncertainty band"
+              title={tCiTitle}
             >
-              IHME GBD 2023 · 95% CI
+              <T>IHME GBD 2023 · 95% CI</T>
             </span>
           </div>
           <div style={{ marginTop: 14 }}>
@@ -465,8 +473,8 @@ export function GlobalHealthIndexScreen() {
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
               <div>
-                <span className="ln-eyebrow">Live regional risk · 30d</span>
-                <h3 style={{ fontSize: isMobile ? 15 : 16, margin: "4px 0 0", fontWeight: 500, lineHeight: 1.35 }}>Outbreak pressure today</h3>
+                <span className="ln-eyebrow"><T>Live regional risk · 30d</T></span>
+                <h3 style={{ fontSize: isMobile ? 15 : 16, margin: "4px 0 0", fontWeight: 500, lineHeight: 1.35 }}><T>Outbreak pressure today</T></h3>
               </div>
               <span
                 className="ln-chip"
@@ -477,7 +485,7 @@ export function GlobalHealthIndexScreen() {
                   border: "1px solid color-mix(in oklab, var(--ln-brand) 40%, transparent)",
                 }}
               >
-                LIVE · OUTBREAKNOW DB
+                <T>LIVE · OUTBREAKNOW DB</T>
               </span>
             </div>
             <div
@@ -500,8 +508,8 @@ export function GlobalHealthIndexScreen() {
               />
             </div>
             <div style={{ marginTop: 10, fontSize: 11.5, color: "var(--ln-ink-3)", lineHeight: 1.5 }}>
-              Continent fills come from the OutbreakNow database, grouped by region risk level.
-              Pulsing dots are individual high-severity events from the live surveillance feed.
+              <T>Continent fills come from the OutbreakNow database, grouped by region risk level.
+              Pulsing dots are individual high-severity events from the live surveillance feed.</T>
             </div>
           </div>
         </div>
@@ -509,11 +517,11 @@ export function GlobalHealthIndexScreen() {
         {/* Cause burden ranking — all 10 diseases for active country */}
         <div style={{ borderBottom: "1px solid var(--ln-line)" }}>
           <div style={{ padding: isMobile ? "14px 14px 4px" : "18px 28px 4px" }}>
-            <span className="ln-eyebrow">Cause burden · {measure}</span>
+            <span className="ln-eyebrow"><T>Cause burden</T> · {measure}</span>
             <h3 style={{ fontSize: isMobile ? 15 : 16, margin: "4px 0 4px", fontWeight: 500, lineHeight: 1.35 }}>
-              {causes.length} tracked causes ranked,{" "}
+              {causes.length} <T>tracked causes ranked,</T>{" "}
               {countryIso === "global"
-                ? "global mean"
+                ? <T>global mean</T>
                 : countries.find((c) => c.iso3 === countryIso)?.name}{" "}
               · {year}
             </h3>
@@ -531,13 +539,13 @@ export function GlobalHealthIndexScreen() {
         <div style={{ borderBottom: "1px solid var(--ln-line)", padding: isMobile ? "14px 14px" : "18px 28px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 10 }}>
             <div>
-              <span className="ln-eyebrow">Burden split · {disease?.name ?? "—"}</span>
+              <span className="ln-eyebrow"><T>Burden split</T> · {disease?.name ?? "—"}</span>
               <h3 style={{ fontSize: isMobile ? 15 : 16, margin: "4px 0 0", fontWeight: 500, lineHeight: 1.35 }}>
-                Years of life lost vs years lived with disability
+                <T>Years of life lost vs years lived with disability</T>
               </h3>
             </div>
             <span style={{ fontSize: 11, color: "var(--ln-ink-3)", fontFamily: "var(--ln-font-mono)" }}>
-              YLL = mortality · YLD = morbidity · DALY = YLL + YLD
+              <T>YLL = mortality · YLD = morbidity · DALY = YLL + YLD</T>
             </span>
           </div>
           <BurdenSplitStack rows={splitRows} countryIso={countryIso} isMobile={isMobile} />
@@ -562,9 +570,9 @@ export function GlobalHealthIndexScreen() {
         {/* YoY leaderboard — countries with biggest 2017→latest swing for selected disease+measure */}
         <div style={{ borderBottom: "1px solid var(--ln-line)" }}>
           <div style={{ padding: isMobile ? "14px 14px 4px" : "18px 28px 4px" }}>
-            <span className="ln-eyebrow">Trajectory · {disease?.name ?? "—"} · {measure}</span>
+            <span className="ln-eyebrow"><T>Trajectory</T> · {disease?.name ?? "—"} · {measure}</span>
             <h3 style={{ fontSize: isMobile ? 15 : 16, margin: "4px 0 4px", fontWeight: 500, lineHeight: 1.35 }}>
-              Biggest country swings, 2017 → 2023
+              <T>Biggest country swings, 2017 → 2023</T>
             </h3>
           </div>
           <YoyLeaderboard rows={estRows} countries={countries} isMobile={isMobile} />
@@ -583,9 +591,9 @@ export function GlobalHealthIndexScreen() {
             }}
           >
             <div>
-              <span className="ln-eyebrow">Country detail · {year}</span>
+              <span className="ln-eyebrow"><T>Country detail</T> · {year}</span>
               <h3 style={{ fontSize: isMobile ? 15 : 16, margin: "4px 0 0", fontWeight: 500, lineHeight: 1.35 }}>
-                {disease?.name} {measure.toLowerCase()} + live outbreak risk
+                {disease?.name} {measure.toLowerCase()} <T>+ live outbreak risk</T>
               </h3>
             </div>
           </div>
@@ -608,7 +616,7 @@ export function GlobalHealthIndexScreen() {
             borderBottom: "1px solid var(--ln-line)",
           }}
         >
-          <span className="ln-eyebrow">Data sources + methodology</span>
+          <span className="ln-eyebrow"><T>Data sources + methodology</T></span>
           <ul
             style={{
               fontSize: 12.5,
@@ -620,30 +628,33 @@ export function GlobalHealthIndexScreen() {
             }}
           >
             <li>
-              <b style={{ color: "var(--ln-ink-2)" }}>IHME Global Burden of Disease (GBD 2023)</b> —
-              age-standardized rate estimates with 95% uncertainty bounds for Deaths, DALYs, YLLs,
+              <b style={{ color: "var(--ln-ink-2)" }}><T>IHME Global Burden of Disease (GBD 2023)</T></b> —{" "}
+              <T>age-standardized rate estimates with 95% uncertainty bounds for Deaths, DALYs, YLLs,
               YLDs, Incidence and Prevalence, across 10 tracked causes and 204 countries (2017–2023).
-              Free for non-commercial use under IHME's terms.
+              Free for non-commercial use under IHME's terms.</T>
             </li>
             <li>
-              <b style={{ color: "var(--ln-ink-2)" }}>World Bank Open Data</b> — life expectancy,
+              <b style={{ color: "var(--ln-ink-2)" }}><T>World Bank Open Data</T></b> —{" "}
+              <T>life expectancy,
               DTP3/measles vaccine coverage, under-5 + maternal mortality, health spending as % of
-              GDP. Free, no signup, CC-BY 4.0.
+              GDP. Free, no signup, CC-BY 4.0.</T>
             </li>
             <li>
-              <b style={{ color: "var(--ln-ink-2)" }}>WHO Global Health Observatory</b> — malaria
+              <b style={{ color: "var(--ln-ink-2)" }}><T>WHO Global Health Observatory</T></b> —{" "}
+              <T>malaria
               incidence (kept because IHME's free 10-cause set does not include malaria). Free, no
-              signup, CC-BY-NC-SA 3.0.
+              signup, CC-BY-NC-SA 3.0.</T>
             </li>
             <li>
-              <b style={{ color: "var(--ln-ink-2)" }}>OutbreakNow surveillance feed</b> — the
+              <b style={{ color: "var(--ln-ink-2)" }}><T>OutbreakNow surveillance feed</T></b> —{" "}
+              <T>the
               choropleth fills and pulsing outbreak markers on the world map, plus the live risk
-              chips in the country table. Streamed in real time from the OutbreakNow database.
+              chips in the country table. Streamed in real time from the OutbreakNow database.</T>
             </li>
             <li>
-              The metric cards reflect the latest available value for the selected country + year.
+              <T>The metric cards reflect the latest available value for the selected country + year.
               When a country has no reported value for that year, the card falls back to the most
-              recent prior year. Same fallback applies to the disease trend chart and country table.
+              recent prior year. Same fallback applies to the disease trend chart and country table.</T>
             </li>
           </ul>
         </div>
@@ -679,13 +690,13 @@ function MobileGhiHeader() {
       </div>
       <div style={{ padding: "0 16px 12px" }}>
         <span className="ln-eyebrow">
-          <Icon.Globe style={{ verticalAlign: -2, color: ACCENT }} /> Global Health Index
+          <Icon.Globe style={{ verticalAlign: -2, color: ACCENT }} /> <T>Global Health Index</T>
         </span>
         <div
           className="ln-display"
           style={{ fontSize: 22, lineHeight: 1.05, letterSpacing: "-0.02em", marginTop: 3 }}
         >
-          Burden-of-disease <span style={{ color: "var(--ln-ink-3)", fontStyle: "italic" }}>atlas</span>
+          <T>Burden-of-disease</T> <span style={{ color: "var(--ln-ink-3)", fontStyle: "italic" }}><T>atlas</T></span>
         </div>
       </div>
     </header>
@@ -769,7 +780,7 @@ function MobileBurdenCards({
             }}
           >
             <div style={{ position: "absolute", top: 0, left: 0, width: 24, height: 2, background: m.color }} />
-            <span className="ln-eyebrow">{m.label}</span>
+            <span className="ln-eyebrow"><T>{m.label}</T></span>
             <div style={{ display: "flex", alignItems: "baseline", gap: 5, marginTop: 7 }}>
               <span className="ln-num" style={{ fontSize: 26, fontWeight: 500, letterSpacing: "-0.03em" }}>
                 {cur ? cur.value.toLocaleString(undefined, { maximumFractionDigits: 1 }) : "—"}
@@ -865,7 +876,7 @@ function CountryMetricCard({
       }}
     >
       <div style={{ position: "absolute", top: 0, left: 0, width: 28, height: 2, background: color }} />
-      <span className="ln-eyebrow" style={{ fontSize: isMobile ? 10 : undefined }}>{label}</span>
+      <span className="ln-eyebrow" style={{ fontSize: isMobile ? 10 : undefined }}><T>{label}</T></span>
       <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 6, flexWrap: "wrap" }}>
         <span
           className="ln-num"
@@ -936,7 +947,7 @@ function DiseaseTrendChart({
   if (!points.length) {
     return (
       <div style={{ height: isMobile ? 180 : 220, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ln-ink-3)", fontSize: 13, textAlign: "center", padding: "0 16px" }}>
-        No data for this disease + measure combination yet.
+        <T>No data for this disease + measure combination yet.</T>
       </div>
     );
   }
@@ -1074,11 +1085,11 @@ function CountryComparison({
 
   return (
     <div style={{ padding: isMobile ? "14px 14px 18px" : "18px 28px 22px" }}>
-      <span className="ln-eyebrow">Country comparison · {disease?.name ?? "—"} · {measure}</span>
-      <h3 style={{ fontSize: 16, margin: "4px 0 14px", fontWeight: 500 }}>Top 10 by {measure} ({MEASURE_UNIT[measure]})</h3>
+      <span className="ln-eyebrow"><T>Country comparison</T> · {disease?.name ?? "—"} · {measure}</span>
+      <h3 style={{ fontSize: 16, margin: "4px 0 14px", fontWeight: 500 }}><T>Top 10 by</T> {measure} ({MEASURE_UNIT[measure]})</h3>
       {top.length === 0 ? (
         <div style={{ padding: 20, fontSize: 12, color: "var(--ln-ink-3)" }}>
-          No country comparison available for this combination yet.
+          <T>No country comparison available for this combination yet.</T>
         </div>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 8 : 6 }}>
@@ -1185,7 +1196,7 @@ function CauseBurdenRanking({
   if (!ranking.length) {
     return (
       <div style={{ padding: 20, fontSize: 12, color: "var(--ln-ink-3)" }}>
-        No cause data available for this country yet.
+        <T>No cause data available for this country yet.</T>
       </div>
     );
   }
@@ -1299,7 +1310,7 @@ function BurdenSplitStack({
   if (!data.length) {
     return (
       <div style={{ height: 160, marginTop: 12, display: "flex", alignItems: "center", color: "var(--ln-ink-3)", fontSize: 12 }}>
-        YLL/YLD split unavailable for this disease (mental-health causes are reported without YLLs).
+        <T>YLL/YLD split unavailable for this disease (mental-health causes are reported without YLLs).</T>
       </div>
     );
   }
@@ -1393,7 +1404,7 @@ function YoyLeaderboard({
   const Section = ({ title, items, color }: { title: string; items: typeof swings.up; color: string }) => (
     <div style={{ flex: 1, minWidth: 0 }}>
       <div style={{ fontSize: 11, color: "var(--ln-ink-3)", fontFamily: "var(--ln-font-mono)", letterSpacing: "0.08em", marginBottom: 8 }}>
-        {title}
+        <T>{title}</T>
       </div>
       {items.length === 0 ? (
         <div style={{ fontSize: 12, color: "var(--ln-ink-4)" }}>—</div>
@@ -1480,6 +1491,7 @@ function CountryTable({
   liveRiskByCountry: Map<string, "low" | "medium" | "high" | "critical">;
   isTabletDown: boolean;
 }) {
+  const tLiveRiskTitle = useT("Live outbreak risk from surveillance feed");
   const tableRows = useMemo(() => {
     const latestByIso = new Map<string, { year: number; rate: number }>();
     for (const r of rows) {
@@ -1502,7 +1514,7 @@ function CountryTable({
   if (!disease || tableRows.length === 0) {
     return (
       <div style={{ padding: 20, fontSize: 12, color: "var(--ln-ink-3)" }}>
-        No country-level data for {disease?.name} ({measure}) yet.
+        <T>No country-level data for</T> {disease?.name} ({measure}) <T>yet.</T>
       </div>
     );
   }
@@ -1526,12 +1538,12 @@ function CountryTable({
             background: "var(--ln-surface)",
           }}
         >
-          <span>RANK</span>
-          <span>COUNTRY</span>
-          {!isTabletDown && <span>REGION</span>}
-          {!isTabletDown && <span style={{ textAlign: "right" }}>POP (M)</span>}
+          <span><T>RANK</T></span>
+          <span><T>COUNTRY</T></span>
+          {!isTabletDown && <span><T>REGION</T></span>}
+          {!isTabletDown && <span style={{ textAlign: "right" }}><T>POP (M)</T></span>}
           <span style={{ textAlign: "right" }}>{measure.toUpperCase()}</span>
-          <span style={{ textAlign: "right" }}>YEAR</span>
+          <span style={{ textAlign: "right" }}><T>YEAR</T></span>
         </div>
         {tableRows.map((r, i) => {
           const liveRisk = liveRiskByCountry.get(r.name);
@@ -1567,7 +1579,7 @@ function CountryTable({
                       liveRisk === "critical" ? "is-crit" : liveRisk === "high" ? "is-warn" : "is-info"
                     }`}
                     style={{ fontSize: 9 }}
-                    title="Live outbreak risk from surveillance feed"
+                    title={tLiveRiskTitle}
                   >
                     {liveRisk.toUpperCase()}
                   </span>
@@ -1616,6 +1628,7 @@ function GhiDiseaseSidebar({
   year: number;
 }) {
   const [search, setSearch] = useState("");
+  const tSearchConditions = useT("Search conditions…");
 
   // Real burden value per cause (selected measure, latest year ≤ active),
   // shown as a subtle metric next to each list item.
@@ -1665,7 +1678,7 @@ function GhiDiseaseSidebar({
       }}
     >
       <div style={{ padding: "16px 14px 10px", position: "sticky", top: 0, background: "var(--ln-rail, var(--ln-surface))", zIndex: 1 }}>
-        <span className="ln-eyebrow">Conditions · {causes.length}</span>
+        <span className="ln-eyebrow"><T>Conditions</T> · {causes.length}</span>
         <div style={{ position: "relative", marginTop: 8 }}>
           <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", color: "var(--ln-ink-4)", display: "inline-flex" }}>
             <Icon.Search />
@@ -1673,7 +1686,7 @@ function GhiDiseaseSidebar({
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search conditions…"
+            placeholder={tSearchConditions}
             style={{
               width: "100%",
               background: "var(--ln-surface)",
@@ -1690,7 +1703,7 @@ function GhiDiseaseSidebar({
       <div style={{ borderTop: "1px solid var(--ln-line)" }}>
         {filtered.length === 0 && (
           <div style={{ padding: "16px 14px", fontSize: 12, color: "var(--ln-ink-4)" }}>
-            No conditions match “{search}”.
+            <T>No conditions match</T> “{search}”.
           </div>
         )}
         {filtered.map((d) => {
@@ -1761,6 +1774,7 @@ function hashStr(s: string): number {
 
 // "Modeled" pill shown on charts whose dimension we don't truly have.
 function ModeledChip() {
+  const tModeledTitle = useT("Illustrative model — our IHME slice is both-sexes / age-standardized, so this breakdown is derived deterministically, not measured.");
   return (
     <span
       className="ln-chip"
@@ -1771,9 +1785,9 @@ function ModeledChip() {
         border: "1px solid color-mix(in oklab, var(--ln-warn) 38%, transparent)",
         letterSpacing: "0.06em",
       }}
-      title="Illustrative model — our IHME slice is both-sexes / age-standardized, so this breakdown is derived deterministically, not measured."
+      title={tModeledTitle}
     >
-      MODELED · ILLUSTRATIVE
+      <T>MODELED · ILLUSTRATIVE</T>
     </span>
   );
 }
@@ -1830,6 +1844,19 @@ function GhiAnalyticsCharts({
   isMobile: boolean;
   isTabletDown: boolean;
 }) {
+  const tBurdenLandscape = useT("Burden landscape");
+  const tBurdenShare = useT("Burden share");
+  const tGenderDistribution = useT("Gender distribution · top causes");
+  const tAgeDistribution = useT("Age distribution");
+  const tRiskFactors = useT("Risk factors");
+  const tSelectedCondition = useT("Selected condition");
+  const tBubbleTitle = useT("Prevalence × Incidence × DALYs, one bubble per cause");
+  const tDalysByCategory = useT("DALYs by cause category");
+  const tModeledMaleFemaleShare = useT("Modeled male vs. female share");
+  const tModeledCasesByAge = useT("Modeled cases by age band");
+  const tModeledAttributableWeight = useT("Modeled attributable weight");
+  const tModeledGenderSplit = useT("Modeled gender split");
+  const tGlobalMean = useT("global mean");
   // Real per-cause aggregates for the active country/global at the active year
   // (latest ≤ year), across the 3 axes the bubble chart needs.
   const { rows: prevRows } = useGbdCountryAllCauses(countryIso, "Prevalence");
@@ -1912,7 +1939,7 @@ function GhiAnalyticsCharts({
     padding: isMobile ? "16px 14px" : "18px 28px",
     borderBottom: "1px solid var(--ln-line)",
   };
-  const scope = countryIso === "global" ? "global mean" : countryName;
+  const scope = countryIso === "global" ? tGlobalMean : countryName;
 
   return (
     <>
@@ -1926,8 +1953,8 @@ function GhiAnalyticsCharts({
       >
         <div style={{ padding: isMobile ? "16px 14px" : "18px 28px" }}>
           <ChartHead
-            eyebrow={`Burden landscape · ${scope} · ${year}`}
-            title="Prevalence × Incidence × DALYs, one bubble per cause"
+            eyebrow={`${tBurdenLandscape} · ${scope} · ${year}`}
+            title={tBubbleTitle}
             right={
               <span
                 className="ln-chip"
@@ -1959,8 +1986,8 @@ function GhiAnalyticsCharts({
         </div>
         <div style={{ padding: isMobile ? "16px 14px" : "18px 28px", borderLeft: isTabletDown ? "none" : "1px solid var(--ln-line)", borderTop: isTabletDown ? "1px solid var(--ln-line)" : "none" }}>
           <ChartHead
-            eyebrow={`Burden share · ${scope} · ${year}`}
-            title="DALYs by cause category"
+            eyebrow={`${tBurdenShare} · ${scope} · ${year}`}
+            title={tDalysByCategory}
             right={
               <span
                 className="ln-chip"
@@ -1989,16 +2016,16 @@ function GhiAnalyticsCharts({
       >
         <div style={block}>
           <ChartHead
-            eyebrow="Gender distribution · top causes"
-            title="Modeled male vs. female share"
+            eyebrow={tGenderDistribution}
+            title={tModeledMaleFemaleShare}
             right={<ModeledChip />}
           />
           <GenderComparison causes={causes} pickDaly={pickByCause.daly} isMobile={isMobile} />
         </div>
         <div style={{ ...block, borderLeft: isTabletDown ? "none" : "1px solid var(--ln-line)" }}>
           <ChartHead
-            eyebrow={`Age distribution · ${disease?.name ?? "—"}`}
-            title="Modeled cases by age band"
+            eyebrow={`${tAgeDistribution} · ${disease?.name ?? "—"}`}
+            title={tModeledCasesByAge}
             right={<ModeledChip />}
           />
           <AgeHistogram
@@ -2009,8 +2036,8 @@ function GhiAnalyticsCharts({
         </div>
         <div style={{ ...block, borderLeft: isTabletDown ? "none" : "1px solid var(--ln-line)" }}>
           <ChartHead
-            eyebrow={`Risk factors · ${disease?.name ?? "—"}`}
-            title="Modeled attributable weight"
+            eyebrow={`${tRiskFactors} · ${disease?.name ?? "—"}`}
+            title={tModeledAttributableWeight}
             right={<ModeledChip />}
           />
           <RiskRadar cause={disease} />
@@ -2020,8 +2047,8 @@ function GhiAnalyticsCharts({
       {/* Gender split for the selected condition (MODELED) */}
       <div style={block}>
         <ChartHead
-          eyebrow={`Selected condition · ${disease?.name ?? "—"}`}
-          title="Modeled gender split"
+          eyebrow={`${tSelectedCondition} · ${disease?.name ?? "—"}`}
+          title={tModeledGenderSplit}
           right={<ModeledChip />}
         />
         <GenderSplit cause={disease} />
@@ -2042,10 +2069,12 @@ function BurdenBubbleChart({
   activeId: string | null;
   isMobile: boolean;
 }) {
+  const tPrevalenceAxis = useT("PREVALENCE →");
+  const tIncidenceAxis = useT("↑ INCIDENCE · bubble = DALYs");
   if (bubbles.length === 0) {
     return (
       <div style={{ height: 220, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ln-ink-3)", fontSize: 13 }}>
-        No prevalence/incidence/DALYs overlap for this scope yet.
+        <T>No prevalence/incidence/DALYs overlap for this scope yet.</T>
       </div>
     );
   }
@@ -2075,8 +2104,8 @@ function BurdenBubbleChart({
       ))}
       <line x1={padL} y1={H - padB} x2={W - padR} y2={H - padB} stroke="var(--ln-line-2)" />
       <line x1={padL} y1={padT} x2={padL} y2={H - padB} stroke="var(--ln-line-2)" />
-      <text x={W - padR} y={H - 6} fontSize={fs} textAnchor="end" fill="var(--ln-ink-4)" fontFamily="var(--ln-font-mono)">PREVALENCE →</text>
-      <text x={padL + 4} y={padT + 2} fontSize={fs} fill="var(--ln-ink-4)" fontFamily="var(--ln-font-mono)">↑ INCIDENCE · bubble = DALYs</text>
+      <text x={W - padR} y={H - 6} fontSize={fs} textAnchor="end" fill="var(--ln-ink-4)" fontFamily="var(--ln-font-mono)">{tPrevalenceAxis}</text>
+      <text x={padL + 4} y={padT + 2} fontSize={fs} fill="var(--ln-ink-4)" fontFamily="var(--ln-font-mono)">{tIncidenceAxis}</text>
       {bubbles.map((b) => {
         const x = xAt(b.prev);
         const y = yAt(b.inc);
@@ -2110,7 +2139,7 @@ function CategoryStackedBar({
   if (rows.length === 0) {
     return (
       <div style={{ height: 160, display: "flex", alignItems: "center", color: "var(--ln-ink-3)", fontSize: 12 }}>
-        No DALYs available to aggregate for this scope yet.
+        <T>No DALYs available to aggregate for this scope yet.</T>
       </div>
     );
   }
@@ -2163,7 +2192,7 @@ function GenderComparison({
   }, [causes, pickDaly]);
 
   if (rows.length === 0) {
-    return <div style={{ fontSize: 12, color: "var(--ln-ink-3)" }}>No causes to model yet.</div>;
+    return <div style={{ fontSize: 12, color: "var(--ln-ink-3)" }}><T>No causes to model yet.</T></div>;
   }
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
@@ -2181,10 +2210,10 @@ function GenderComparison({
       ))}
       <div style={{ display: "flex", gap: 14, marginTop: 4 }}>
         <span style={{ fontSize: 11, color: "var(--ln-ink-2)", display: "inline-flex", gap: 6, alignItems: "center" }}>
-          <span style={{ width: 10, height: 10, background: "#6ab7ff" }} />Male
+          <span style={{ width: 10, height: 10, background: "#6ab7ff" }} /><T>Male</T>
         </span>
         <span style={{ fontSize: 11, color: "var(--ln-ink-2)", display: "inline-flex", gap: 6, alignItems: "center" }}>
-          <span style={{ width: 10, height: 10, background: "#ff8b6b" }} />Female
+          <span style={{ width: 10, height: 10, background: "#ff8b6b" }} /><T>Female</T>
         </span>
       </div>
     </div>
@@ -2217,7 +2246,7 @@ function AgeHistogram({
   }, [cause, total]);
 
   if (!data) {
-    return <div style={{ fontSize: 12, color: "var(--ln-ink-3)", height: 140 }}>No prevalence to model yet.</div>;
+    return <div style={{ fontSize: 12, color: "var(--ln-ink-3)", height: 140 }}><T>No prevalence to model yet.</T></div>;
   }
   const max = Math.max(...data);
   return (
@@ -2247,7 +2276,7 @@ function RiskRadar({ cause }: { cause: GbdCause | null }) {
   if (!cause || factors.length < 3) {
     return (
       <div style={{ height: 200, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ln-ink-3)", fontSize: 12, textAlign: "center" }}>
-        Not enough mapped risk factors for {cause?.name ?? "this cause"} to plot a radar.
+        <T>Not enough mapped risk factors for</T> {cause?.name ?? <T>this cause</T>} <T>to plot a radar.</T>
       </div>
     );
   }
@@ -2302,7 +2331,7 @@ function RiskRadar({ cause }: { cause: GbdCause | null }) {
 // deterministically from the cause id hash. NOT measured.
 function GenderSplit({ cause }: { cause: GbdCause | null }) {
   if (!cause) {
-    return <div style={{ fontSize: 12, color: "var(--ln-ink-3)" }}>Select a condition.</div>;
+    return <div style={{ fontSize: 12, color: "var(--ln-ink-3)" }}><T>Select a condition.</T></div>;
   }
   const male = Math.round(38 + hashStr(cause.id) * 24);
   const female = 100 - male;
@@ -2311,11 +2340,11 @@ function GenderSplit({ cause }: { cause: GbdCause | null }) {
     <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 24 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 18 }}>
         <div>
-          <span className="ln-eyebrow">Male</span>
+          <span className="ln-eyebrow"><T>Male</T></span>
           <div className="ln-num" style={{ fontSize: 36, color: "#6ab7ff", lineHeight: 1, marginTop: 4 }}>{male}%</div>
         </div>
         <div>
-          <span className="ln-eyebrow">Female</span>
+          <span className="ln-eyebrow"><T>Female</T></span>
           <div className="ln-num" style={{ fontSize: 36, color: "#ff8b6b", lineHeight: 1, marginTop: 4 }}>{female}%</div>
         </div>
       </div>

@@ -1,3 +1,5 @@
+import { useT } from "../lib/useT";
+
 interface LineSeries {
   id: string;
   label?: string;
@@ -20,6 +22,8 @@ export function LineChart({
   height = 220,
   padding = { l: 36, r: 12, t: 12, b: 26 },
 }: LineChartProps) {
+  const tCapped = useT("y-axis capped");
+  const tPeak = useT("peak");
   const W = width - padding.l - padding.r;
   const H = height - padding.t - padding.b;
   const N = series[0]?.data.length ?? 0;
@@ -111,7 +115,7 @@ export function LineChart({
           fontFamily="var(--ln-font-mono)"
           letterSpacing="0.08em"
         >
-          y-axis capped · peak {rawMax.toLocaleString()}
+          {tCapped} · {tPeak} {rawMax.toLocaleString()}
         </text>
       )}
     </svg>

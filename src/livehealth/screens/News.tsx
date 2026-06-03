@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Icon } from "../components/Icon";
 import { AlertTicker } from "../components/AlertTicker";
 import { AdCard } from "../components/AdCard";
@@ -13,6 +13,8 @@ import { colorForDisease } from "../data/diseaseColors";
 import { translateArticle } from "../../lib/translateArticle";
 import { saveTranslation } from "../../lib/saveTranslation";
 import { useLanguage, SUPPORTED_LANGUAGES } from "../../contexts/LanguageContext";
+import { T } from "../components/T";
+import { useT } from "../lib/useT";
 
 const ACCENT = "#4ee0c4";
 
@@ -26,6 +28,12 @@ export function NewsScreen() {
   const isTabletDown = bp !== "desktop";
 
   const { language } = useLanguage();
+
+  const tSearchStories = useT("Search stories…");
+  const tEmailPlaceholder = useT("you@example.com");
+  const tTranslating = useT("Translating…");
+  const tShowOriginal = useT("Show original");
+  const tShowIn = useT("Show in");
 
   const [tab, setTab] = useState<Tab>("all");
   const [search, setSearch] = useState("");
@@ -166,7 +174,7 @@ export function NewsScreen() {
           }}
         >
           <div>
-            <span className="ln-eyebrow">News · open-source health intelligence</span>
+            <span className="ln-eyebrow"><T>News · open-source health intelligence</T></span>
             <h1
               className="ln-display"
               style={{
@@ -176,7 +184,7 @@ export function NewsScreen() {
                 letterSpacing: "-0.03em",
               }}
             >
-              The <span style={{ color: "var(--ln-ink-3)", fontStyle: "italic" }}>day in</span> outbreaks.
+              <T>The</T> <span style={{ color: "var(--ln-ink-3)", fontStyle: "italic" }}><T>day in</T></span> <T>outbreaks.</T>
             </h1>
             <p
               style={{
@@ -187,8 +195,8 @@ export function NewsScreen() {
                 lineHeight: 1.55,
               }}
             >
-              Curated from {allSources.length || "1,200+"} sources, deduplicated, machine-translated where
-              available. Every story links back to its outbreak signal on the map.
+              <T>Curated from</T> {allSources.length || "1,200+"} <T>sources, deduplicated, machine-translated where
+              available. Every story links back to its outbreak signal on the map.</T>
             </p>
           </div>
           <div style={{ display: "flex", flexDirection: "column", alignItems: isMobile ? "flex-start" : "flex-end", gap: 6 }}>
@@ -203,7 +211,13 @@ export function NewsScreen() {
               {new Date().toUTCString().slice(0, 16).toUpperCase()}
             </span>
             <span style={{ fontFamily: "var(--ln-font-mono)", fontSize: 11, color: "var(--ln-ink-3)" }}>
-              {loading ? "loading…" : `${filtered.length} stories · ${allSources.length} sources`}
+              {loading ? (
+                <T>loading…</T>
+              ) : (
+                <>
+                  {filtered.length} <T>stories ·</T> {allSources.length} <T>sources</T>
+                </>
+              )}
             </span>
           </div>
         </div>
@@ -224,10 +238,10 @@ export function NewsScreen() {
         <div style={{ display: "flex", gap: 0 }}>
           {(
             [
-              { id: "all", l: "All stories", n: articles.length },
-              { id: "featured", l: "Featured", n: articles.filter((a) => FEATURED_SOURCES.has(a.src)).length },
-              { id: "breaking", l: "Breaking", n: articles.filter((a) => Date.now() - a.ts < 4 * 3600 * 1000).length },
-            ] as { id: Tab; l: string; n: number }[]
+              { id: "all", l: <T>All stories</T>, n: articles.length },
+              { id: "featured", l: <T>Featured</T>, n: articles.filter((a) => FEATURED_SOURCES.has(a.src)).length },
+              { id: "breaking", l: <T>Breaking</T>, n: articles.filter((a) => Date.now() - a.ts < 4 * 3600 * 1000).length },
+            ] as { id: Tab; l: ReactNode; n: number }[]
           ).map((t) => (
             <button
               key={t.id}
@@ -265,7 +279,7 @@ export function NewsScreen() {
           </span>
           <input
             className="ln-input"
-            placeholder="Search stories…"
+            placeholder={tSearchStories}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -283,7 +297,7 @@ export function NewsScreen() {
               borderRadius: 6,
             }}
           >
-            <option value="">All regions</option>
+            <option value=""><T>All regions</T></option>
             {allRegions.map((r) => (
               <option key={r} value={r}>
                 {r}
@@ -315,7 +329,7 @@ export function NewsScreen() {
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   <span className="ln-chip is-crit">
-                    <span className="ln-blink">●</span> TOP STORY
+                    <span className="ln-blink">●</span> <T>TOP STORY</T>
                   </span>
                   <span className="ln-eyebrow">
                     {featured.src.toUpperCase()} · {featured.region.toUpperCase()}
@@ -327,7 +341,7 @@ export function NewsScreen() {
                       color: "var(--ln-ink-4)",
                     }}
                   >
-                    {timeAgo(featured.ts)} AGO
+                    {timeAgo(featured.ts)} <T>AGO</T>
                   </span>
                 </div>
                 {(() => {
@@ -369,11 +383,11 @@ export function NewsScreen() {
                       rel="noopener noreferrer"
                       className="ln-btn is-primary"
                     >
-                      Read full story <Icon.ArrowR />
+                      <T>Read full story</T> <Icon.ArrowR />
                     </a>
                   ) : (
                     <button className="ln-btn is-primary" disabled>
-                      Read full story <Icon.ArrowR />
+                      <T>Read full story</T> <Icon.ArrowR />
                     </button>
                   )}
                   {(() => {
@@ -394,10 +408,10 @@ export function NewsScreen() {
                       >
                         🌐{" "}
                         {t?.loading
-                          ? "Translating…"
+                          ? tTranslating
                           : t?.showing === "translated"
-                          ? `Show original (${featured.lang.toUpperCase()})`
-                          : `Show in ${targetName}`}
+                          ? `${tShowOriginal} (${featured.lang.toUpperCase()})`
+                          : `${tShowIn} ${targetName}`}
                       </button>
                     );
                   })()}
@@ -423,9 +437,9 @@ export function NewsScreen() {
 
           {/* Section heading */}
           <div style={{ padding: isMobile ? "16px 16px 8px" : "20px 28px 10px" }}>
-            <span className="ln-eyebrow">More stories</span>
+            <span className="ln-eyebrow"><T>More stories</T></span>
             <div style={{ fontSize: 12, color: "var(--ln-ink-3)", marginTop: 4 }}>
-              {rest.length} stories · last 24h
+              {rest.length} <T>stories · last 24h</T>
             </div>
           </div>
 
@@ -462,7 +476,7 @@ export function NewsScreen() {
 
           {rest.length === 0 && !loading && (
             <div style={{ padding: 32, fontSize: 13, color: "var(--ln-ink-3)", textAlign: "center" }}>
-              No more stories match these filters.
+              <T>No more stories match these filters.</T>
             </div>
           )}
         </main>
@@ -481,7 +495,7 @@ export function NewsScreen() {
                   marginBottom: 10,
                 }}
               >
-                <span className="ln-eyebrow">Sources</span>
+                <span className="ln-eyebrow"><T>Sources</T></span>
                 {sources.size > 0 && (
                   <button
                     onClick={() => setSources(new Set())}
@@ -493,7 +507,7 @@ export function NewsScreen() {
                       border: "none",
                     }}
                   >
-                    CLEAR
+                    <T>CLEAR</T>
                   </button>
                 )}
               </div>
@@ -554,7 +568,7 @@ export function NewsScreen() {
 
             {topDiseases.length > 0 && (
               <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--ln-line)" }}>
-                <span className="ln-eyebrow">Most-discussed pathogens · 24h</span>
+                <span className="ln-eyebrow"><T>Most-discussed pathogens · 24h</T></span>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 10 }}>
                   {topDiseases.map(([name, n]) => {
                     const max = topDiseases[0][1];
@@ -606,15 +620,15 @@ export function NewsScreen() {
             )}
 
             <div style={{ padding: "14px 18px", borderBottom: "1px solid var(--ln-line)" }}>
-              <span className="ln-eyebrow">Translation status</span>
+              <span className="ln-eyebrow"><T>Translation status</T></span>
               <div style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 6, fontSize: 12, marginTop: 8 }}>
-                <span style={{ color: "var(--ln-ink-2)" }}>Foreign-language</span>
+                <span style={{ color: "var(--ln-ink-2)" }}><T>Foreign-language</T></span>
                 <span className="ln-num" style={{ color: "var(--ln-brand)" }}>
                   {translatedCount}
                 </span>
-                <span style={{ color: "var(--ln-ink-2)" }}>English-only</span>
+                <span style={{ color: "var(--ln-ink-2)" }}><T>English-only</T></span>
                 <span className="ln-num">{articles.length - translatedCount}</span>
-                <span style={{ color: "var(--ln-ink-2)" }}>Languages</span>
+                <span style={{ color: "var(--ln-ink-2)" }}><T>Languages</T></span>
                 <span className="ln-num">{languageCount}</span>
               </div>
             </div>
@@ -628,18 +642,18 @@ export function NewsScreen() {
                   marginBottom: 6,
                 }}
               >
-                <span className="ln-eyebrow">Live alerts</span>
+                <span className="ln-eyebrow"><T>Live alerts</T></span>
                 <span className="ln-chip is-crit">
-                  <span className="ln-blink">●</span> LIVE
+                  <span className="ln-blink">●</span> <T>LIVE</T>
                 </span>
               </div>
             </div>
             <AlertTicker items={alerts.slice(0, 4)} />
 
             <div style={{ padding: "18px", borderTop: "1px solid var(--ln-line)", background: "var(--ln-surface)" }}>
-              <span className="ln-eyebrow">Newsletter</span>
+              <span className="ln-eyebrow"><T>Newsletter</T></span>
               <h3 style={{ fontSize: 14, fontWeight: 500, margin: "6px 0 8px" }}>
-                The daily outbreak briefing
+                <T>The daily outbreak briefing</T>
               </h3>
               <p
                 style={{
@@ -649,10 +663,10 @@ export function NewsScreen() {
                   margin: "0 0 12px",
                 }}
               >
-                One email each morning · what changed overnight, by region.
+                <T>One email each morning · what changed overnight, by region.</T>
               </p>
               <div style={{ display: "flex", gap: 6 }}>
-                <input className="ln-input" placeholder="you@example.com" style={{ paddingLeft: 10 }} />
+                <input className="ln-input" placeholder={tEmailPlaceholder} style={{ paddingLeft: 10 }} />
                 <button className="ln-btn is-primary">
                   <Icon.ArrowR />
                 </button>
@@ -707,9 +721,9 @@ function FeaturedSignal({
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span className="ln-eyebrow">Linked signal</span>
+        <span className="ln-eyebrow"><T>Linked signal</T></span>
         <span style={{ fontFamily: "var(--ln-font-mono)", fontSize: 10, color: "var(--ln-ink-4)" }}>
-          {linked ? linked.id.slice(0, 8).toUpperCase() : "NEW"}
+          {linked ? linked.id.slice(0, 8).toUpperCase() : <T>NEW</T>}
         </span>
       </div>
       {linked ? (
@@ -724,29 +738,29 @@ function FeaturedSignal({
             </div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-            <Mini label="Cases" value={linked.cases > 0 ? linked.cases.toLocaleString() : "—"} />
+            <Mini label={<T>Cases</T>} value={linked.cases > 0 ? linked.cases.toLocaleString() : "—"} />
             <Mini
-              label="Deaths"
+              label={<T>Deaths</T>}
               value={linked.deaths > 0 ? linked.deaths.toLocaleString() : "—"}
               tone={linked.deaths > 0 ? "crit" : undefined}
             />
-            <Mini label="Severity" value={`${linked.severity}/5`} />
+            <Mini label={<T>Severity</T>} value={`${linked.severity}/5`} />
           </div>
           <div style={{ height: 1, background: "var(--ln-line)" }} />
           <a href="/map" className="ln-btn" style={{ justifyContent: "center" }}>
-            Open on map <Icon.Map />
+            <T>Open on map</T> <Icon.Map />
           </a>
         </>
       ) : (
         <div style={{ fontSize: 12.5, color: "var(--ln-ink-3)", lineHeight: 1.5 }}>
-          No active map signal linked yet. Story may relate to early reporting before geolocation.
+          <T>No active map signal linked yet. Story may relate to early reporting before geolocation.</T>
         </div>
       )}
     </div>
   );
 }
 
-function Mini({ label, value, tone }: { label: string; value: string; tone?: "crit" }) {
+function Mini({ label, value, tone }: { label: ReactNode; value: string; tone?: "crit" }) {
   return (
     <div style={{ background: "var(--ln-surface-2)", padding: "8px 10px" }}>
       <div className="ln-eyebrow" style={{ fontSize: 9 }}>
@@ -783,6 +797,11 @@ function StoryCard({
   borderRight: boolean;
   borderBottom: boolean;
 }) {
+  const tShowOriginal = useT("Show original");
+  const tTranslateTo = useT("Translate to");
+  const tTranslating = useT("Translating…");
+  const tOriginal = useT("Original");
+  const tTranslate = useT("Translate");
   const handleOpen = () => {
     if (story.url) window.open(story.url, "_blank", "noopener,noreferrer");
   };
@@ -832,7 +851,7 @@ function StoryCard({
             color: "var(--ln-ink-4)",
           }}
         >
-          {timeAgo(story.ts)} AGO
+          {timeAgo(story.ts)} <T>AGO</T>
         </span>
       </div>
       <h3
@@ -880,8 +899,8 @@ function StoryCard({
             title={
               translation?.error ||
               (showTranslated
-                ? `Show original (${story.lang.toUpperCase()})`
-                : `Translate to ${
+                ? `${tShowOriginal} (${story.lang.toUpperCase()})`
+                : `${tTranslateTo} ${
                     SUPPORTED_LANGUAGES.find((l) => l.code === activeLanguage)?.nativeName ||
                     activeLanguage.toUpperCase()
                   }`)
@@ -889,10 +908,10 @@ function StoryCard({
           >
             🌐{" "}
             {translation?.loading
-              ? "Translating…"
+              ? tTranslating
               : showTranslated
-              ? `Original ${story.lang.toUpperCase()}`
-              : "Translate"}
+              ? `${tOriginal} ${story.lang.toUpperCase()}`
+              : tTranslate}
           </button>
         )}
       </div>

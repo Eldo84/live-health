@@ -4,6 +4,8 @@ import { Icon } from "./Icon";
 import { supabase } from "../../lib/supabase";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLanguage } from "../../contexts/LanguageContext";
+import { T } from "./T";
+import { useT } from "../lib/useT";
 
 interface Props {
   open: boolean;
@@ -17,6 +19,11 @@ interface Props {
 export function NewsletterDialog({ open, onClose, source = "landing_footer" }: Props) {
   const { user } = useAuth();
   const { language } = useLanguage();
+  const tEyebrow = useT("Weekly digest");
+  const tTitle = useT("Get outbreak alerts in your inbox");
+  const tInvalidEmail = useT("Enter a valid email address.");
+  const tSubFailed = useT("Subscription failed. Please try again.");
+  const tEmailField = useT("Email");
   const [email, setEmail] = useState("");
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +41,7 @@ export function NewsletterDialog({ open, onClose, source = "landing_footer" }: P
     setError(null);
     const trimmed = email.trim();
     if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-      setError("Enter a valid email address.");
+      setError(tInvalidEmail);
       return;
     }
     setProcessing(true);
@@ -55,7 +62,7 @@ export function NewsletterDialog({ open, onClose, source = "landing_footer" }: P
       }
       setDone(true);
     } catch (e: any) {
-      setError(e?.message || "Subscription failed. Please try again.");
+      setError(e?.message || tSubFailed);
     } finally {
       setProcessing(false);
     }
@@ -75,8 +82,8 @@ export function NewsletterDialog({ open, onClose, source = "landing_footer" }: P
     <Modal
       open={open}
       onClose={onClose}
-      eyebrow="Weekly digest"
-      title="Get outbreak alerts in your inbox"
+      eyebrow={tEyebrow}
+      title={tTitle}
       width={460}
     >
       {done ? (
@@ -89,21 +96,21 @@ export function NewsletterDialog({ open, onClose, source = "landing_footer" }: P
               marginBottom: 6,
             }}
           >
-            You're in.
+            <T>You're in.</T>
           </div>
           <p style={{ fontSize: 13, color: "var(--ln-ink-2)", margin: "0 0 18px", lineHeight: 1.5 }}>
-            We'll send the weekly digest plus critical alerts. Unsubscribe anytime from the email footer.
+            <T>We'll send the weekly digest plus critical alerts. Unsubscribe anytime from the email footer.</T>
           </p>
           <button onClick={onClose} className="ln-btn is-primary" style={{ minWidth: 120 }}>
-            Done
+            <T>Done</T>
           </button>
         </div>
       ) : (
         <form onSubmit={submit}>
           <p style={{ fontSize: 12.5, color: "var(--ln-ink-3)", margin: "0 0 16px", lineHeight: 1.5 }}>
-            One short email per week. Critical outbreaks ping you immediately. No spam — promise.
+            <T>One short email per week. Critical outbreaks ping you immediately. No spam — promise.</T>
           </p>
-          <Field label="Email">
+          <Field label={tEmailField}>
             <input
               type="email"
               value={email}
@@ -130,10 +137,10 @@ export function NewsletterDialog({ open, onClose, source = "landing_footer" }: P
           )}
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 14 }}>
             <button type="button" onClick={onClose} className="ln-btn" disabled={processing}>
-              Cancel
+              <T>Cancel</T>
             </button>
             <button type="submit" className="ln-btn is-primary" disabled={processing}>
-              {processing ? "Subscribing…" : "Subscribe"} <Icon.ArrowR />
+              {processing ? <T>Subscribing…</T> : <T>Subscribe</T>} <Icon.ArrowR />
             </button>
           </div>
         </form>

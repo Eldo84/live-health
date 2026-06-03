@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal, Field } from "./Modal";
+import { T } from "./T";
+import { useT } from "../lib/useT";
 import { Icon } from "./Icon";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
@@ -29,6 +31,17 @@ export function FeedbackDialog({ open, onClose }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+
+  const tEyebrow = useT("Send feedback");
+  const tTitle = useT("Tell us what's working — and what isn't.");
+  const tTypeLabel = useT("Type");
+  const tEmailLabel = useT("Email (optional)");
+  const tEmailHint = useT("If you'd like a reply. Submitted anonymously otherwise.");
+  const tEmailPlaceholder = useT("you@example.com");
+  const tMessageLabel = useT("Message");
+  const tMessagePlaceholder = useT(
+    "Tell us what happened, what you'd expect, or where you'd like the product to go."
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -86,7 +99,7 @@ export function FeedbackDialog({ open, onClose }: Props) {
   };
 
   return (
-    <Modal open={open} onClose={onClose} eyebrow="Send feedback" title="Tell us what's working — and what isn't.">
+    <Modal open={open} onClose={onClose} eyebrow={tEyebrow} title={tTitle}>
       {done ? (
         <div style={{ textAlign: "center", padding: "24px 8px" }}>
           <div
@@ -106,7 +119,7 @@ export function FeedbackDialog({ open, onClose }: Props) {
             ✓
           </div>
           <div className="ln-display" style={{ fontSize: 22, letterSpacing: "-0.02em", lineHeight: 1.1 }}>
-            Thanks — got it.
+            <T>Thanks — got it.</T>
           </div>
           <p
             style={{
@@ -117,16 +130,18 @@ export function FeedbackDialog({ open, onClose }: Props) {
               margin: "10px auto 18px",
             }}
           >
-            Real humans read every submission. If we need more from you, we'll reach out at the email you
-            provided.
+            <T>
+              Real humans read every submission. If we need more from you, we'll reach out at the email you
+              provided.
+            </T>
           </p>
           <button onClick={onClose} className="ln-btn is-primary">
-            Done
+            <T>Done</T>
           </button>
         </div>
       ) : (
         <form onSubmit={submit}>
-          <Field label="Type">
+          <Field label={tTypeLabel}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               {TYPES.map((t) => {
                 const active = type === t.id;
@@ -147,9 +162,9 @@ export function FeedbackDialog({ open, onClose }: Props) {
                   >
                     <div style={{ fontSize: 14, display: "flex", alignItems: "center", gap: 8 }}>
                       <span style={{ fontSize: 18 }}>{t.icon}</span>
-                      <span style={{ fontWeight: 500 }}>{t.label}</span>
+                      <span style={{ fontWeight: 500 }}><T>{t.label}</T></span>
                     </div>
-                    <div style={{ fontSize: 11.5, color: "var(--ln-ink-3)", marginTop: 4 }}>{t.helper}</div>
+                    <div style={{ fontSize: 11.5, color: "var(--ln-ink-3)", marginTop: 4 }}><T>{t.helper}</T></div>
                   </button>
                 );
               })}
@@ -158,12 +173,12 @@ export function FeedbackDialog({ open, onClose }: Props) {
 
           {!user && (
             <Field
-              label="Email (optional)"
-              hint="If you'd like a reply. Submitted anonymously otherwise."
+              label={tEmailLabel}
+              hint={tEmailHint}
             >
               <input
                 type="email"
-                placeholder="you@example.com"
+                placeholder={tEmailPlaceholder}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 style={inputStyle}
@@ -171,11 +186,11 @@ export function FeedbackDialog({ open, onClose }: Props) {
             </Field>
           )}
 
-          <Field label="Message" hint={`${message.length}/2000`}>
+          <Field label={tMessageLabel} hint={`${message.length}/2000`}>
             <textarea
               required
               rows={6}
-              placeholder="Tell us what happened, what you'd expect, or where you'd like the product to go."
+              placeholder={tMessagePlaceholder}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               style={{ ...inputStyle, resize: "vertical", minHeight: 120, fontFamily: "var(--ln-font-sans)" }}
@@ -193,16 +208,16 @@ export function FeedbackDialog({ open, onClose }: Props) {
                 marginBottom: 12,
               }}
             >
-              {error}
+              <T>{error}</T>
             </div>
           )}
 
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
             <button type="button" onClick={onClose} className="ln-btn">
-              Cancel
+              <T>Cancel</T>
             </button>
             <button type="submit" disabled={submitting} className="ln-btn is-primary">
-              {submitting ? "Sending…" : "Send feedback"} <Icon.ArrowR />
+              {submitting ? <T>Sending…</T> : <T>Send feedback</T>} <Icon.ArrowR />
             </button>
           </div>
         </form>

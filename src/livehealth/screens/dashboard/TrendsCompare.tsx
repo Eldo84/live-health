@@ -2,6 +2,8 @@ import { useMemo, useRef, useState } from "react";
 import { Icon } from "../../components/Icon";
 import { useGoogleTrends, TRACKED_DISEASES } from "../../../lib/useGoogleTrends";
 import { useGoogleTrendsRegions, type RegionPopularityData } from "../../../lib/useGoogleTrendsRegions";
+import { T } from "../../components/T";
+import { useT } from "../../lib/useT";
 
 // Search-interest comparison — ports the original Disease Tracking feature:
 // pick up to 5 diseases, compare Google-Trends interest over time. Themed in
@@ -17,6 +19,7 @@ interface Props {
 }
 
 export function TrendsCompare({ isMobile }: Props) {
+  const tSearchDiseases = useT("Search diseases…");
   const [selected, setSelected] = useState<string[]>(["covid", "influenza", "measles"]);
   const [search, setSearch] = useState("");
   const [range, setRange] = useState<CompareRange>("30d");
@@ -80,7 +83,7 @@ export function TrendsCompare({ isMobile }: Props) {
         }}
       >
         <div style={{ minWidth: 0 }}>
-          <span className="ln-eyebrow">Search-interest · Google Trends</span>
+          <span className="ln-eyebrow"><T>Search-interest</T> · Google Trends</span>
           <h2
             className="ln-display"
             style={{
@@ -90,8 +93,8 @@ export function TrendsCompare({ isMobile }: Props) {
               lineHeight: 1.15,
             }}
           >
-            Compare what the world is{" "}
-            <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}>searching for.</span>
+            <T>Compare what the world is</T>{" "}
+            <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}><T>searching for.</T></span>
           </h2>
         </div>
         {/* Range pills — full-width on mobile, compact on desktop */}
@@ -121,7 +124,7 @@ export function TrendsCompare({ isMobile }: Props) {
                 fontFamily: "var(--ln-font-mono)",
               }}
             >
-              {r === "all" ? "All" : r}
+              {r === "all" ? <T>All</T> : r}
             </button>
           ))}
         </div>
@@ -144,7 +147,7 @@ export function TrendsCompare({ isMobile }: Props) {
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-            <span className="ln-eyebrow">Select up to 5</span>
+            <span className="ln-eyebrow"><T>Select up to 5</T></span>
             <span style={{ fontSize: 11, color: "var(--ln-ink-3)", fontFamily: "var(--ln-font-mono)" }}>
               {selected.length}/5
             </span>
@@ -163,7 +166,7 @@ export function TrendsCompare({ isMobile }: Props) {
             </span>
             <input
               className="ln-input"
-              placeholder="Search diseases…"
+              placeholder={tSearchDiseases}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -273,7 +276,7 @@ export function TrendsCompare({ isMobile }: Props) {
                     whiteSpace: "nowrap",
                   }}
                 >
-                  {tb.label}
+                  <T>{tb.label}</T>
                 </button>
               ))}
             </div>
@@ -291,7 +294,7 @@ export function TrendsCompare({ isMobile }: Props) {
                   gap: 4,
                 }}
               >
-                <Icon.X /> Clear
+                <Icon.X /> <T>Clear</T>
               </button>
             )}
           </div>
@@ -299,19 +302,19 @@ export function TrendsCompare({ isMobile }: Props) {
           {activeTab === "time" && (
             error ? (
             <div style={{ height: isMobile ? 200 : 280, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, textAlign: "center", padding: "0 16px", color: "var(--ln-crit)" }}>
-              Error loading trends: {error}
+              <T>Error loading trends:</T> {error}
             </div>
           ) : selected.length === 0 ? (
             <div style={{ height: isMobile ? 200 : 280, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, textAlign: "center", padding: "0 16px", color: "var(--ln-ink-3)" }}>
-              Select at least one disease to compare.
+              <T>Select at least one disease to compare.</T>
             </div>
           ) : loading && datasets.length === 0 ? (
             <div style={{ height: isMobile ? 200 : 280, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, textAlign: "center", padding: "0 16px", color: "var(--ln-ink-3)" }}>
-              Loading search interest…
+              <T>Loading search interest…</T>
             </div>
           ) : datasets.length === 0 ? (
             <div style={{ height: isMobile ? 200 : 280, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, textAlign: "center", padding: "0 16px", color: "var(--ln-ink-3)" }}>
-              No trend data in this range.
+              <T>No trend data in this range.</T>
             </div>
           ) : (
             <>
@@ -327,7 +330,7 @@ export function TrendsCompare({ isMobile }: Props) {
                         {d.disease}
                       </span>
                       <span className="ln-num" style={{ fontSize: 11, color: "var(--ln-ink-3)" }}>
-                        now {last} · peak {peak}
+                        <T>now</T> {last} · <T>peak</T> {peak}
                       </span>
                     </div>
                   );
@@ -364,6 +367,10 @@ function RegionInterest({
   error: string | null;
   isMobile: boolean;
 }) {
+  const tErrorLoadingRegions = useT("Error loading regions:");
+  const tSelectOneRegional = useT("Select at least one disease to see regional interest.");
+  const tLoadingRegional = useT("Loading regional interest…");
+  const tNoRegionalData = useT("No regional interest data for this selection.");
   const empty = (msg: string, tone?: "crit") => (
     <div
       style={{
@@ -389,19 +396,18 @@ function RegionInterest({
   return (
     <div>
       <p style={{ fontSize: 12.5, color: "var(--ln-ink-3)", lineHeight: 1.5, margin: "0 0 4px", maxWidth: 680 }}>
-        See where your search terms were most popular. Values are on a scale from 0 to 100, where 100 is the
-        location with the most popularity as a fraction of total searches.
+        <T>See where your search terms were most popular. Values are on a scale from 0 to 100, where 100 is the location with the most popularity as a fraction of total searches.</T>
       </p>
 
       <div style={{ marginTop: 14 }}>
         {error
-          ? empty(`Error loading regions: ${error}`, "crit")
+          ? empty(`${tErrorLoadingRegions} ${error}`, "crit")
           : selected.length === 0
-          ? empty("Select at least one disease to see regional interest.")
+          ? empty(tSelectOneRegional)
           : loading && regionData.length === 0
-          ? empty("Loading regional interest…")
+          ? empty(tLoadingRegional)
           : cards.length === 0
-          ? empty("No regional interest data for this selection.")
+          ? empty(tNoRegionalData)
           : (
             <div
               style={{
@@ -422,7 +428,7 @@ function RegionInterest({
                       <span style={{ width: 10, height: 10, borderRadius: 3, background: color, flex: "0 0 10px" }} />
                       <span style={{ fontSize: 13, fontWeight: 500, textTransform: "capitalize" }}>{rd.disease}</span>
                       <span className="ln-num" style={{ marginLeft: "auto", fontSize: 10, color: "var(--ln-ink-4)" }}>
-                        {rd.regions.length} regions
+                        {rd.regions.length} <T>regions</T>
                       </span>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
@@ -684,7 +690,7 @@ function MultiLineChart({
               lineHeight: 1.35,
             }}
           >
-            Search interest, 0–100. 100 = peak popularity for the term in this window.
+            <T>Search interest, 0–100. 100 = peak popularity for the term in this window.</T>
           </div>
         </div>
       )}

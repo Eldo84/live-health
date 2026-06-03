@@ -11,6 +11,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { T } from "../../livehealth/components/T";
+import { useT } from "../../livehealth/lib/useT";
 
 interface User {
   id: string;
@@ -22,7 +24,26 @@ export const AdminNotificationPanel: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
+  const tBack = useT("Back");
+  const tTitlePlaceholder = useT("Enter notification title");
+  const tMessagePlaceholder = useT("Enter notification message");
+  const tSearchPlaceholder = useT("Search users by email...");
+  const tAccessDenied = useT("Access Denied");
+  const tNoAdminPrivileges = useT("You don't have admin privileges.");
+  const tError = useT("Error");
+  const tFailedFetchUsers = useT("Failed to fetch users. ");
+  const tValidationError = useT("Validation Error");
+  const tTitleMessageRequired = useT("Title and message are required.");
+  const tSelectAtLeastOneUser = useT("Please select at least one user.");
+  const tNotificationSent = useT("Notification sent");
+  const tCreated = useT("Created");
+  const tNotifications = useT("notifications, sent");
+  const tEmails = useT("emails.");
+  const tPartialDelivery = useT("Partial delivery");
+  const tSomeEmailsFailed = useT("Some emails could not be sent. Check logs for details.");
+  const tFailedSendNotification = useT("Failed to send notification.");
+
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
@@ -65,8 +86,8 @@ export const AdminNotificationPanel: React.FC = () => {
 
       if (error || data?.role !== 'admin') {
         toast({
-          title: "Access Denied",
-          description: "You don't have admin privileges.",
+          title: tAccessDenied,
+          description: tNoAdminPrivileges,
           variant: "destructive",
         });
         navigate('/map');
@@ -114,8 +135,8 @@ export const AdminNotificationPanel: React.FC = () => {
     } catch (error: any) {
       console.error('Error fetching users:', error);
       toast({
-        title: "Error",
-        description: "Failed to fetch users. " + error.message,
+        title: tError,
+        description: tFailedFetchUsers + error.message,
         variant: "destructive",
       });
     } finally {
@@ -149,8 +170,8 @@ export const AdminNotificationPanel: React.FC = () => {
     // Validation
     if (!title.trim() || !message.trim()) {
       toast({
-        title: "Validation Error",
-        description: "Title and message are required.",
+        title: tValidationError,
+        description: tTitleMessageRequired,
         variant: "destructive",
       });
       return;
@@ -158,8 +179,8 @@ export const AdminNotificationPanel: React.FC = () => {
 
     if (target === 'selected' && selectedUserIds.length === 0) {
       toast({
-        title: "Validation Error",
-        description: "Please select at least one user.",
+        title: tValidationError,
+        description: tSelectAtLeastOneUser,
         variant: "destructive",
       });
       return;
@@ -203,15 +224,15 @@ export const AdminNotificationPanel: React.FC = () => {
       setShowSuccessDialog(true);
 
       toast({
-        title: "Notification sent",
-        description: `Created ${result.notificationsCreated ?? 0} notifications, sent ${result.emailsSent ?? 0} emails.`,
+        title: tNotificationSent,
+        description: `${tCreated} ${result.notificationsCreated ?? 0} ${tNotifications} ${result.emailsSent ?? 0} ${tEmails}`,
       });
 
       if (result.errors && result.errors.length > 0) {
         // Show a second toast with a short summary so admin knows some emails failed
         toast({
-          title: "Partial delivery",
-          description: "Some emails could not be sent. Check logs for details.",
+          title: tPartialDelivery,
+          description: tSomeEmailsFailed,
           variant: "destructive",
         });
         console.warn('Some errors occurred:', result.errors);
@@ -225,8 +246,8 @@ export const AdminNotificationPanel: React.FC = () => {
     } catch (error: any) {
       console.error('Error sending notification:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to send notification.",
+        title: tError,
+        description: error.message || tFailedSendNotification,
         variant: "destructive",
       });
     } finally {
@@ -278,18 +299,18 @@ export const AdminNotificationPanel: React.FC = () => {
           gap: 12,
         }}
       >
-        <button className="ln-btn" style={{ padding: 8 }} onClick={() => navigate('/admin')} aria-label="Back">
+        <button className="ln-btn" style={{ padding: 8 }} onClick={() => navigate('/admin')} aria-label={tBack}>
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <Bell className="w-6 h-6" style={{ color: 'var(--ln-brand)' }} />
           <div>
-            <span className="ln-eyebrow">Outreach</span>
+            <span className="ln-eyebrow"><T>Outreach</T></span>
             <h1 className="ln-display" style={{ fontSize: 26, margin: '4px 0 0', letterSpacing: '-0.02em' }}>
-              Send notification
+              <T>Send notification</T>
             </h1>
             <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '4px 0 0' }}>
-              Send notifications to users (in-app and email)
+              <T>Send notifications to users (in-app and email)</T>
             </p>
           </div>
         </div>
@@ -297,22 +318,22 @@ export const AdminNotificationPanel: React.FC = () => {
 
       <div style={{ padding: '22px 28px 40px', maxWidth: 860, margin: '0 auto' }}>
         <div style={{ border: '1px solid var(--ln-line)', background: 'var(--ln-surface)', padding: 22 }}>
-          <span className="ln-eyebrow">Compose</span>
+          <span className="ln-eyebrow"><T>Compose</T></span>
           <h2 className="ln-display" style={{ fontSize: 20, margin: '6px 0 4px', letterSpacing: '-0.01em' }}>
-            Create notification
+            <T>Create notification</T>
           </h2>
           <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '0 0 20px' }}>
-            Send a notification to users. They will receive it both in-app and via email.
+            <T>Send a notification to users. They will receive it both in-app and via email.</T>
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             {/* Title */}
             <div>
-              <label htmlFor="title" style={labelStyle}>Title *</label>
+              <label htmlFor="title" style={labelStyle}><T>Title</T> *</label>
               <input
                 id="title"
                 className="ln-input"
-                placeholder="Enter notification title"
+                placeholder={tTitlePlaceholder}
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 disabled={isSending}
@@ -321,11 +342,11 @@ export const AdminNotificationPanel: React.FC = () => {
 
             {/* Message */}
             <div>
-              <label htmlFor="message" style={labelStyle}>Message *</label>
+              <label htmlFor="message" style={labelStyle}><T>Message</T> *</label>
               <textarea
                 id="message"
                 className="ln-input"
-                placeholder="Enter notification message"
+                placeholder={tMessagePlaceholder}
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 disabled={isSending}
@@ -336,18 +357,18 @@ export const AdminNotificationPanel: React.FC = () => {
 
             {/* Target Selection */}
             <div>
-              <span style={labelStyle}>Send To *</span>
+              <span style={labelStyle}><T>Send To</T> *</span>
               <RadioGroup value={target} onValueChange={(value) => setTarget(value as 'all' | 'selected')}>
                 <div className="flex items-center space-x-2" style={{ marginBottom: 8 }}>
                   <RadioGroupItem value="all" id="all" disabled={isSending} />
                   <label htmlFor="all" style={{ fontSize: 13, color: 'var(--ln-ink)', cursor: 'pointer' }}>
-                    All Users
+                    <T>All Users</T>
                   </label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="selected" id="selected" disabled={isSending} />
                   <label htmlFor="selected" style={{ fontSize: 13, color: 'var(--ln-ink)', cursor: 'pointer' }}>
-                    Select Users
+                    <T>Select Users</T>
                   </label>
                 </div>
               </RadioGroup>
@@ -357,14 +378,14 @@ export const AdminNotificationPanel: React.FC = () => {
             {target === 'selected' && (
               <div style={{ border: '1px solid var(--ln-line-2)', background: 'var(--ln-surface-2)', padding: 14 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <span className="ln-eyebrow">Select users</span>
+                  <span className="ln-eyebrow"><T>Select users</T></span>
                   <button
                     className="ln-btn"
                     style={{ padding: '5px 10px', fontSize: 11 }}
                     onClick={handleSelectAll}
                     disabled={isLoadingUsers || isSending}
                   >
-                    {selectedUserIds.length === filteredUsers.length ? 'Deselect All' : 'Select All'}
+                    {selectedUserIds.length === filteredUsers.length ? <T>Deselect All</T> : <T>Select All</T>}
                   </button>
                 </div>
 
@@ -391,7 +412,7 @@ export const AdminNotificationPanel: React.FC = () => {
                       <input
                         className="ln-input"
                         style={{ paddingLeft: 32 }}
-                        placeholder="Search users by email..."
+                        placeholder={tSearchPlaceholder}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         disabled={isSending}
@@ -402,7 +423,7 @@ export const AdminNotificationPanel: React.FC = () => {
                     <div style={{ maxHeight: 256, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
                       {filteredUsers.length === 0 ? (
                         <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', textAlign: 'center', padding: '16px 0' }}>
-                          {searchTerm ? 'No users found' : 'No users available'}
+                          {searchTerm ? <T>No users found</T> : <T>No users available</T>}
                         </p>
                       ) : (
                         filteredUsers.map((user) => (
@@ -428,7 +449,7 @@ export const AdminNotificationPanel: React.FC = () => {
 
                     {selectedUserIds.length > 0 && (
                       <p style={{ fontSize: 12, color: 'var(--ln-ink-3)', marginTop: 10 }}>
-                        {selectedUserIds.length} user{selectedUserIds.length !== 1 ? 's' : ''} selected
+                        {selectedUserIds.length} <T>user</T>{selectedUserIds.length !== 1 ? 's' : ''} <T>selected</T>
                       </p>
                     )}
                   </>
@@ -446,17 +467,17 @@ export const AdminNotificationPanel: React.FC = () => {
                 {isSending ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Sending...
+                    <T>Sending...</T>
                   </>
                 ) : (
                   <>
                     <Send className="w-4 h-4" />
-                    Send Notification
+                    <T>Send Notification</T>
                   </>
                 )}
               </button>
               <button className="ln-btn" onClick={() => navigate('/admin')} disabled={isSending}>
-                Cancel
+                <T>Cancel</T>
               </button>
             </div>
           </div>
@@ -476,10 +497,10 @@ export const AdminNotificationPanel: React.FC = () => {
               </div>
               <div>
                 <DialogTitle className="text-xl">
-                  Notification Sent Successfully!
+                  <T>Notification Sent Successfully!</T>
                 </DialogTitle>
                 <DialogDescription className="mt-1">
-                  Successfully sent notification to {successDetails?.notificationsCreated ?? 0} user{(successDetails?.notificationsCreated ?? 0) !== 1 ? 's' : ''}. {successDetails?.emailsSent ?? 0} email{(successDetails?.emailsSent ?? 0) !== 1 ? 's' : ''} delivered.
+                  <T>Successfully sent notification to</T> {successDetails?.notificationsCreated ?? 0} <T>user</T>{(successDetails?.notificationsCreated ?? 0) !== 1 ? 's' : ''}. {successDetails?.emailsSent ?? 0} <T>email</T>{(successDetails?.emailsSent ?? 0) !== 1 ? 's' : ''} <T>delivered.</T>
                 </DialogDescription>
               </div>
             </div>
@@ -500,10 +521,10 @@ export const AdminNotificationPanel: React.FC = () => {
                 <MessageSquare className="h-5 w-5 flex-shrink-0" style={{ color: 'var(--ln-info, #6ab7ff)' }} />
                 <div style={{ flex: 1 }}>
                   <p style={{ fontSize: 13, fontWeight: 500, margin: 0, color: 'var(--ln-ink)' }}>
-                    {successDetails.notificationsCreated} in-app notification{successDetails.notificationsCreated !== 1 ? 's' : ''}
+                    {successDetails.notificationsCreated} <T>in-app notification</T>{successDetails.notificationsCreated !== 1 ? 's' : ''}
                   </p>
                   <p style={{ fontSize: 11.5, color: 'var(--ln-ink-3)', margin: '2px 0 0' }}>
-                    Users will see this in their notification bell
+                    <T>Users will see this in their notification bell</T>
                   </p>
                 </div>
               </div>
@@ -521,10 +542,10 @@ export const AdminNotificationPanel: React.FC = () => {
                 <Mail className="h-5 w-5 flex-shrink-0" style={{ color: 'var(--ln-brand)' }} />
                 <div style={{ flex: 1 }}>
                   <p style={{ fontSize: 13, fontWeight: 500, margin: 0, color: 'var(--ln-ink)' }}>
-                    {successDetails.emailsSent} email{successDetails.emailsSent !== 1 ? 's' : ''} sent
+                    {successDetails.emailsSent} <T>email</T>{successDetails.emailsSent !== 1 ? 's' : ''} <T>sent</T>
                   </p>
                   <p style={{ fontSize: 11.5, color: 'var(--ln-ink-3)', margin: '2px 0 0' }}>
-                    Email notifications delivered via Resend
+                    <T>Email notifications delivered via Resend</T>
                   </p>
                 </div>
               </div>
@@ -543,10 +564,10 @@ export const AdminNotificationPanel: React.FC = () => {
                   <XCircle className="h-5 w-5 flex-shrink-0" style={{ color: 'var(--ln-warn)' }} />
                   <div style={{ flex: 1 }}>
                     <p style={{ fontSize: 13, fontWeight: 500, margin: 0, color: 'var(--ln-warn)' }}>
-                      {successDetails.errors.length} email{successDetails.errors.length !== 1 ? 's' : ''} failed
+                      {successDetails.errors.length} <T>email</T>{successDetails.errors.length !== 1 ? 's' : ''} <T>failed</T>
                     </p>
                     <p style={{ fontSize: 11.5, color: 'var(--ln-ink-3)', margin: '2px 0 0' }}>
-                      Check console logs for details
+                      <T>Check console logs for details</T>
                     </p>
                   </div>
                 </div>
@@ -556,7 +577,7 @@ export const AdminNotificationPanel: React.FC = () => {
 
           <DialogFooter>
             <button className="ln-btn is-primary" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setShowSuccessDialog(false)}>
-              Done
+              <T>Done</T>
             </button>
           </DialogFooter>
         </DialogContent>

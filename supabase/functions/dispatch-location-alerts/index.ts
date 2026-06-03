@@ -76,11 +76,13 @@ async function sendEmailViaResend(
   to: string,
   subject: string,
   html: string,
-): Promise<boolean> {
+): Promise<{ ok: boolean; error?: string }> {
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
   if (!RESEND_API_KEY) {
-    console.warn("RESEND_API_KEY not configured, skipping email");
-    return false;
+    const error =
+      "RESEND_API_KEY not set as a Supabase Edge Function secret (a value in the repo .env does NOT reach deployed functions)";
+    console.warn(error);
+    return { ok: false, error };
   }
   const fromEmail =
     Deno.env.get("RESEND_FROM_EMAIL") || "OutbreakNow <onboarding@resend.dev>";
@@ -93,10 +95,11 @@ async function sendEmailViaResend(
     body: JSON.stringify({ from: fromEmail, to: [to], subject, html }),
   });
   if (!res.ok) {
-    console.error(`Resend error ${res.status}: ${await res.text()}`);
-    return false;
+    const error = `Resend ${res.status} (from=${fromEmail}): ${await res.text()}`;
+    console.error(error);
+    return { ok: false, error };
   }
-  return true;
+  return { ok: true };
 }
 
 function alertHtml(diseaseName: string, where: string, sev: string, cases: number | null, when: string): string {
@@ -202,6 +205,7 @@ Deno.serve(async (req: Request) => {
     const notifications: any[] = [];
     const logInserts: any[] = [];
     let emailsSent = 0;
+    const emailErrors = new Set<string>(); // distinct failure reasons, surfaced in the response
     const emailCache = new Map<string, string | null>(); // user_id -> email
 
     for (const pref of prefs) {
@@ -252,12 +256,14 @@ Deno.serve(async (req: Request) => {
           }
           const email = emailCache.get(pref.user_id);
           if (email) {
-            emailed = await sendEmailViaResend(
+            const r = await sendEmailViaResend(
               email,
               `⚠️ ${dName} reported near you`,
               alertHtml(dName, where, sev, sig.case_count_mentioned, when),
             );
-            if (emailed) emailsSent++;
+            emailed = r.ok;
+            if (r.ok) emailsSent++;
+            else if (r.error) emailErrors.add(r.error);
           }
         }
 
@@ -286,6 +292,11 @@ Deno.serve(async (req: Request) => {
         users: prefs.length,
         notificationsCreated: notifications.length,
         emailsSent,
+        // Self-diagnosing config snapshot so a 200 with 0 emails is no longer a mystery.
+        resendConfigured: !!Deno.env.get("RESEND_API_KEY"),
+        fromEmail: Deno.env.get("RESEND_FROM_EMAIL") ||
+          "OutbreakNow <onboarding@resend.dev> (fallback — only delivers to the Resend account owner)",
+        emailErrors: emailErrors.size ? [...emailErrors] : undefined,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );

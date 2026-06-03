@@ -12,6 +12,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { T } from "../../livehealth/components/T";
+import { useT } from "../../livehealth/lib/useT";
 
 interface FeedbackSubmission {
   id: string;
@@ -46,7 +48,16 @@ export const AdminFeedbackPanel: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+  const tAccessDenied = useT("Access Denied");
+  const tNoAdminPrivileges = useT("You don't have admin privileges.");
+  const tError = useT("Error");
+  const tLoadFailed = useT("Failed to load feedback submissions. The table may not exist yet.");
+  const tSuccess = useT("Success");
+  const tStatusUpdated = useT("Feedback status updated successfully");
+  const tUpdateFailed = useT("Failed to update feedback");
+  const tSearchFeedback = useT("Search feedback...");
+  const tNotesPlaceholder = useT("Add notes about this feedback (e.g., planned actions, resolution details)...");
+
   const [isAdmin, setIsAdmin] = useState(false);
   const [submissions, setSubmissions] = useState<FeedbackSubmission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -80,8 +91,8 @@ export const AdminFeedbackPanel: React.FC = () => {
 
       if (error || data?.role !== 'admin') {
         toast({
-          title: "Access Denied",
-          description: "You don't have admin privileges.",
+          title: tAccessDenied,
+          description: tNoAdminPrivileges,
           variant: "destructive",
         });
         navigate('/map');
@@ -111,8 +122,8 @@ export const AdminFeedbackPanel: React.FC = () => {
     } catch (error: any) {
       console.error('Error fetching data:', error);
       toast({
-        title: "Error",
-        description: "Failed to load feedback submissions. The table may not exist yet.",
+        title: tError,
+        description: tLoadFailed,
         variant: "destructive",
       });
     } finally {
@@ -140,8 +151,8 @@ export const AdminFeedbackPanel: React.FC = () => {
       if (error) throw error;
 
       toast({
-        title: "Success",
-        description: "Feedback status updated successfully",
+        title: tSuccess,
+        description: tStatusUpdated,
       });
 
       fetchData();
@@ -150,8 +161,8 @@ export const AdminFeedbackPanel: React.FC = () => {
     } catch (error: any) {
       console.error('Error updating feedback:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to update feedback",
+        title: tError,
+        description: error.message || tUpdateFailed,
         variant: "destructive",
       });
     } finally {
@@ -244,19 +255,19 @@ export const AdminFeedbackPanel: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <button className="ln-btn" onClick={() => navigate('/admin')}>
             <ArrowLeft className="w-4 h-4" />
-            Back
+            <T>Back</T>
           </button>
           <div>
-            <span className="ln-eyebrow">Inbox</span>
+            <span className="ln-eyebrow"><T>Inbox</T></span>
             <h1 className="ln-display" style={{ fontSize: 26, margin: '4px 0 0', letterSpacing: '-0.02em' }}>
-              Feedback management
+              <T>Feedback management</T>
             </h1>
             <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '4px 0 0' }}>
-              View and manage user feedback submissions
+              <T>View and manage user feedback submissions</T>
             </p>
           </div>
         </div>
-        <span className="ln-chip is-ok">Admin access</span>
+        <span className="ln-chip is-ok"><T>Admin access</T></span>
       </div>
 
       <div style={{ padding: '22px 28px 40px' }}>
@@ -281,7 +292,7 @@ export const AdminFeedbackPanel: React.FC = () => {
               }}
             >
               <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 2, background: s.color }} />
-              <div className="ln-eyebrow">{s.label}</div>
+              <div className="ln-eyebrow"><T>{s.label}</T></div>
               <div className="ln-num" style={{ fontSize: 24, color: s.color, marginTop: 6, fontWeight: 500 }}>
                 {s.value}
               </div>
@@ -303,7 +314,7 @@ export const AdminFeedbackPanel: React.FC = () => {
             }}
           >
             <span className="ln-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}>
-              Feedback submissions{' '}
+              <T>Feedback submissions</T>{' '}
               <span className="ln-num" style={{ fontSize: 14, color: 'var(--ln-ink-3)' }}>({totalCount})</span>
             </span>
             <div style={{ position: 'relative', width: 260, maxWidth: '100%' }}>
@@ -322,7 +333,7 @@ export const AdminFeedbackPanel: React.FC = () => {
               <input
                 className="ln-input"
                 style={{ paddingLeft: 32 }}
-                placeholder="Search feedback..."
+                placeholder={tSearchFeedback}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -356,7 +367,7 @@ export const AdminFeedbackPanel: React.FC = () => {
                     borderBottom: active ? '1.5px solid var(--ln-brand)' : '1.5px solid transparent',
                   }}
                 >
-                  {t.label}{' '}
+                  <T>{t.label}</T>{' '}
                   <span className="ln-num" style={{ color: 'var(--ln-ink-4)' }}>({t.count})</span>
                 </button>
               );
@@ -366,7 +377,7 @@ export const AdminFeedbackPanel: React.FC = () => {
           <div style={{ padding: 18 }}>
             {filteredSubmissions.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--ln-ink-3)', fontSize: 13 }}>
-                No feedback found
+                <T>No feedback found</T>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -384,10 +395,10 @@ export const AdminFeedbackPanel: React.FC = () => {
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                               <h3 style={{ fontSize: 15, fontWeight: 600, margin: 0, color: 'var(--ln-ink)' }}>
-                                {feedbackTypeConfig[submission.feedback_type]?.label || submission.feedback_type}
+                                <T>{feedbackTypeConfig[submission.feedback_type]?.label || submission.feedback_type}</T>
                               </h3>
                               <span className={statusConfig[submission.status].chip}>
-                                {statusConfig[submission.status].label}
+                                <T>{statusConfig[submission.status].label}</T>
                               </span>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 4, fontSize: 12.5, color: 'var(--ln-ink-3)' }}>
@@ -419,14 +430,14 @@ export const AdminFeedbackPanel: React.FC = () => {
                           >
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                               <FileText className="w-4 h-4" style={{ color: 'var(--ln-info, #6ab7ff)' }} />
-                              <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ln-info, #6ab7ff)' }}>Admin Notes</span>
+                              <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--ln-info, #6ab7ff)' }}><T>Admin Notes</T></span>
                             </div>
                             <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', whiteSpace: 'pre-wrap', margin: 0 }}>
                               {submission.admin_notes}
                             </p>
                             {submission.reviewed_at && (
                               <p style={{ fontSize: 11, color: 'var(--ln-ink-4)', marginTop: 8, fontFamily: 'var(--ln-font-mono)' }}>
-                                Updated {new Date(submission.reviewed_at).toLocaleString()}
+                                <T>Updated</T> {new Date(submission.reviewed_at).toLocaleString()}
                               </p>
                             )}
                           </div>
@@ -435,7 +446,7 @@ export const AdminFeedbackPanel: React.FC = () => {
 
                       <button className="ln-btn" style={{ flex: '0 0 auto' }} onClick={() => openReviewDialog(submission)}>
                         <Edit className="w-4 h-4" />
-                        Update
+                        <T>Update</T>
                       </button>
                     </div>
                   </div>
@@ -450,9 +461,9 @@ export const AdminFeedbackPanel: React.FC = () => {
       <Dialog open={!!reviewingSubmission} onOpenChange={(open) => !open && closeReviewDialog()}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Update Feedback Status</DialogTitle>
+            <DialogTitle><T>Update Feedback Status</T></DialogTitle>
             <DialogDescription>
-              Update the status and add notes for this feedback submission
+              <T>Update the status and add notes for this feedback submission</T>
             </DialogDescription>
           </DialogHeader>
 
@@ -465,11 +476,11 @@ export const AdminFeedbackPanel: React.FC = () => {
                     {feedbackTypeConfig[reviewingSubmission.feedback_type]?.icon || '📝'}
                   </span>
                   <span className="font-semibold">
-                    {feedbackTypeConfig[reviewingSubmission.feedback_type]?.label || reviewingSubmission.feedback_type}
+                    <T>{feedbackTypeConfig[reviewingSubmission.feedback_type]?.label || reviewingSubmission.feedback_type}</T>
                   </span>
                 </div>
                 <div className="text-sm text-muted-foreground">
-                  From: {reviewingSubmission.user_email}
+                  <T>From:</T> {reviewingSubmission.user_email}
                 </div>
                 <div className="bg-muted/50 rounded-lg p-3">
                   <p className="text-sm whitespace-pre-wrap">{reviewingSubmission.message}</p>
@@ -478,27 +489,27 @@ export const AdminFeedbackPanel: React.FC = () => {
 
               {/* Status Selection */}
               <div className="space-y-2">
-                <label className="text-sm font-medium">Status</label>
+                <label className="text-sm font-medium"><T>Status</T></label>
                 <select
                   value={selectedStatus}
                   onChange={(e) => setSelectedStatus(e.target.value)}
                   className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
-                  <option className="bg-background text-foreground" value="new">New</option>
-                  <option className="bg-background text-foreground" value="acknowledged">Acknowledged</option>
-                  <option className="bg-background text-foreground" value="in_progress">In Progress</option>
-                  <option className="bg-background text-foreground" value="resolved">Resolved</option>
-                  <option className="bg-background text-foreground" value="closed">Closed</option>
+                  <option className="bg-background text-foreground" value="new"><T>New</T></option>
+                  <option className="bg-background text-foreground" value="acknowledged"><T>Acknowledged</T></option>
+                  <option className="bg-background text-foreground" value="in_progress"><T>In Progress</T></option>
+                  <option className="bg-background text-foreground" value="resolved"><T>Resolved</T></option>
+                  <option className="bg-background text-foreground" value="closed"><T>Closed</T></option>
                 </select>
               </div>
 
               {/* Admin Notes */}
               <div className="space-y-2">
-                <label className="text-sm font-medium">Admin Notes</label>
+                <label className="text-sm font-medium"><T>Admin Notes</T></label>
                 <Textarea
                   value={adminNotes}
                   onChange={(e) => setAdminNotes(e.target.value)}
-                  placeholder="Add notes about this feedback (e.g., planned actions, resolution details)..."
+                  placeholder={tNotesPlaceholder}
                   rows={6}
                 />
               </div>
@@ -507,16 +518,16 @@ export const AdminFeedbackPanel: React.FC = () => {
 
           <DialogFooter>
             <button className="ln-btn" onClick={closeReviewDialog} disabled={isProcessing}>
-              Cancel
+              <T>Cancel</T>
             </button>
             <button className="ln-btn is-primary" onClick={handleUpdateStatus} disabled={isProcessing}>
               {isProcessing ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Updating...
+                  <T>Updating...</T>
                 </>
               ) : (
-                'Update Status'
+                <T>Update Status</T>
               )}
             </button>
           </DialogFooter>

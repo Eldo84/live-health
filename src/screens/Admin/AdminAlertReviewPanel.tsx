@@ -12,6 +12,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { T } from '../../livehealth/components/T';
+import { useT } from '../../livehealth/lib/useT';
 
 interface AlertSubmission {
   id: string;
@@ -64,6 +66,22 @@ export const AdminAlertReviewPanel: React.FC = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [viewingSubmission, setViewingSubmission] = useState<AlertSubmission | null>(null);
 
+  const tSearchAlerts = useT("Search alerts...");
+  const tAdminNotesPlaceholder = useT("Add any notes about this alert...");
+  const tRejectionPlaceholder = useT("Please provide a reason for rejection...");
+  const tAccessDenied = useT("Access Denied");
+  const tNoAdminPrivileges = useT("You don't have admin privileges.");
+  const tError = useT("Error");
+  const tFailedLoad = useT("Failed to load alert submissions. The table may not exist yet.");
+  const tSuccess = useT("Success");
+  const tAlertWord = useT("Alert");
+  const tApprovedAddedToMap = useT("approved and added to map");
+  const tRejectedWord = useT("rejected");
+  const tFailedUpdate = useT("Failed to update submission");
+  const tAlertDeleted = useT("Alert deleted");
+  const tDeletedDesc = useT("The alert submission and its map entry have been removed.");
+  const tFailedDelete = useT("Failed to delete submission");
+
   useEffect(() => {
     if (authLoading) return;
     
@@ -85,8 +103,8 @@ export const AdminAlertReviewPanel: React.FC = () => {
 
       if (error || data?.role !== 'admin') {
         toast({
-          title: "Access Denied",
-          description: "You don't have admin privileges.",
+          title: tAccessDenied,
+          description: tNoAdminPrivileges,
           variant: "destructive",
         });
         navigate('/map');
@@ -117,8 +135,8 @@ export const AdminAlertReviewPanel: React.FC = () => {
     } catch (error: any) {
       console.error('Error fetching data:', error);
       toast({
-        title: "Error",
-        description: "Failed to load alert submissions. The table may not exist yet.",
+        title: tError,
+        description: tFailedLoad,
         variant: "destructive",
       });
     } finally {
@@ -156,8 +174,8 @@ export const AdminAlertReviewPanel: React.FC = () => {
       }
 
       toast({
-        title: "Success",
-        description: `Alert ${reviewAction === 'approve' ? 'approved and added to map' : 'rejected'}`,
+        title: tSuccess,
+        description: `${tAlertWord} ${reviewAction === 'approve' ? tApprovedAddedToMap : tRejectedWord}`,
       });
 
       // Refresh data
@@ -167,8 +185,8 @@ export const AdminAlertReviewPanel: React.FC = () => {
     } catch (error: any) {
       console.error('Error updating submission:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to update submission",
+        title: tError,
+        description: error.message || tFailedUpdate,
         variant: "destructive",
       });
     } finally {
@@ -417,8 +435,8 @@ export const AdminAlertReviewPanel: React.FC = () => {
       if (error) throw error;
 
       toast({
-        title: "Alert deleted",
-        description: "The alert submission and its map entry have been removed.",
+        title: tAlertDeleted,
+        description: tDeletedDesc,
       });
 
       fetchData();
@@ -426,8 +444,8 @@ export const AdminAlertReviewPanel: React.FC = () => {
     } catch (error: any) {
       console.error('Error deleting submission:', error);
       toast({
-        title: "Error",
-        description: error.message || "Failed to delete submission",
+        title: tError,
+        description: error.message || tFailedDelete,
         variant: "destructive",
       });
     } finally {
@@ -503,19 +521,19 @@ export const AdminAlertReviewPanel: React.FC = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
           <button className="ln-btn" onClick={() => navigate('/admin')}>
             <ArrowLeft className="w-4 h-4" />
-            Back
+            <T>Back</T>
           </button>
           <div>
-            <span className="ln-eyebrow">Moderation</span>
+            <span className="ln-eyebrow"><T>Moderation</T></span>
             <h1 className="ln-display" style={{ fontSize: 26, margin: '4px 0 0', letterSpacing: '-0.02em' }}>
-              Alert review panel
+              <T>Alert review panel</T>
             </h1>
             <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '4px 0 0' }}>
-              Review and approve user-submitted alerts
+              <T>Review and approve user-submitted alerts</T>
             </p>
           </div>
         </div>
-        <span className="ln-chip is-ok">Admin access</span>
+        <span className="ln-chip is-ok"><T>Admin access</T></span>
       </div>
 
       <div style={{ padding: '22px 28px 40px' }}>
@@ -540,7 +558,7 @@ export const AdminAlertReviewPanel: React.FC = () => {
               }}
             >
               <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 2, background: s.color }} />
-              <div className="ln-eyebrow">{s.label}</div>
+              <div className="ln-eyebrow"><T>{s.label}</T></div>
               <div className="ln-num" style={{ fontSize: 26, color: s.color, marginTop: 6, fontWeight: 500 }}>
                 {s.value}
               </div>
@@ -561,7 +579,7 @@ export const AdminAlertReviewPanel: React.FC = () => {
               flexWrap: 'wrap',
             }}
           >
-            <span className="ln-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}>Alert submissions</span>
+            <span className="ln-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}><T>Alert submissions</T></span>
             <div style={{ position: 'relative', width: 260, maxWidth: '100%' }}>
               <span
                 style={{
@@ -578,7 +596,7 @@ export const AdminAlertReviewPanel: React.FC = () => {
               <input
                 className="ln-input"
                 style={{ paddingLeft: 32 }}
-                placeholder="Search alerts..."
+                placeholder={tSearchAlerts}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -603,7 +621,7 @@ export const AdminAlertReviewPanel: React.FC = () => {
                     borderBottom: active ? '1.5px solid var(--ln-brand)' : '1.5px solid transparent',
                   }}
                 >
-                  {t.label}{' '}
+                  <T>{t.label}</T>{' '}
                   <span className="ln-num" style={{ color: 'var(--ln-ink-4)' }}>({t.count})</span>
                 </button>
               );
@@ -613,7 +631,7 @@ export const AdminAlertReviewPanel: React.FC = () => {
           <div style={{ padding: 18 }}>
             {filteredSubmissions.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '32px 0', color: 'var(--ln-ink-3)', fontSize: 13 }}>
-                No alerts found
+                <T>No alerts found</T>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -629,7 +647,7 @@ export const AdminAlertReviewPanel: React.FC = () => {
                             {submission.headline}
                           </h3>
                           <span className={statusConfig[submission.status].chip}>
-                            {statusConfig[submission.status].label}
+                            <T>{statusConfig[submission.status].label}</T>
                           </span>
                         </div>
 
@@ -689,7 +707,7 @@ export const AdminAlertReviewPanel: React.FC = () => {
                             }}
                           >
                             <LinkIcon className="w-4 h-4" />
-                            View Source
+                            <T>View Source</T>
                           </a>
                         )}
 
@@ -703,7 +721,7 @@ export const AdminAlertReviewPanel: React.FC = () => {
                               color: 'var(--ln-ink-2)',
                             }}
                           >
-                            <strong>Admin Notes:</strong> {submission.admin_notes}
+                            <strong><T>Admin Notes:</T></strong> {submission.admin_notes}
                           </div>
                         )}
 
@@ -717,14 +735,14 @@ export const AdminAlertReviewPanel: React.FC = () => {
                               color: 'var(--ln-crit)',
                             }}
                           >
-                            <strong>Rejection Reason:</strong> {submission.rejection_reason}
+                            <strong><T>Rejection Reason:</T></strong> {submission.rejection_reason}
                           </div>
                         )}
 
                         <div style={{ fontSize: 11, color: 'var(--ln-ink-4)', fontFamily: 'var(--ln-font-mono)' }}>
-                          Submitted: {new Date(submission.created_at).toLocaleString()}
+                          <T>Submitted:</T> {new Date(submission.created_at).toLocaleString()}
                           {submission.reviewed_at && (
-                            <> • Reviewed: {new Date(submission.reviewed_at).toLocaleString()}</>
+                            <> • <T>Reviewed:</T> {new Date(submission.reviewed_at).toLocaleString()}</>
                           )}
                         </div>
                       </div>
@@ -732,7 +750,7 @@ export const AdminAlertReviewPanel: React.FC = () => {
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flex: '0 0 auto' }}>
                         <button className="ln-btn" onClick={() => setViewingSubmission(submission)}>
                           <Eye className="w-4 h-4" />
-                          View
+                          <T>View</T>
                         </button>
                         {submission.status === 'pending_review' && (
                           <div style={{ display: 'flex', gap: 8 }}>
@@ -744,7 +762,7 @@ export const AdminAlertReviewPanel: React.FC = () => {
                               }}
                             >
                               <CheckCircle className="w-4 h-4" />
-                              Approve
+                              <T>Approve</T>
                             </button>
                             <button
                               className="ln-btn"
@@ -755,7 +773,7 @@ export const AdminAlertReviewPanel: React.FC = () => {
                               }}
                             >
                               <XCircle className="w-4 h-4" />
-                              Reject
+                              <T>Reject</T>
                             </button>
                           </div>
                         )}
@@ -765,7 +783,7 @@ export const AdminAlertReviewPanel: React.FC = () => {
                           onClick={() => setDeletingSubmission(submission)}
                         >
                           <Trash2 className="w-4 h-4" />
-                          Delete
+                          <T>Delete</T>
                         </button>
                       </div>
                     </div>
@@ -781,48 +799,48 @@ export const AdminAlertReviewPanel: React.FC = () => {
       <Dialog open={!!viewingSubmission} onOpenChange={(open) => !open && setViewingSubmission(null)}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto px-6">
           <DialogHeader>
-            <DialogTitle>Alert Details</DialogTitle>
-            <DialogDescription>Full submission information</DialogDescription>
+            <DialogTitle><T>Alert Details</T></DialogTitle>
+            <DialogDescription><T>Full submission information</T></DialogDescription>
           </DialogHeader>
 
           {viewingSubmission && (
             <div className="space-y-4">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-sm text-muted-foreground">Headline</p>
+                  <p className="text-sm text-muted-foreground"><T>Headline</T></p>
                   <p className="text-lg font-semibold">{viewingSubmission.headline}</p>
                 </div>
                 <span className={statusConfig[viewingSubmission.status].chip}>
-                  {statusConfig[viewingSubmission.status].label}
+                  <T>{statusConfig[viewingSubmission.status].label}</T>
                 </span>
               </div>
 
               <div className="grid sm:grid-cols-2 gap-4 text-sm">
                 <div>
-                  <p className="text-muted-foreground">Submitter</p>
+                  <p className="text-muted-foreground"><T>Submitter</T></p>
                   <p className="font-medium">{viewingSubmission.user_email}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Disease</p>
+                  <p className="text-muted-foreground"><T>Disease</T></p>
                   <p className="font-medium">{viewingSubmission.disease_name}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Location</p>
+                  <p className="text-muted-foreground"><T>Location</T></p>
                   <p className="font-medium">{viewingSubmission.location}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Date</p>
+                  <p className="text-muted-foreground"><T>Date</T></p>
                   <p className="font-medium">{new Date(viewingSubmission.date).toLocaleDateString()}</p>
                 </div>
                 <div>
-                  <p className="text-muted-foreground">Submitted</p>
+                  <p className="text-muted-foreground"><T>Submitted</T></p>
                   <p className="font-medium">{new Date(viewingSubmission.created_at).toLocaleString()}</p>
                 </div>
               </div>
 
               {viewingSubmission.url && (
                 <div className="text-sm">
-                  <p className="text-muted-foreground">Source</p>
+                  <p className="text-muted-foreground"><T>Source</T></p>
                   <a
                     href={viewingSubmission.url}
                     target="_blank"
@@ -836,21 +854,21 @@ export const AdminAlertReviewPanel: React.FC = () => {
 
               {viewingSubmission.description && (
                 <div className="text-sm space-y-1">
-                  <p className="text-muted-foreground">Description</p>
+                  <p className="text-muted-foreground"><T>Description</T></p>
                   <p>{viewingSubmission.description}</p>
                 </div>
               )}
 
               {viewingSubmission.admin_notes && (
                 <div className="text-sm space-y-1">
-                  <p className="text-muted-foreground">Admin Notes</p>
+                  <p className="text-muted-foreground"><T>Admin Notes</T></p>
                   <p>{viewingSubmission.admin_notes}</p>
                 </div>
               )}
 
               {viewingSubmission.rejection_reason && (
                 <div className="text-sm space-y-1">
-                  <p className="text-muted-foreground">Rejection Reason</p>
+                  <p className="text-muted-foreground"><T>Rejection Reason</T></p>
                   <p>{viewingSubmission.rejection_reason}</p>
                 </div>
               )}
@@ -859,7 +877,7 @@ export const AdminAlertReviewPanel: React.FC = () => {
 
           <DialogFooter>
             <button className="ln-btn" onClick={() => setViewingSubmission(null)}>
-              Close
+              <T>Close</T>
             </button>
           </DialogFooter>
         </DialogContent>
@@ -870,41 +888,41 @@ export const AdminAlertReviewPanel: React.FC = () => {
         <DialogContent className="sm:max-w-lg px-6">
           <DialogHeader>
             <DialogTitle>
-              {reviewAction === 'approve' ? 'Approve Alert' : 'Reject Alert'}
+              {reviewAction === 'approve' ? <T>Approve Alert</T> : <T>Reject Alert</T>}
             </DialogTitle>
             <DialogDescription>
-              {reviewAction === 'approve' 
-                ? 'This alert will be added to the map after approval.'
-                : 'Please provide a reason for rejection.'}
+              {reviewAction === 'approve'
+                ? <T>This alert will be added to the map after approval.</T>
+                : <T>Please provide a reason for rejection.</T>}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             {reviewingSubmission && (
               <div className="space-y-2 text-sm">
-                <div><strong>Headline:</strong> {reviewingSubmission.headline}</div>
-                <div><strong>Location:</strong> {reviewingSubmission.location}</div>
-                <div><strong>Disease:</strong> {reviewingSubmission.disease_name}</div>
+                <div><strong><T>Headline:</T></strong> {reviewingSubmission.headline}</div>
+                <div><strong><T>Location:</T></strong> {reviewingSubmission.location}</div>
+                <div><strong><T>Disease:</T></strong> {reviewingSubmission.disease_name}</div>
               </div>
             )}
 
             <div>
-              <label className="text-sm font-medium">Admin Notes (optional)</label>
+              <label className="text-sm font-medium"><T>Admin Notes (optional)</T></label>
               <Textarea
                 value={adminNotes}
                 onChange={(e) => setAdminNotes(e.target.value)}
-                placeholder="Add any notes about this alert..."
+                placeholder={tAdminNotesPlaceholder}
                 className="mt-1"
               />
             </div>
 
             {reviewAction === 'reject' && (
               <div>
-                <label className="text-sm font-medium">Rejection Reason *</label>
+                <label className="text-sm font-medium"><T>Rejection Reason *</T></label>
                 <Textarea
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
-                  placeholder="Please provide a reason for rejection..."
+                  placeholder={tRejectionPlaceholder}
                   className="mt-1"
                   required
                 />
@@ -914,7 +932,7 @@ export const AdminAlertReviewPanel: React.FC = () => {
 
           <DialogFooter>
             <button className="ln-btn" onClick={closeReviewDialog} disabled={isProcessing}>
-              Cancel
+              <T>Cancel</T>
             </button>
             <button
               className={reviewAction === 'approve' ? 'ln-btn is-primary' : 'ln-btn'}
@@ -925,19 +943,19 @@ export const AdminAlertReviewPanel: React.FC = () => {
               {isProcessing ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Processing...
+                  <T>Processing...</T>
                 </>
               ) : (
                 <>
                   {reviewAction === 'approve' ? (
                     <>
                       <CheckCircle className="w-4 h-4" />
-                      Approve
+                      <T>Approve</T>
                     </>
                   ) : (
                     <>
                       <XCircle className="w-4 h-4" />
-                      Reject
+                      <T>Reject</T>
                     </>
                   )}
                 </>
@@ -951,21 +969,21 @@ export const AdminAlertReviewPanel: React.FC = () => {
       <Dialog open={!!deletingSubmission} onOpenChange={(open) => !open && setDeletingSubmission(null)}>
         <DialogContent className="px-6">
           <DialogHeader>
-            <DialogTitle>Delete Alert Submission</DialogTitle>
+            <DialogTitle><T>Delete Alert Submission</T></DialogTitle>
             <DialogDescription>
-              Deleting will remove this alert submission. Approved alerts will no longer be linked to the submitter.
+              <T>Deleting will remove this alert submission. Approved alerts will no longer be linked to the submitter.</T>
             </DialogDescription>
           </DialogHeader>
           {deletingSubmission && (
             <div className="py-4 space-y-2 text-sm text-muted-foreground">
-              <div><strong>Headline:</strong> {deletingSubmission.headline}</div>
-              <div><strong>User:</strong> {deletingSubmission.user_email}</div>
-              <div><strong>Status:</strong> {statusConfig[deletingSubmission.status].label}</div>
+              <div><strong><T>Headline:</T></strong> {deletingSubmission.headline}</div>
+              <div><strong><T>User:</T></strong> {deletingSubmission.user_email}</div>
+              <div><strong><T>Status:</T></strong> <T>{statusConfig[deletingSubmission.status].label}</T></div>
             </div>
           )}
           <DialogFooter>
             <button className="ln-btn" onClick={() => setDeletingSubmission(null)} disabled={isDeleting}>
-              Cancel
+              <T>Cancel</T>
             </button>
             <button
               className="ln-btn"
@@ -976,12 +994,12 @@ export const AdminAlertReviewPanel: React.FC = () => {
               {isDeleting ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Deleting...
+                  <T>Deleting...</T>
                 </>
               ) : (
                 <>
                   <Trash2 className="w-4 h-4" />
-                  Delete
+                  <T>Delete</T>
                 </>
               )}
             </button>

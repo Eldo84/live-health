@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { Icon } from "../components/Icon";
+import { T } from "../components/T";
+import { useT } from "../lib/useT";
 import { Logo } from "../components/Logo";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { LanguageSelector } from "../components/LanguageSelector";
@@ -35,6 +37,8 @@ export function MobileLandingScreen() {
   const { ads } = useLiveSponsored({ location: "homepage", limit: 2 });
   const { stats } = useDashboardStats("7d");
   const [donateOpen, setDonateOpen] = useState(false);
+  const tSearch = useT("Search");
+  const tMenu = useT("Menu");
 
   const featured = useMemo(() => outbreaks.find((o) => o.severity >= 4) || outbreaks[0], [outbreaks]);
 
@@ -61,10 +65,10 @@ export function MobileLandingScreen() {
         <div style={{ display: "flex", alignItems: "center", gap: 10, color: "var(--ln-ink-2)" }}>
           <LanguageSelector />
           <ThemeToggle />
-          <Link to="/map" style={{ color: "inherit" }} aria-label="Search">
+          <Link to="/map" style={{ color: "inherit" }} aria-label={tSearch}>
             <Icon.Search />
           </Link>
-          <Link to="/dashboard" style={{ color: "inherit" }} aria-label="Menu">
+          <Link to="/dashboard" style={{ color: "inherit" }} aria-label={tMenu}>
             <Icon.Menu />
           </Link>
         </div>
@@ -153,13 +157,13 @@ export function MobileLandingScreen() {
         }}
       >
         <div style={{ textAlign: "center", marginBottom: 22 }}>
-          <span className="ln-eyebrow">In partnership with</span>
+          <span className="ln-eyebrow"><T>In partnership with</T></span>
           <h2
             className="ln-display"
             style={{ fontSize: "clamp(22px, 5.5vw, 28px)", margin: "8px 0 8px", letterSpacing: "-0.02em", lineHeight: 1.1 }}
           >
-            Built with the institutions{" "}
-            <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}>that set the standard.</span>
+            <T>Built with the institutions</T>{" "}
+            <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}><T>that set the standard.</T></span>
           </h2>
           <p
             style={{
@@ -170,7 +174,7 @@ export function MobileLandingScreen() {
               margin: "0 auto",
             }}
           >
-            OutbreakNow is operated by EldoNova+ in partnership with the Global Health and Quality Alliance.
+            OutbreakNow <T>is operated by EldoNova+ in partnership with the Global Health and Quality Alliance.</T>
           </p>
         </div>
 
@@ -273,9 +277,9 @@ export function MobileLandingScreen() {
             marginBottom: 14,
           }}
         >
-          <span className="ln-eyebrow">The world, right now</span>
+          <span className="ln-eyebrow"><T>The world, right now</T></span>
           <span style={{ fontFamily: "var(--ln-font-mono)", fontSize: 10, color: "var(--ln-ink-4)" }}>
-            11s ago
+            11s <T>ago</T>
           </span>
         </div>
         <div
@@ -332,7 +336,7 @@ export function MobileLandingScreen() {
             >
               <div style={{ position: "absolute", top: 0, left: 0, width: 22, height: 2, background: s.c }} />
               <div className="ln-eyebrow" style={{ fontSize: 9 }}>
-                {s.l}
+                <T>{s.l}</T>
               </div>
               <div
                 className="ln-num"
@@ -358,17 +362,17 @@ export function MobileLandingScreen() {
 
       {/* Three modules — stacked */}
       <section style={{ padding: "36px 18px", borderBottom: "1px solid var(--ln-line)" }}>
-        <span className="ln-eyebrow">The product</span>
+        <span className="ln-eyebrow"><T>The product</T></span>
         <h2
           className="ln-display"
           style={{ fontSize: "clamp(24px, 6.5vw, 32px)", margin: "8px 0 6px", letterSpacing: "-0.02em", lineHeight: 1.05 }}
         >
-          Three surfaces, <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}>one truth.</span>
+          <T>Three surfaces,</T> <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}><T>one truth.</T></span>
         </h2>
         <p style={{ fontSize: 13.5, color: "var(--ln-ink-2)", lineHeight: 1.5, marginBottom: 18 }}>
-          The map shows you <b style={{ color: "var(--ln-ink)" }}>where</b>. Analytics tells you{" "}
-          <b style={{ color: "var(--ln-ink)" }}>how big</b>. The forecast tells you{" "}
-          <b style={{ color: "var(--ln-ink)" }}>what next</b>.
+          <T>The map shows you</T> <b style={{ color: "var(--ln-ink)" }}><T>where</T></b>. <T>Analytics tells you</T>{" "}
+          <b style={{ color: "var(--ln-ink)" }}><T>how big</T></b>. <T>The forecast tells you</T>{" "}
+          <b style={{ color: "var(--ln-ink)" }}><T>what next</T></b>.
         </p>
         {[
           { n: "01", e: "Surveillance", t: "The map of right now", b: "Every event in 193 countries, fused from authority feeds.", to: "/map" },
@@ -393,9 +397,9 @@ export function MobileLandingScreen() {
               {m.n}
             </span>
             <div>
-              <span className="ln-eyebrow">{m.e}</span>
-              <h3 style={{ fontSize: 17, margin: "4px 0 6px", fontWeight: 500 }}>{m.t}</h3>
-              <p style={{ fontSize: 13, color: "var(--ln-ink-3)", lineHeight: 1.45 }}>{m.b}</p>
+              <span className="ln-eyebrow"><T>{m.e}</T></span>
+              <h3 style={{ fontSize: 17, margin: "4px 0 6px", fontWeight: 500 }}><T>{m.t}</T></h3>
+              <p style={{ fontSize: 13, color: "var(--ln-ink-3)", lineHeight: 1.45 }}><T>{m.b}</T></p>
             </div>
             <Icon.ArrowR style={{ color: ACCENT, marginTop: 26 }} />
           </Link>
@@ -404,9 +408,9 @@ export function MobileLandingScreen() {
 
       {/* Latest signals */}
       <section style={{ padding: "36px 18px", borderBottom: "1px solid var(--ln-line)" }}>
-        <span className="ln-eyebrow">Latest signals</span>
+        <span className="ln-eyebrow"><T>Latest signals</T></span>
         <h2 className="ln-display" style={{ fontSize: "clamp(24px, 6vw, 30px)", margin: "8px 0 16px", letterSpacing: "-0.02em" }}>
-          What broke <span style={{ color: "var(--ln-ink-3)", fontStyle: "italic" }}>this morning.</span>
+          <T>What broke</T> <span style={{ color: "var(--ln-ink-3)", fontStyle: "italic" }}><T>this morning.</T></span>
         </h2>
         <div style={{ border: "1px solid var(--ln-line)" }}>
           {alerts.slice(0, 5).map((a, i, arr) => (
@@ -471,7 +475,7 @@ export function MobileLandingScreen() {
             marginTop: 14,
           }}
         >
-          See full feed <Icon.ArrowR />
+<T>See full feed</T> <Icon.ArrowR />
         </Link>
       </section>
 
@@ -484,12 +488,12 @@ export function MobileLandingScreen() {
 
       {/* Access tiers — compact */}
       <section style={{ padding: "36px 18px", borderBottom: "1px solid var(--ln-line)" }}>
-        <span className="ln-eyebrow">Access</span>
+        <span className="ln-eyebrow"><T>Access</T></span>
         <h2
           className="ln-display"
           style={{ fontSize: "clamp(24px, 6vw, 30px)", margin: "8px 0 22px", letterSpacing: "-0.025em", lineHeight: 1 }}
         >
-          The world's view <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}>shouldn't be locked up.</span>
+          <T>The world's view</T> <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}><T>shouldn't be locked up.</T></span>
         </h2>
         {[
           { tag: "OPEN", name: "Public", price: "Free, forever", featured: false, blurb: "Map, weekly digest, rate-limited API.", to: "/map" },
@@ -520,17 +524,17 @@ export function MobileLandingScreen() {
                   letterSpacing: "0.12em",
                 }}
               >
-                RECOMMENDED
+                <T>RECOMMENDED</T>
               </span>
             )}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
               <div style={{ minWidth: 0 }}>
-                <span className="ln-eyebrow">{t.tag}</span>
+                <span className="ln-eyebrow"><T>{t.tag}</T></span>
                 <div className="ln-display" style={{ fontSize: 22, marginTop: 2, letterSpacing: "-0.02em" }}>
-                  {t.name}
+                  <T>{t.name}</T>
                 </div>
                 <div className="ln-num" style={{ fontSize: 13, color: t.featured ? ACCENT : "var(--ln-ink-2)" }}>
-                  {t.price}
+                  <T>{t.price}</T>
                 </div>
               </div>
               <Link to={t.to} className={`ln-btn ${t.featured ? "is-primary" : ""}`} style={{ flex: "0 0 auto" }}>
@@ -538,7 +542,7 @@ export function MobileLandingScreen() {
               </Link>
             </div>
             <p style={{ fontSize: 12.5, color: "var(--ln-ink-3)", lineHeight: 1.45, margin: "10px 0 0" }}>
-              {t.blurb}
+              <T>{t.blurb}</T>
             </p>
           </div>
         ))}
@@ -548,23 +552,23 @@ export function MobileLandingScreen() {
       <section
         style={{ padding: "32px 18px", borderBottom: "1px solid var(--ln-line)", background: "var(--ln-surface)" }}
       >
-        <span className="ln-eyebrow">Support the work</span>
+        <span className="ln-eyebrow"><T>Support the work</T></span>
         <h2
           className="ln-display"
           style={{ fontSize: "clamp(20px, 5.5vw, 24px)", margin: "8px 0 6px", letterSpacing: "-0.02em", lineHeight: 1.1 }}
         >
-          Open surveillance is{" "}
-          <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}>cheaper than the next outbreak.</span>
+          <T>Open surveillance is</T>{" "}
+          <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}><T>cheaper than the next outbreak.</T></span>
         </h2>
         <p style={{ fontSize: 13, color: "var(--ln-ink-2)", lineHeight: 1.5, margin: "0 0 14px" }}>
-          OutbreakNow is operated by EldoNova+ Technologies. Donations keep the pipeline and API free.
+          OutbreakNow <T>is operated by EldoNova+ Technologies. Donations keep the pipeline and API free.</T>
         </p>
         <button
           className="ln-btn is-primary"
           onClick={() => setDonateOpen(true)}
           style={{ width: "100%", justifyContent: "center", padding: "12px 0", fontSize: 13 }}
         >
-          Donate <Icon.ArrowR />
+<T>Donate</T> <Icon.ArrowR />
         </button>
         <DonateDialog open={donateOpen} onClose={() => setDonateOpen(false)} />
       </section>
@@ -580,8 +584,7 @@ export function MobileLandingScreen() {
             margin: "14px 0 18px",
           }}
         >
-          OutbreakNow is operated by EldoNova+ Technologies in partnership with the Global Health and
-          Quality Alliance.
+          OutbreakNow <T>is operated by EldoNova+ Technologies in partnership with the Global Health and Quality Alliance.</T>
         </p>
         <div
           style={{
@@ -598,14 +601,14 @@ export function MobileLandingScreen() {
             { h: "Legal", items: ["Privacy", "Terms", "Data licence"] },
           ].map((c) => (
             <div key={c.h}>
-              <span className="ln-eyebrow">{c.h}</span>
+              <span className="ln-eyebrow"><T>{c.h}</T></span>
               <ul style={{ listStyle: "none", padding: 0, margin: "8px 0 0" }}>
                 {c.items.map((it) => (
                   <li
                     key={it}
                     style={{ fontSize: 12.5, color: "var(--ln-ink-2)", padding: "4px 0" }}
                   >
-                    {it}
+                    <T>{it}</T>
                   </li>
                 ))}
               </ul>
@@ -782,10 +785,10 @@ function MobileHero({
             textShadow: "0 2px 16px rgba(0,0,0,0.5)",
           }}
         >
-          When the next one starts<span style={{ color: "var(--ln-ink-4)" }}>,</span>
+          <T>When the next one starts</T><span style={{ color: "var(--ln-ink-4)" }}>,</span>
           <br />
-          <span style={{ color: "var(--ln-ink-3)", fontStyle: "italic" }}>you'll </span>
-          <span style={{ color: ACCENT, fontStyle: "italic" }}>know first.</span>
+          <span style={{ color: "var(--ln-ink-3)", fontStyle: "italic" }}><T>you'll</T> </span>
+          <span style={{ color: ACCENT, fontStyle: "italic" }}><T>know first.</T></span>
         </h1>
 
         <p
@@ -797,9 +800,8 @@ function MobileHero({
             textShadow: "0 1px 8px rgba(0,0,0,0.4)",
           }}
         >
-          Real-time outbreak intelligence from{" "}
-          <b style={{ color: "var(--ln-ink)" }}>1,200 health authorities</b>, fused into one decision-grade
-          picture.
+          <T>Real-time outbreak intelligence from</T>{" "}
+          <b style={{ color: "var(--ln-ink)" }}>1,200 <T>health authorities</T></b>, <T>fused into one decision-grade picture.</T>
         </p>
 
         <div
@@ -821,7 +823,7 @@ function MobileHero({
               fontSize: 13,
             }}
           >
-            Open live map
+            <T>Open live map</T>
           </Link>
           <Link
             to="/dashboard"
@@ -835,7 +837,7 @@ function MobileHero({
               backdropFilter: "blur(6px)",
             }}
           >
-            Analytics
+            <T>Analytics</T>
           </Link>
         </div>
       </div>
@@ -869,14 +871,14 @@ function MobileHero({
           >
             <div style={{ position: "absolute", top: 0, left: 0, width: 22, height: 2, background: s.c }} />
             <div className="ln-eyebrow" style={{ fontSize: 9 }}>
-              {s.l}
+              <T>{s.l}</T>
             </div>
             <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 4 }}>
               <span className="ln-num" style={{ fontSize: 22, fontWeight: 500 }}>
                 {s.v}
               </span>
               <span className="ln-num" style={{ fontSize: 10, color: "var(--ln-ink-3)" }}>
-                {s.u}
+                <T>{s.u}</T>
               </span>
             </div>
           </div>

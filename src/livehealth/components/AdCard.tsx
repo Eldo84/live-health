@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Icon } from "./Icon";
+import { T } from "./T";
 
 export interface Ad {
   id: string;
@@ -280,7 +281,7 @@ export function AdCard({ ad, variant = "sidebar", dense = false }: AdCardProps) 
           }}
         >
           <button style={{ background: "none", border: "none", cursor: "pointer", color: "var(--ln-ink-4)", fontSize: 11 }}>
-            Why this?
+            <T>Why this?</T>
           </button>
           <button className="ln-btn" style={{ borderColor: ad.accent, color: ad.accent }}>
             {ad.cta} <Icon.ArrowR />

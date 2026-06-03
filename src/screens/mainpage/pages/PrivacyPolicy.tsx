@@ -1,7 +1,6 @@
 import { Helmet } from "react-helmet-async";
 import { useLocation, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import outbreakNowLogo from "@/assets/outbreaknow-logo.png";
 import { Footer } from "@/components/Footer";
 import { useLanguage, SUPPORTED_LANGUAGES } from "@/contexts/LanguageContext";
 import { Shield, Lock, Eye, FileText, Mail } from "lucide-react";
@@ -24,7 +23,7 @@ const PrivacyPolicy = () => {
         <div className="container-prose py-3">
           <div className="flex items-center gap-4">
             <Link to="/" className="transition-opacity hover:opacity-80">
-              <img src={outbreakNowLogo} alt="OutbreakNow Logo" className="h-24 w-auto" />
+              <img src="/brand/outbreaknow-full-light.svg" alt="OutbreakNow Logo" className="h-24 w-auto" />
             </Link>
             <div className="flex-1 flex items-center justify-end gap-4">
               <Link to="/">

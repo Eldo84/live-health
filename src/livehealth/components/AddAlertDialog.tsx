@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Modal, Field } from "./Modal";
 import { Icon } from "./Icon";
+import { T } from "./T";
+import { SymptomPicker } from "./SymptomPicker";
+import { useT } from "../lib/useT";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
 import { geocodeLocation, detectCountryInText } from "../../lib/geocode";
 import { geocodeWithOpenCage } from "../../lib/opencage";
+import { predict, type RiskLevel } from "../lib/symptomKnowledgeBase";
 
 interface Props {
   open: boolean;
@@ -25,6 +29,7 @@ interface FormState {
   disease: string;
   customDisease: string;
   description: string;
+  symptoms: string[];
 }
 
 const EMPTY: FormState = {
@@ -36,6 +41,13 @@ const EMPTY: FormState = {
   disease: "",
   customDisease: "",
   description: "",
+  symptoms: [],
+};
+
+const RISK_META: Record<RiskLevel, { label: string; color: string }> = {
+  low: { label: "Low risk", color: "var(--ln-ok, #4ade80)" },
+  medium: { label: "Medium risk", color: "var(--ln-warn, #fbbf24)" },
+  high: { label: "High risk", color: "var(--ln-crit, #f87171)" },
 };
 
 // Themed Add Alert flow. Lets a signed-in user submit a new outbreak signal —
@@ -48,6 +60,40 @@ export function AddAlertDialog({ open, onClose }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ autoApproved: boolean } | null>(null);
+
+  const tReportOutbreak = useT("Report an outbreak");
+  const tSubmitNewAlert = useT("Submit a new alert");
+  const tEmail = useT("Email");
+  const tSourceUrl = useT("Source URL");
+  const tSourceUrlHint = useT("The news article, ministry release, or social post.");
+  const tHeadline = useT("Headline");
+  const tHeadlinePlaceholder = useT("e.g. Marburg cluster confirmed in Rwamagana");
+  const tLocation = useT("Location");
+  const tLocationHint = useT("City + country gives best geocoding.");
+  const tLocationPlaceholder = useT("e.g. Kampala, Uganda");
+  const tDateDetected = useT("Date detected");
+  const tDisease = useT("Disease");
+  const tSelectDisease = useT("Select a disease…");
+  const tOtherSpecify = useT("+ Other (specify)");
+  const tCustomDiseaseName = useT("Custom disease name");
+  const tWhatDidYouSee = useT("What did you see?");
+  const tWhatDidYouSeeHint = useT(
+    "A short description — symptoms, scale, anything that helps reviewers verify."
+  );
+  const tSymptoms = useT("Symptoms observed (optional)");
+  const tLikelySyndromes = useT("Likely syndromes");
+  const tPredictedDiseases = useT("Predicted diseases");
+  const tPredHint = useT("Tap a disease to set it as the reported disease above.");
+  const tTriageNote = useT(
+    "Community triage estimate from reported symptoms — not a medical diagnosis."
+  );
+  const tErrSignedIn = useT("You must be signed in to submit an alert. Use the avatar menu to sign in.");
+  const tErrFillFields = useT("Please fill in every field.");
+  const tErrNameCustom = useT("Please name the custom disease.");
+  const tErrGeocode = useT(
+    "Could not geocode that location. Try a more specific form — e.g. 'Kampala, Uganda' or 'Lima, Peru'."
+  );
+  const tErrFailed = useT("Failed to submit alert.");
 
   const inputStyle = useMemo<React.CSSProperties>(
     () => ({
@@ -78,19 +124,33 @@ export function AddAlertDialog({ open, onClose }: Props) {
 
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
 
+  // Rule-based triage: classify the selected symptoms into syndromes + ranked diseases.
+  const prediction = useMemo(() => predict(form.symptoms), [form.symptoms]);
+
+  // Picking a predicted disease fills the Disease select (matched by exact DB name,
+  // else falls back to the custom-disease path).
+  const pickPredictedDisease = (name: string) => {
+    const match = diseases.find((d) => d.name === name);
+    if (match) {
+      setForm((f) => ({ ...f, disease: match.id, customDisease: "" }));
+    } else {
+      setForm((f) => ({ ...f, disease: "custom", customDisease: name }));
+    }
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     if (!user) {
-      setError("You must be signed in to submit an alert. Use the avatar menu to sign in.");
+      setError(tErrSignedIn);
       return;
     }
     if (!form.url || !form.headline || !form.location || !form.disease || !form.description) {
-      setError("Please fill in every field.");
+      setError(tErrFillFields);
       return;
     }
     if (form.disease === "custom" && !form.customDisease.trim()) {
-      setError("Please name the custom disease.");
+      setError(tErrNameCustom);
       return;
     }
     setSubmitting(true);
@@ -118,9 +178,7 @@ export function AddAlertDialog({ open, onClose }: Props) {
         if (coords) countryName = detectCountryInText(form.location);
       }
       if (!coords) {
-        throw new Error(
-          "Could not geocode that location. Try a more specific form — e.g. 'Kampala, Uganda' or 'Lima, Peru'."
-        );
+        throw new Error(tErrGeocode);
       }
 
       let countryId: string | null = null;
@@ -150,6 +208,9 @@ export function AddAlertDialog({ open, onClose }: Props) {
           country_name: countryName,
           country_id: countryId,
           status: "pending_review",
+          symptoms: form.symptoms,
+          syndromes: prediction.syndromes.map((s) => s.id),
+          predicted_diseases: prediction.diseases,
         })
         .select()
         .single();
@@ -169,7 +230,7 @@ export function AddAlertDialog({ open, onClose }: Props) {
 
       setSuccess({ autoApproved });
     } catch (err: any) {
-      setError(err?.message || "Failed to submit alert.");
+      setError(err?.message || tErrFailed);
     } finally {
       setSubmitting(false);
     }
@@ -179,8 +240,8 @@ export function AddAlertDialog({ open, onClose }: Props) {
     <Modal
       open={open}
       onClose={onClose}
-      eyebrow="Report an outbreak"
-      title="Submit a new alert"
+      eyebrow={tReportOutbreak}
+      title={tSubmitNewAlert}
       width={620}
     >
       {success ? (
@@ -188,8 +249,7 @@ export function AddAlertDialog({ open, onClose }: Props) {
       ) : (
         <form onSubmit={submit}>
           <p style={{ fontSize: 12.5, color: "var(--ln-ink-3)", margin: "0 0 16px", lineHeight: 1.5 }}>
-            Saw something that should be on the map? Share the source URL + a one-line headline. We auto-geocode
-            the location and an admin reviews before it joins the live feed (or auto-approves clear-cut cases).
+            <T>Saw something that should be on the map? Share the source URL + a one-line headline. We auto-geocode the location and an admin reviews before it joins the live feed (or auto-approves clear-cut cases).</T>
           </p>
 
           {!user && (
@@ -202,11 +262,11 @@ export function AddAlertDialog({ open, onClose }: Props) {
                 marginBottom: 14,
               }}
             >
-              You need to sign in before submitting an alert.
+              <T>You need to sign in before submitting an alert.</T>
             </div>
           )}
 
-          <Field label="Email">
+          <Field label={tEmail}>
             <input
               type="email"
               required
@@ -216,7 +276,7 @@ export function AddAlertDialog({ open, onClose }: Props) {
             />
           </Field>
 
-          <Field label="Source URL" hint="The news article, ministry release, or social post.">
+          <Field label={tSourceUrl} hint={tSourceUrlHint}>
             <input
               type="url"
               placeholder="https://…"
@@ -227,28 +287,28 @@ export function AddAlertDialog({ open, onClose }: Props) {
             />
           </Field>
 
-          <Field label="Headline">
+          <Field label={tHeadline}>
             <input
               required
               maxLength={200}
               value={form.headline}
               onChange={(e) => set("headline", e.target.value)}
               style={inputStyle}
-              placeholder="e.g. Marburg cluster confirmed in Rwamagana"
+              placeholder={tHeadlinePlaceholder}
             />
           </Field>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 160px", gap: 12 }}>
-            <Field label="Location" hint="City + country gives best geocoding.">
+            <Field label={tLocation} hint={tLocationHint}>
               <input
                 required
-                placeholder="e.g. Kampala, Uganda"
+                placeholder={tLocationPlaceholder}
                 value={form.location}
                 onChange={(e) => set("location", e.target.value)}
                 style={inputStyle}
               />
             </Field>
-            <Field label="Date detected">
+            <Field label={tDateDetected}>
               <input
                 type="date"
                 required
@@ -259,20 +319,162 @@ export function AddAlertDialog({ open, onClose }: Props) {
             </Field>
           </div>
 
-          <Field label="Disease">
+          <Field label={tSymptoms}>
+            <SymptomPicker value={form.symptoms} onChange={(next) => set("symptoms", next)} />
+          </Field>
+
+          {(prediction.syndromes.length > 0 || prediction.diseases.length > 0) && (
+            <div
+              style={{
+                border: "1px solid var(--ln-line-2)",
+                borderRadius: 6,
+                padding: 12,
+                marginBottom: 14,
+                background: "color-mix(in oklab, var(--ln-brand) 5%, transparent)",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 8,
+                  marginBottom: 10,
+                }}
+              >
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12.5, color: "var(--ln-ink)" }}>
+                  <Icon.Sparkles /> <T>Syndrome & disease analysis</T>
+                </span>
+                <span
+                  style={{
+                    fontSize: 10.5,
+                    fontFamily: "var(--ln-font-mono)",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.04em",
+                    padding: "2px 8px",
+                    borderRadius: 99,
+                    color: RISK_META[prediction.riskLevel].color,
+                    border: `1px solid ${RISK_META[prediction.riskLevel].color}`,
+                  }}
+                >
+                  {RISK_META[prediction.riskLevel].label}
+                </span>
+              </div>
+
+              {prediction.syndromes.length > 0 && (
+                <div style={{ marginBottom: prediction.diseases.length > 0 ? 12 : 0 }}>
+                  <div className="ln-eyebrow" style={{ marginBottom: 6 }}>{tLikelySyndromes}</div>
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                    {prediction.syndromes.map((s) => (
+                      <span
+                        key={s.id}
+                        style={{
+                          fontSize: 11.5,
+                          padding: "3px 9px",
+                          borderRadius: 99,
+                          background: "var(--ln-surface)",
+                          border: "1px solid var(--ln-line-2)",
+                          color: "var(--ln-ink-2)",
+                        }}
+                      >
+                        <T>{s.label}</T>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {prediction.diseases.length > 0 && (
+                <div>
+                  <div className="ln-eyebrow" style={{ marginBottom: 6 }}>{tPredictedDiseases}</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                    {prediction.diseases.map((d) => {
+                      const isSelected =
+                        diseases.find((x) => x.id === form.disease)?.name === d.name ||
+                        (form.disease === "custom" && form.customDisease === d.name);
+                      return (
+                        <button
+                          key={d.name}
+                          type="button"
+                          onClick={() => pickPredictedDisease(d.name)}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            width: "100%",
+                            textAlign: "left",
+                            padding: "6px 8px",
+                            borderRadius: 5,
+                            cursor: "pointer",
+                            fontFamily: "var(--ln-font-sans)",
+                            fontSize: 12,
+                            color: "var(--ln-ink)",
+                            background: isSelected
+                              ? "color-mix(in oklab, var(--ln-brand) 16%, transparent)"
+                              : "var(--ln-surface)",
+                            border: isSelected
+                              ? "1px solid var(--ln-brand)"
+                              : "1px solid var(--ln-line-2)",
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontFamily: "var(--ln-font-mono)",
+                              fontSize: 11,
+                              minWidth: 38,
+                              color: "var(--ln-ink-2)",
+                            }}
+                          >
+                            {d.probability}%
+                          </span>
+                          <span
+                            aria-hidden
+                            style={{
+                              flex: 1,
+                              height: 5,
+                              borderRadius: 99,
+                              background: "var(--ln-line-2)",
+                              overflow: "hidden",
+                            }}
+                          >
+                            <span
+                              style={{
+                                display: "block",
+                                height: "100%",
+                                width: `${d.probability}%`,
+                                background: "var(--ln-brand)",
+                              }}
+                            />
+                          </span>
+                          <span style={{ flex: "0 0 auto", maxWidth: "55%" }}>{d.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--ln-ink-3)", marginTop: 7 }}>{tPredHint}</div>
+                </div>
+              )}
+
+              <div style={{ fontSize: 10.5, color: "var(--ln-ink-3)", marginTop: 10, fontStyle: "italic" }}>
+                {tTriageNote}
+              </div>
+            </div>
+          )}
+
+          <Field label={tDisease}>
             <select required value={form.disease} onChange={(e) => set("disease", e.target.value)} style={inputStyle}>
-              <option value="">Select a disease…</option>
+              <option value="">{tSelectDisease}</option>
               {diseases.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.name}
                 </option>
               ))}
-              <option value="custom">+ Other (specify)</option>
+              <option value="custom">{tOtherSpecify}</option>
             </select>
           </Field>
 
           {form.disease === "custom" && (
-            <Field label="Custom disease name">
+            <Field label={tCustomDiseaseName}>
               <input
                 required
                 value={form.customDisease}
@@ -283,8 +485,8 @@ export function AddAlertDialog({ open, onClose }: Props) {
           )}
 
           <Field
-            label="What did you see?"
-            hint="A short description — symptoms, scale, anything that helps reviewers verify."
+            label={tWhatDidYouSee}
+            hint={tWhatDidYouSeeHint}
           >
             <textarea
               required
@@ -313,10 +515,10 @@ export function AddAlertDialog({ open, onClose }: Props) {
 
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
             <button type="button" onClick={onClose} className="ln-btn">
-              Cancel
+              <T>Cancel</T>
             </button>
             <button type="submit" disabled={submitting || !user} className="ln-btn is-primary">
-              {submitting ? "Submitting…" : "Submit alert"} <Icon.ArrowR />
+              {submitting ? <T>Submitting…</T> : <T>Submit alert</T>} <Icon.ArrowR />
             </button>
           </div>
         </form>
@@ -345,7 +547,7 @@ function SuccessState({ autoApproved, onClose }: { autoApproved: boolean; onClos
         ✓
       </div>
       <div className="ln-display" style={{ fontSize: 22, letterSpacing: "-0.02em", lineHeight: 1.1 }}>
-        {autoApproved ? "Alert published" : "Alert submitted"}
+        {autoApproved ? <T>Alert published</T> : <T>Alert submitted</T>}
       </div>
       <p
         style={{
@@ -356,12 +558,14 @@ function SuccessState({ autoApproved, onClose }: { autoApproved: boolean; onClos
           margin: "10px auto 18px",
         }}
       >
-        {autoApproved
-          ? "Your alert auto-approved and is being processed — it should appear on the surveillance map within a few minutes."
-          : "Thanks — an admin will review it shortly. You'll get a notification when it's approved or if more info is needed."}
+        {autoApproved ? (
+          <T>Your alert auto-approved and is being processed — it should appear on the surveillance map within a few minutes.</T>
+        ) : (
+          <T>Thanks — an admin will review it shortly. You'll get a notification when it's approved or if more info is needed.</T>
+        )}
       </p>
       <button onClick={onClose} className="ln-btn is-primary">
-        Done <Icon.ArrowR />
+        <T>Done</T> <Icon.ArrowR />
       </button>
     </div>
   );

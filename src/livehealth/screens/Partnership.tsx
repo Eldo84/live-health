@@ -11,6 +11,7 @@ import { ThemeToggle } from "../components/ThemeToggle";
 import { StatusPill } from "../components/StatusPill";
 import { useLanguage } from "../../contexts/LanguageContext";
 import { useBreakpoint } from "../lib/useBreakpoint";
+import { T } from "../components/T";
 
 const ACCENT = "#4ee0c4";
 
@@ -140,7 +141,7 @@ export default function PartnershipScreen() {
                   to={it.to}
                   style={{ fontSize: 13, color: "var(--ln-ink-2)", textDecoration: "none" }}
                 >
-                  {it.l}
+                  <T>{it.l}</T>
                 </Link>
               ))}
             </nav>
@@ -152,7 +153,7 @@ export default function PartnershipScreen() {
           <LanguageSelector />
           <ThemeToggle />
           <Link to="/map" className="ln-btn is-primary">
-            Open map <Icon.ArrowR />
+            <T>Open map</T> <Icon.ArrowR />
           </Link>
         </div>
       </header>
@@ -166,7 +167,7 @@ export default function PartnershipScreen() {
         }}
       >
         <div style={{ maxWidth: 980, margin: "0 auto" }}>
-          <span className="ln-eyebrow">Partnership</span>
+          <span className="ln-eyebrow"><T>Partnership</T></span>
           <h1
             className="ln-display"
             style={{
@@ -207,7 +208,7 @@ export default function PartnershipScreen() {
       <section style={{ padding: isMobile ? "36px 18px" : "56px 32px", borderBottom: "1px solid var(--ln-line)" }}>
         <div style={{ maxWidth: 1080, margin: "0 auto" }}>
           <div style={{ marginBottom: isMobile ? 22 : 32 }}>
-            <span className="ln-eyebrow">Who we work with</span>
+            <span className="ln-eyebrow"><T>Who we work with</T></span>
             <h2
               className="ln-display"
               style={{ fontSize: isMobile ? 26 : 36, margin: "6px 0 0", letterSpacing: "-0.02em" }}
@@ -266,7 +267,7 @@ export default function PartnershipScreen() {
       >
         <div style={{ maxWidth: 1080, margin: "0 auto" }}>
           <div style={{ marginBottom: isMobile ? 22 : 32 }}>
-            <span className="ln-eyebrow">Why partner</span>
+            <span className="ln-eyebrow"><T>Why partner</T></span>
             <h2
               className="ln-display"
               style={{ fontSize: isMobile ? 26 : 36, margin: "6px 0 0", letterSpacing: "-0.02em" }}
@@ -335,7 +336,7 @@ export default function PartnershipScreen() {
       <section style={{ padding: isMobile ? "36px 18px" : "64px 32px", borderBottom: "1px solid var(--ln-line)" }}>
         <div style={{ maxWidth: 720, margin: "0 auto" }}>
           <div style={{ marginBottom: 22, textAlign: "center" }}>
-            <span className="ln-eyebrow">Get in touch</span>
+            <span className="ln-eyebrow"><T>Get in touch</T></span>
             <h2
               className="ln-display"
               style={{ fontSize: isMobile ? 26 : 32, margin: "6px 0 8px", letterSpacing: "-0.02em" }}
@@ -356,9 +357,9 @@ export default function PartnershipScreen() {
                 textAlign: "center",
               }}
             >
-              <h3 style={{ fontSize: 18, color: "var(--ln-brand)", margin: "0 0 6px" }}>Thanks — message received.</h3>
+              <h3 style={{ fontSize: 18, color: "var(--ln-brand)", margin: "0 0 6px" }}><T>Thanks — message received.</T></h3>
               <p style={{ fontSize: 13.5, color: "var(--ln-ink-2)", margin: 0 }}>
-                We'll get back to you by email shortly.
+                <T>We'll get back to you by email shortly.</T>
               </p>
             </div>
           ) : (
@@ -442,7 +443,7 @@ export default function PartnershipScreen() {
                 disabled={submitting}
                 style={{ width: "100%", justifyContent: "center", padding: "12px 0", fontSize: 14 }}
               >
-                {submitting ? "Submitting…" : t("landing.partnership.formSubmit")} <Icon.ArrowR />
+                {submitting ? <T>Submitting…</T> : t("landing.partnership.formSubmit")} <Icon.ArrowR />
               </button>
             </form>
           )}
@@ -480,7 +481,7 @@ function Field({
       </span>
       {children}
       {error && (
-        <span style={{ display: "block", fontSize: 11.5, color: "var(--ln-crit)", marginTop: 4 }}>{error}</span>
+        <span style={{ display: "block", fontSize: 11.5, color: "var(--ln-crit)", marginTop: 4 }}><T>{error}</T></span>
       )}
     </label>
   );
@@ -511,10 +512,10 @@ function SimpleFooter() {
         <span>© {new Date().getFullYear()} EldoNova+ Technologies - New York, NY</span>
         <span>
           <Link to="/privacy" style={{ color: "var(--ln-ink-3)", textDecoration: "none", marginRight: 14 }}>
-            Privacy
+            <T>Privacy</T>
           </Link>
           <Link to="/partnership" style={{ color: "var(--ln-ink-3)", textDecoration: "none" }}>
-            Partnership
+            <T>Partnership</T>
           </Link>
         </span>
       </div>

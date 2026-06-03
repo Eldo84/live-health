@@ -1,15 +1,14 @@
 import { useEffect, useReducer } from "react";
 import { useLanguage, type Language } from "../../contexts/LanguageContext";
+import { staticLookup, getBundle, ensureBundle } from "../locales";
 
-// Live UI translation via DeepSeek. The redesign's copy isn't keyed in the
-// existing locale JSONs, so rather than hand-translating every string we
-// translate on demand and cache aggressively. First render after a language
-// switch shows the English source; the next render swaps in the translation.
-//
-// Layers:
+// UI translation for the redesign. Resolution order for a non-English string:
+//   0. Static bundle (src/livehealth/locales/<lang>.json) — synchronous, no
+//      flash. This is the primary path: every shipped UI string lives here.
 //   1. In-memory map shared across all hook consumers (process lifetime)
 //   2. localStorage (per-browser, survives reloads)
-//   3. translate-article edge function (cold path; populates layers 1 and 2)
+//   3. translate-article edge function (cold path; populates layers 1 and 2) —
+//      a graceful fallback for any string not yet captured in a bundle.
 
 const MEMO = new Map<string, string>();
 const PENDING = new Map<string, Promise<string>>();
@@ -83,10 +82,27 @@ export function useT(text: string): string {
   }
 
   const key = cacheKey(language, text);
-  const memo = !text || language === "en" ? null : MEMO.get(key);
+  // Static bundle is the primary source — synchronous once the language's
+  // bundle is loaded (LanguageContext loads it before applying the language).
+  const staticHit = !text || language === "en" ? undefined : staticLookup(language, text);
+  const memo = staticHit ?? (!text || language === "en" ? null : MEMO.get(key));
 
   useEffect(() => {
     if (!text || language === "en") return;
+    if (staticHit !== undefined) return; // covered by static bundle; skip network
+    // If the bundle for this language hasn't loaded yet, load it and re-render —
+    // do NOT fall through to per-string network translation (which would fire a
+    // request for every visible string). The network path is reserved for
+    // strings genuinely absent from a loaded bundle.
+    if (!getBundle(language)) {
+      let cancelled = false;
+      ensureBundle(language).then(() => {
+        if (!cancelled) bump();
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
     if (MEMO.has(key)) return;
     // Try localStorage first.
     const ls = readLS();

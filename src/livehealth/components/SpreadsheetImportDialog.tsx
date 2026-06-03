@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Modal } from "./Modal";
+import { T } from "./T";
+import { useT } from "../lib/useT";
 import { Icon } from "./Icon";
 
 interface Props {
@@ -24,6 +26,9 @@ export function SpreadsheetImportDialog({ open, onClose }: Props) {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const tEyebrow = useT("Reference data sync");
+  const tTitle = useT("Import disease taxonomy");
 
   const runImport = async () => {
     setRunning(true);
@@ -55,13 +60,15 @@ export function SpreadsheetImportDialog({ open, onClose }: Props) {
     <Modal
       open={open}
       onClose={onClose}
-      eyebrow="Reference data sync"
-      title="Import disease taxonomy"
+      eyebrow={tEyebrow}
+      title={tTitle}
       width={520}
     >
       <p style={{ fontSize: 12.5, color: "var(--ln-ink-3)", margin: "0 0 14px", lineHeight: 1.55 }}>
-        Pulls the canonical disease / pathogen / outbreak category sheet and upserts changes into the
-        database. Existing rows are updated; new rows are inserted. Safe to re-run.
+        <T>
+          Pulls the canonical disease / pathogen / outbreak category sheet and upserts changes into the
+          database. Existing rows are updated; new rows are inserted. Safe to re-run.
+        </T>
       </p>
 
       <div
@@ -73,12 +80,12 @@ export function SpreadsheetImportDialog({ open, onClose }: Props) {
         }}
       >
         <div className="ln-eyebrow" style={{ marginBottom: 6 }}>
-          What it does
+          <T>What it does</T>
         </div>
         <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, color: "var(--ln-ink-2)", lineHeight: 1.5 }}>
-          <li>Creates or updates diseases, pathogens, and outbreak categories</li>
-          <li>Links diseases to their pathogens and outbreak categories</li>
-          <li>Extracts keywords for better disease detection in news ingestion</li>
+          <li><T>Creates or updates diseases, pathogens, and outbreak categories</T></li>
+          <li><T>Links diseases to their pathogens and outbreak categories</T></li>
+          <li><T>Extracts keywords for better disease detection in news ingestion</T></li>
         </ul>
         <a
           href={SPREADSHEET_URL}
@@ -96,7 +103,7 @@ export function SpreadsheetImportDialog({ open, onClose }: Props) {
             letterSpacing: "0.04em",
           }}
         >
-          OPEN SOURCE SHEET <Icon.ArrowR />
+          <T>OPEN SOURCE SHEET</T> <Icon.ArrowR />
         </a>
       </div>
 
@@ -110,7 +117,7 @@ export function SpreadsheetImportDialog({ open, onClose }: Props) {
           }}
         >
           <div style={{ fontSize: 13, color: "var(--ln-brand)", fontWeight: 500, marginBottom: 6 }}>
-            Import succeeded
+            <T>Import succeeded</T>
           </div>
           <div
             style={{
@@ -123,13 +130,13 @@ export function SpreadsheetImportDialog({ open, onClose }: Props) {
             }}
           >
             <span>
-              <span style={{ color: "var(--ln-ink-4)" }}>TOTAL</span> {result.total ?? "—"}
+              <span style={{ color: "var(--ln-ink-4)" }}><T>TOTAL</T></span> {result.total ?? "—"}
             </span>
             <span>
-              <span style={{ color: "var(--ln-ink-4)" }}>PROCESSED</span> {result.processed ?? "—"}
+              <span style={{ color: "var(--ln-ink-4)" }}><T>PROCESSED</T></span> {result.processed ?? "—"}
             </span>
             <span>
-              <span style={{ color: "var(--ln-ink-4)" }}>SKIPPED</span> {result.skipped ?? "—"}
+              <span style={{ color: "var(--ln-ink-4)" }}><T>SKIPPED</T></span> {result.skipped ?? "—"}
             </span>
           </div>
           {result.errors && result.errors.length > 0 && (
@@ -143,7 +150,7 @@ export function SpreadsheetImportDialog({ open, onClose }: Props) {
                   letterSpacing: "0.04em",
                 }}
               >
-                {result.errors.length} ERRORS
+                {result.errors.length} <T>ERRORS</T>
               </summary>
               <div style={{ marginTop: 8, maxHeight: 160, overflowY: "auto" }}>
                 {result.errors.map((err, idx) => (
@@ -177,16 +184,16 @@ export function SpreadsheetImportDialog({ open, onClose }: Props) {
             marginBottom: 12,
           }}
         >
-          {error}
+          <T>{error}</T>
         </div>
       )}
 
       <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
         <button type="button" onClick={onClose} className="ln-btn" disabled={running}>
-          Close
+          <T>Close</T>
         </button>
         <button onClick={runImport} className="ln-btn is-primary" disabled={running}>
-          {running ? "Importing…" : "Run import"} <Icon.ArrowR />
+          {running ? <T>Importing…</T> : <T>Run import</T>} <Icon.ArrowR />
         </button>
       </div>
     </Modal>

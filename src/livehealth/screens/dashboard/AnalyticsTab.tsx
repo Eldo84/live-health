@@ -7,6 +7,8 @@ import { useLiveSeries } from "../../data/useLiveSeries";
 import { compactNumber } from "../../lib/utils";
 import type { TimeRange } from "../../lib/timeRange";
 import { toDashboardRange } from "../../lib/timeRange";
+import { T } from "../../components/T";
+import { useT } from "../../lib/useT";
 
 const ACCENT = "#4ee0c4";
 
@@ -53,19 +55,23 @@ function DistributionPie({
   diseases: ReturnType<typeof useLiveDiseases>["diseases"];
   isMobile: boolean;
 }) {
+  const tOther = useT("Other");
+  const tDetected = useT("DETECTED");
+  const tTotal = useT("TOTAL");
+  const tNoCaseCounts = useT("NO CASE COUNTS");
   const slices = useMemo(() => {
     const top = diseases.slice(0, 5);
     const rest = diseases.slice(5);
     const out = top.map((d) => ({ label: d.label, value: d.cases, color: d.color }));
     if (rest.length) {
       out.push({
-        label: "Other",
+        label: tOther,
         value: rest.reduce((a, d) => a + d.cases, 0),
         color: "#b07cff",
       });
     }
     return out;
-  }, [diseases]);
+  }, [diseases, tOther]);
 
   const total = slices.reduce((a, s) => a + s.value, 0);
   // When every disease reports 0 cases in this range, draw an equal-share ring
@@ -104,16 +110,16 @@ function DistributionPie({
     <div style={{ padding: isMobile ? "14px 14px" : "16px 18px 18px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
-          <span className="ln-eyebrow">Distribution · current range</span>
+          <span className="ln-eyebrow"><T>Distribution · current range</T></span>
           <h2 style={{ fontSize: 18, margin: "4px 0 0", fontWeight: 500 }}>
-            Disease distribution by reports
+            <T>Disease distribution by reports</T>
           </h2>
         </div>
-        <span className="ln-chip is-info">{slices.length} categories</span>
+        <span className="ln-chip is-info">{slices.length} <T>categories</T></span>
       </div>
       {slices.length === 0 ? (
         <div style={{ marginTop: 24, fontSize: 12, color: "var(--ln-ink-3)" }}>
-          No disease data for this range.
+          <T>No disease data for this range.</T>
         </div>
       ) : (
         <div
@@ -149,7 +155,7 @@ function DistributionPie({
               fontSize="10"
               letterSpacing="0.1em"
             >
-              {placeholderRing ? "DETECTED" : "TOTAL"}
+              {placeholderRing ? tDetected : tTotal}
             </text>
             <text
               x="110"
@@ -172,7 +178,7 @@ function DistributionPie({
                 fontSize="8"
                 letterSpacing="0.1em"
               >
-                NO CASE COUNTS
+                {tNoCaseCounts}
               </text>
             )}
           </svg>
@@ -238,9 +244,9 @@ function TrendAnalysis({
 
   return (
     <div style={{ padding: isMobile ? "14px 14px" : "16px 18px 18px" }}>
-      <span className="ln-eyebrow">Trend analysis</span>
+      <span className="ln-eyebrow"><T>Trend analysis</T></span>
       <h2 style={{ fontSize: 18, margin: "4px 0 14px", fontWeight: 500 }}>
-        Reproduction ratio & doubling time
+        <T>Reproduction ratio & doubling time</T>
       </h2>
       <div
         style={{
@@ -255,15 +261,15 @@ function TrendAnalysis({
           color: "var(--ln-ink-4)",
         }}
       >
-        <span>PATHOGEN</span>
+        <span><T>PATHOGEN</T></span>
         <span style={{ textAlign: "right" }}>Rt</span>
-        <span style={{ textAlign: "right" }}>DBL</span>
-        {!isMobile && <span style={{ textAlign: "right" }}>14D TREND</span>}
-        <span style={{ textAlign: "right" }}>DIR</span>
+        <span style={{ textAlign: "right" }}><T>DBL</T></span>
+        {!isMobile && <span style={{ textAlign: "right" }}><T>14D TREND</T></span>}
+        <span style={{ textAlign: "right" }}><T>DIR</T></span>
       </div>
       {rows.length === 0 ? (
         <div style={{ padding: 18, fontSize: 12, color: "var(--ln-ink-3)" }}>
-          Not enough data to compute trends yet.
+          <T>Not enough data to compute trends yet.</T>
         </div>
       ) : (
         rows.map((r) => (
@@ -347,6 +353,8 @@ function AlertTimeline({
   outbreaks: ReturnType<typeof useLiveOutbreaks>["outbreaks"];
   isMobile: boolean;
 }) {
+  const tEyebrow = useT("Alert timeline · 14 days · 6-hour bins");
+  const tTitle = useT("Volume heatmap — when do we get hit");
   // 14 days × 4 6-hour slots → count alerts per cell
   const cells = useMemo(() => {
     const grid = Array.from({ length: 14 * 4 }, () => 0);
@@ -367,7 +375,7 @@ function AlertTimeline({
 
   return (
     <div style={{ borderBottom: "1px solid var(--ln-line)" }}>
-      <PaneHead eyebrow="Alert timeline · 14 days · 6-hour bins" title="Volume heatmap — when do we get hit" />
+      <PaneHead eyebrow={tEyebrow} title={tTitle} />
       <div style={{ padding: isMobile ? "14px 14px 16px" : "14px 22px 20px" }}>
         <div
           style={{
@@ -430,16 +438,16 @@ function AlertTimeline({
             color: "var(--ln-ink-4)",
           }}
         >
-          <span>14d ago</span>
+          <span><T>14d ago</T></span>
           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <span>fewer</span>
+            <span><T>fewer</T></span>
             <span style={{ width: 14, height: 8, background: "rgba(255,255,255,0.04)" }} />
             <span style={{ width: 14, height: 8, background: "color-mix(in oklab, var(--ln-brand) 55%, transparent)" }} />
             <span style={{ width: 14, height: 8, background: "var(--ln-warn)" }} />
             <span style={{ width: 14, height: 8, background: "var(--ln-crit)" }} />
-            <span>more</span>
+            <span><T>more</T></span>
           </div>
-          <span>now</span>
+          <span><T>now</T></span>
         </div>
       </div>
     </div>

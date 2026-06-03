@@ -16,7 +16,6 @@ import { FeedbackDialog } from "../../../../components/FeedbackDialog";
 import { useAuth } from "../../../../contexts/AuthContext";
 import { useLanguage, SUPPORTED_LANGUAGES } from "../../../../contexts/LanguageContext";
 import { supabase } from "../../../../lib/supabase";
-import outbreakNowLogo from "@/assets/outbreaknow-logo.png";
 import { useOutbreakCategories } from "../../../../lib/useOutbreakCategories";
 import { useFilterPanel } from "../../../../contexts/FilterPanelContext";
 import { buildStandardizedCategories } from "../../../../lib/outbreakCategoryUtils";
@@ -277,7 +276,7 @@ export const HeaderSection = (): JSX.Element => {
             <img
               className="h-12 w-auto object-contain sm:h-14 md:h-16 lg:h-20 xl:h-24"
               alt="OutbreakNow Logo"
-              src={outbreakNowLogo}
+              src="/brand/outbreaknow-full-dark.svg"
             />
           </Link>
 

@@ -6,6 +6,8 @@ import { AuthDialog } from "../../components/AuthDialog";
 import { AddAlertDialog } from "./AddAlertDialog";
 import { FeedbackDialog } from "./FeedbackDialog";
 import { Modal } from "./Modal";
+import { T } from "./T";
+import { useT } from "../lib/useT";
 
 // Returns 1-2 character initials from the user's name / email metadata.
 function initialsFor(user: { email?: string | null; user_metadata?: any } | null): string {
@@ -36,6 +38,8 @@ export function HeaderUser() {
   const [alertOpen, setAlertOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement | null>(null);
+  const tSendFeedback = useT("Send feedback");
+  const tAccountMenu = useT("Account menu");
 
   useEffect(() => {
     if (!open) return;
@@ -66,8 +70,8 @@ export function HeaderUser() {
         <button
           className="ln-btn"
           onClick={() => setFeedbackOpen(true)}
-          title="Send feedback"
-          aria-label="Send feedback"
+          title={tSendFeedback}
+          aria-label={tSendFeedback}
           style={{ width: 30, height: 30, justifyContent: "center", padding: 0 }}
         >
           <Icon.Sparkles />
@@ -79,7 +83,7 @@ export function HeaderUser() {
             setAuthOpen(true);
           }}
         >
-          Sign in
+          <T>Sign in</T>
         </button>
         <AuthDialog open={authOpen} onOpenChange={setAuthOpen} mode={authMode} onModeChange={setAuthMode} />
         <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
@@ -96,7 +100,7 @@ export function HeaderUser() {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-label="Account menu"
+        aria-label={tAccountMenu}
         style={{
           width: 26,
           height: 26,
@@ -154,7 +158,7 @@ export function HeaderUser() {
               navigate("/dashboard");
             }}
           >
-            <Icon.Chart /> Analytics
+            <Icon.Chart /> <T>Analytics</T>
           </MenuItem>
           <MenuItem
             onClick={() => {
@@ -162,7 +166,7 @@ export function HeaderUser() {
               navigate("/dashboard/advertising");
             }}
           >
-            <Icon.News /> My Ads
+            <Icon.News /> <T>My Ads</T>
           </MenuItem>
           <MenuItem
             onClick={() => {
@@ -170,7 +174,7 @@ export function HeaderUser() {
               navigate("/partnership");
             }}
           >
-            <Icon.Globe /> Partnership
+            <Icon.Globe /> <T>Partnership</T>
           </MenuItem>
           <MenuItem
             onClick={() => {
@@ -178,7 +182,7 @@ export function HeaderUser() {
               navigate("/settings");
             }}
           >
-            <Icon.Bell /> Alerts &amp; settings
+            <Icon.Bell /> <T>Alerts &amp; settings</T>
           </MenuItem>
           <div style={{ height: 1, background: "var(--ln-line-2)" }} />
           <MenuItem
@@ -187,7 +191,7 @@ export function HeaderUser() {
               setAlertOpen(true);
             }}
           >
-            <Icon.Plus /> Report outbreak
+            <Icon.Plus /> <T>Report outbreak</T>
           </MenuItem>
           <MenuItem
             onClick={() => {
@@ -195,7 +199,7 @@ export function HeaderUser() {
               setFeedbackOpen(true);
             }}
           >
-            <Icon.Sparkles /> Send feedback
+            <Icon.Sparkles /> <T>Send feedback</T>
           </MenuItem>
           <MenuItem
             onClick={() => {
@@ -203,7 +207,7 @@ export function HeaderUser() {
               setHelpOpen(true);
             }}
           >
-            <Icon.Globe /> Help
+            <Icon.Globe /> <T>Help</T>
           </MenuItem>
           <div style={{ height: 1, background: "var(--ln-line-2)" }} />
           <MenuItem
@@ -213,7 +217,7 @@ export function HeaderUser() {
               navigate("/");
             }}
           >
-            <Icon.ArrowR /> Sign out
+            <Icon.ArrowR /> <T>Sign out</T>
           </MenuItem>
         </div>
       )}
@@ -252,15 +256,16 @@ const HELP_TIPS: { title: string; body: string }[] = [
 ];
 
 function HelpModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const tHelpTips = useT("Help & tips");
   return (
-    <Modal open={open} onClose={onClose} eyebrow="OutbreakNow" title="Help & tips" width={520}>
+    <Modal open={open} onClose={onClose} eyebrow="OutbreakNow" title={tHelpTips} width={520}>
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         {HELP_TIPS.map((t) => (
           <div key={t.title}>
             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--ln-ink)", marginBottom: 3 }}>
-              {t.title}
+              <T>{t.title}</T>
             </div>
-            <div style={{ fontSize: 12.5, color: "var(--ln-ink-2)", lineHeight: 1.45 }}>{t.body}</div>
+            <div style={{ fontSize: 12.5, color: "var(--ln-ink-2)", lineHeight: 1.45 }}><T>{t.body}</T></div>
           </div>
         ))}
       </div>

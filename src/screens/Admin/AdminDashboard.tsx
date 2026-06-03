@@ -7,6 +7,8 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { T } from "../../livehealth/components/T";
+import { useT } from "../../livehealth/lib/useT";
 
 interface AdminStats {
   pendingAlerts: number;
@@ -23,7 +25,9 @@ export const AdminDashboard: React.FC = () => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+  const tAccessDenied = useT("Access Denied");
+  const tNoAdminPrivileges = useT("You don't have admin privileges.");
+
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<AdminStats>({
@@ -58,8 +62,8 @@ export const AdminDashboard: React.FC = () => {
 
       if (error || data?.role !== 'admin') {
         toast({
-          title: "Access Denied",
-          description: "You don't have admin privileges.",
+          title: tAccessDenied,
+          description: tNoAdminPrivileges,
           variant: "destructive",
         });
         navigate('/map');
@@ -280,14 +284,14 @@ export const AdminDashboard: React.FC = () => {
         }}
       >
         <div>
-          <span className="ln-eyebrow">Control center</span>
+          <span className="ln-eyebrow"><T>Control center</T></span>
           <h1 className="ln-display" style={{ fontSize: 30, margin: '6px 0 0', letterSpacing: '-0.02em' }}>
-            Admin{' '}
-            <span style={{ fontStyle: 'italic', color: 'var(--ln-ink-3)' }}>overview.</span>
+            <T>Admin</T>{' '}
+            <span style={{ fontStyle: 'italic', color: 'var(--ln-ink-3)' }}><T>overview.</T></span>
           </h1>
-          <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '6px 0 0' }}>Manage your platform</p>
+          <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '6px 0 0' }}><T>Manage your platform</T></p>
         </div>
-        <span className="ln-chip is-ok">Admin access</span>
+        <span className="ln-chip is-ok"><T>Admin access</T></span>
       </div>
 
       <div style={{ padding: '22px 28px 40px' }}>
@@ -312,7 +316,7 @@ export const AdminDashboard: React.FC = () => {
               }}
             >
               <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 2, background: s.color }} />
-              <div className="ln-eyebrow">{s.label}</div>
+              <div className="ln-eyebrow"><T>{s.label}</T></div>
               <div className="ln-num" style={{ fontSize: 34, color: s.color, margin: '8px 0 4px', fontWeight: 500 }}>
                 {s.value}
               </div>
@@ -362,10 +366,10 @@ export const AdminDashboard: React.FC = () => {
                   <ArrowRight className="w-5 h-5" style={{ color: 'var(--ln-ink-4)' }} />
                 </div>
                 <div className="ln-display" style={{ fontSize: 18, letterSpacing: '-0.01em' }}>
-                  {section.title}
+                  <T>{section.title}</T>
                 </div>
                 <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '8px 0 0', lineHeight: 1.5, flex: 1 }}>
-                  {section.description}
+                  <T>{section.description}</T>
                 </p>
                 {section.stats && (
                   <div
@@ -378,7 +382,7 @@ export const AdminDashboard: React.FC = () => {
                       borderTop: '1px solid var(--ln-line)',
                     }}
                   >
-                    <span className="ln-eyebrow">{section.stats.label}</span>
+                    <span className="ln-eyebrow"><T>{section.stats.label}</T></span>
                     <span className="ln-num" style={{ fontSize: 20, color: section.accent, fontWeight: 500 }}>
                       {section.stats.value}
                     </span>
@@ -393,7 +397,7 @@ export const AdminDashboard: React.FC = () => {
                       navigate(section.path);
                     }}
                   >
-                    Open Section <ArrowRight className="w-4 h-4" />
+                    <T>Open Section</T> <ArrowRight className="w-4 h-4" />
                   </button>
                 )}
               </div>
@@ -410,28 +414,28 @@ export const AdminDashboard: React.FC = () => {
             padding: 18,
           }}
         >
-          <span className="ln-eyebrow">Quick actions</span>
+          <span className="ln-eyebrow"><T>Quick actions</T></span>
           <p style={{ fontSize: 12.5, color: 'var(--ln-ink-3)', margin: '6px 0 14px' }}>
-            Common administrative tasks
+            <T>Common administrative tasks</T>
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
             <button className="ln-btn" onClick={() => navigate('/admin/alerts')}>
               <AlertCircle className="w-4 h-4" />
-              Review Pending Alerts
+              <T>Review Pending Alerts</T>
               {stats.pendingAlerts > 0 && (
                 <span className="ln-chip is-crit" style={{ marginLeft: 4 }}>{stats.pendingAlerts}</span>
               )}
             </button>
             <button className="ln-btn" onClick={() => navigate('/admin/advertising')}>
               <Megaphone className="w-4 h-4" />
-              Review Advertising Submissions
+              <T>Review Advertising Submissions</T>
               {stats.pendingAds > 0 && (
                 <span className="ln-chip is-crit" style={{ marginLeft: 4 }}>{stats.pendingAds}</span>
               )}
             </button>
             <button className="ln-btn" onClick={() => navigate('/map')}>
               <FileText className="w-4 h-4" />
-              View Map
+              <T>View Map</T>
             </button>
           </div>
         </div>

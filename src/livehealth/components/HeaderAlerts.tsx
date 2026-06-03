@@ -5,6 +5,8 @@ import { useAuth } from "../../contexts/AuthContext";
 import { useNotifications, type Notification } from "../../lib/useNotifications";
 import { useLiveAlerts } from "../data/useLiveAlerts";
 import { timeAgo } from "../lib/utils";
+import { T } from "./T";
+import { useT } from "../lib/useT";
 
 // Header alerts button used in the LiveHealth+ chrome.
 // - Signed in: shows the unread notification count (`useNotifications`)
@@ -36,7 +38,7 @@ export function HeaderAlerts() {
         aria-expanded={open}
       >
         <Icon.Bell />
-        Alerts
+        <T>Alerts</T>
         <AlertsBadge />
       </button>
       {open &&
@@ -84,8 +86,8 @@ function PanelShell({
   children,
   footer,
 }: {
-  title: string;
-  subtitle?: string;
+  title: React.ReactNode;
+  subtitle?: React.ReactNode;
   children: React.ReactNode;
   footer?: React.ReactNode;
 }) {
@@ -149,8 +151,8 @@ function SignedInPanel({ onClose }: { onClose: () => void }) {
   const items = notifications.slice(0, 12);
   return (
     <PanelShell
-      title="Your notifications"
-      subtitle={`${unreadCount} unread`}
+      title={<T>Your notifications</T>}
+      subtitle={<>{unreadCount} <T>unread</T></>}
       footer={
         <div style={{ display: "flex", justifyContent: "space-between" }}>
           <button
@@ -160,7 +162,7 @@ function SignedInPanel({ onClose }: { onClose: () => void }) {
             }}
             disabled={unreadCount === 0}
           >
-            Mark all read
+            <T>Mark all read</T>
           </button>
           <button
             className="ln-btn"
@@ -169,14 +171,14 @@ function SignedInPanel({ onClose }: { onClose: () => void }) {
               navigate("/dashboard/advertising");
             }}
           >
-            Open inbox <Icon.ArrowR />
+            <T>Open inbox</T> <Icon.ArrowR />
           </button>
         </div>
       }
     >
       {items.length === 0 ? (
         <div style={{ padding: 14, fontSize: 12, color: "var(--ln-ink-3)" }}>
-          You have no notifications.
+          <T>You have no notifications.</T>
         </div>
       ) : (
         items.map((n) => <NotificationRow key={n.id} n={n} onRead={(id) => markAsRead(id)} />)
@@ -218,7 +220,7 @@ function NotificationRow({ n, onRead }: { n: Notification; onRead: (id: string) 
         }}
       >
         <span>{n.type.replace(/_/g, " ").toUpperCase()}</span>
-        <span>{timeAgo(n.created_at)} ago</span>
+        <span>{timeAgo(n.created_at)} <T>ago</T></span>
       </div>
       <div style={{ fontSize: 13, color: "var(--ln-ink)", marginTop: 4, fontWeight: 500 }}>
         {n.title}
@@ -237,12 +239,12 @@ function PublicPanel({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   return (
     <PanelShell
-      title="Live alerts · last 24h"
-      subtitle={`${alerts.length} signals`}
+      title={<><T>Live alerts</T> · <T>last 24h</T></>}
+      subtitle={<>{alerts.length} <T>signals</T></>}
       footer={
         <div style={{ display: "flex", justifyContent: "space-between" }}>
           <span style={{ fontSize: 11, color: "var(--ln-ink-3)" }}>
-            Sign in to receive personal alerts
+            <T>Sign in to receive personal alerts</T>
           </span>
           <button
             className="ln-btn"
@@ -251,14 +253,14 @@ function PublicPanel({ onClose }: { onClose: () => void }) {
               navigate("/map");
             }}
           >
-            Open map <Icon.ArrowR />
+            <T>Open map</T> <Icon.ArrowR />
           </button>
         </div>
       }
     >
       {alerts.length === 0 ? (
         <div style={{ padding: 14, fontSize: 12, color: "var(--ln-ink-3)" }}>
-          No outbreak signals in the last 24h.
+          <T>No outbreak signals in the last 24h.</T>
         </div>
       ) : (
         alerts.map((a) => (
@@ -288,7 +290,7 @@ function PublicPanel({ onClose }: { onClose: () => void }) {
               <span>
                 {a.region} · {a.country.toUpperCase()}
               </span>
-              <span>{timeAgo(a.ts)} ago</span>
+              <span>{timeAgo(a.ts)} <T>ago</T></span>
             </div>
             <div
               style={{

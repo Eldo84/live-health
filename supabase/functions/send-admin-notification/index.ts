@@ -26,10 +26,14 @@ async function sendEmailViaResend({
   html: string;
 }): Promise<void> {
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
-  
+
   if (!RESEND_API_KEY) {
-    console.warn("RESEND_API_KEY not configured, skipping email send");
-    return;
+    // Throw (don't silently return) so the caller counts this as a failure
+    // instead of falsely incrementing emailsSent. A value in the repo .env
+    // does NOT reach deployed functions — this must be a Supabase secret.
+    throw new Error(
+      "RESEND_API_KEY not set as a Supabase Edge Function secret",
+    );
   }
 
   // Use verified domain email if set in Supabase secrets as RESEND_FROM_EMAIL
@@ -227,6 +231,10 @@ Deno.serve(async (req: Request) => {
         success: true,
         notificationsCreated: notifications.length,
         emailsSent: emailsSent,
+        // Config snapshot so "0 sent" is diagnosable from the response alone.
+        resendConfigured: !!Deno.env.get("RESEND_API_KEY"),
+        fromEmail: Deno.env.get("RESEND_FROM_EMAIL") ||
+          "OutbreakNow <onboarding@resend.dev> (fallback — only delivers to the Resend account owner)",
         errors: emailErrors.length > 0 ? emailErrors : undefined,
       }),
       {

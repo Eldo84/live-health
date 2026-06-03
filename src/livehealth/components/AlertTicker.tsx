@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { timeAgo } from "../lib/utils";
+import { T } from "./T";
+import { useT } from "../lib/useT";
 import { translateArticle } from "../../lib/translateArticle";
 import { useLanguage, SUPPORTED_LANGUAGES } from "../../contexts/LanguageContext";
 
@@ -34,6 +36,11 @@ export function AlertTicker({ items, onSelect }: AlertTickerProps) {
   const [translations, setTranslations] = useState<Record<string, TState>>({});
   const tKey = (id: string) => `${id}::${language}`;
 
+  const tShowOriginal = useT("Show original");
+  const tTranslateTo = useT("Translate to");
+  const tTranslationFailed = useT("Translation failed");
+  const tAgo = useT("ago");
+
   const toggleTranslate = async (a: TickerAlert) => {
     const k = tKey(a.id);
     const cur = translations[k];
@@ -54,7 +61,7 @@ export function AlertTicker({ items, onSelect }: AlertTickerProps) {
     } catch (e: any) {
       setTranslations((m) => ({
         ...m,
-        [k]: { showing: "original", loading: false, error: e?.message || "Translation failed" },
+        [k]: { showing: "original", loading: false, error: e?.message || tTranslationFailed },
       }));
     }
   };
@@ -130,7 +137,7 @@ export function AlertTicker({ items, onSelect }: AlertTickerProps) {
                 {a.region} · {a.country.toUpperCase()}
               </span>
               <span style={{ fontFamily: "var(--ln-font-mono)", fontSize: 10, color: "var(--ln-ink-4)" }}>
-                {timeAgo(a.ts)} ago
+                {timeAgo(a.ts)} {tAgo}
               </span>
             </div>
             {(() => {
@@ -171,8 +178,8 @@ export function AlertTicker({ items, onSelect }: AlertTickerProps) {
                 title={
                   translations[tKey(a.id)]?.error ||
                   (translations[tKey(a.id)]?.showing === "translated"
-                    ? "Show original"
-                    : `Translate to ${targetName}`)
+                    ? tShowOriginal
+                    : `${tTranslateTo} ${targetName}`)
                 }
                 style={{
                   background: "none",
@@ -187,11 +194,13 @@ export function AlertTicker({ items, onSelect }: AlertTickerProps) {
                 }}
               >
                 🌐{" "}
-                {translations[tKey(a.id)]?.loading
-                  ? "TRANSLATING…"
-                  : translations[tKey(a.id)]?.showing === "translated"
-                  ? "ORIGINAL"
-                  : "TRANSLATE"}
+                {translations[tKey(a.id)]?.loading ? (
+                  <T>TRANSLATING…</T>
+                ) : translations[tKey(a.id)]?.showing === "translated" ? (
+                  <T>ORIGINAL</T>
+                ) : (
+                  <T>TRANSLATE</T>
+                )}
               </button>
             </div>
           </div>

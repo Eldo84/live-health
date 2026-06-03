@@ -6,6 +6,7 @@ import { LanguageSelector } from "../components/LanguageSelector";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { StatusPill } from "../components/StatusPill";
 import { useBreakpoint } from "../lib/useBreakpoint";
+import { T } from "../components/T";
 
 const ACCENT = "#4ee0c4";
 
@@ -62,7 +63,7 @@ export default function PrivacyPolicyScreen() {
                   to={it.to}
                   style={{ fontSize: 13, color: "var(--ln-ink-2)", textDecoration: "none" }}
                 >
-                  {it.l}
+                  <T>{it.l}</T>
                 </Link>
               ))}
             </nav>
@@ -74,7 +75,7 @@ export default function PrivacyPolicyScreen() {
           <LanguageSelector />
           <ThemeToggle />
           <Link to="/map" className="ln-btn is-primary">
-            Open map <Icon.ArrowR />
+            <T>Open map</T> <Icon.ArrowR />
           </Link>
         </div>
       </header>
@@ -88,7 +89,7 @@ export default function PrivacyPolicyScreen() {
         }}
       >
         <div style={{ maxWidth: 860, margin: "0 auto" }}>
-          <span className="ln-eyebrow">Legal</span>
+          <span className="ln-eyebrow"><T>Legal</T></span>
           <h1
             className="ln-display"
             style={{
@@ -98,7 +99,7 @@ export default function PrivacyPolicyScreen() {
               margin: "10px 0 12px",
             }}
           >
-            Privacy <span style={{ color: "var(--ln-ink-3)", fontStyle: "italic" }}>policy.</span>
+            <T>Privacy</T> <span style={{ color: "var(--ln-ink-3)", fontStyle: "italic" }}><T>policy.</T></span>
           </h1>
           <p
             style={{
@@ -109,7 +110,7 @@ export default function PrivacyPolicyScreen() {
               margin: 0,
             }}
           >
-            LAST UPDATED · {updated.toUpperCase()}
+            <T>LAST UPDATED ·</T> {updated.toUpperCase()}
           </p>
         </div>
       </section>
@@ -118,128 +119,115 @@ export default function PrivacyPolicyScreen() {
         <div style={{ maxWidth: 860, margin: "0 auto", display: "flex", flexDirection: "column", gap: 32 }}>
           <Block title="Introduction">
             <p>
-              OutbreakNow ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy
-              explains how we collect, use, disclose, and safeguard your information when you visit our website{" "}
+              <T>OutbreakNow ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website</T>{" "}
               <a
                 href="https://outbreaknow.org"
                 style={{ color: "var(--ln-brand)", textDecoration: "underline" }}
               >
                 https://outbreaknow.org
               </a>{" "}
-              and use our services.
+              <T>and use our services.</T>
             </p>
           </Block>
 
           <Block title="Information we collect">
-            <h3 style={subhead}>Personal information</h3>
-            <p>We may collect personal information that you voluntarily provide to us when you:</p>
+            <h3 style={subhead}><T>Personal information</T></h3>
+            <p><T>We may collect personal information that you voluntarily provide to us when you:</T></p>
             <ul style={ul}>
-              <li>Register for an account</li>
-              <li>Subscribe to our newsletter</li>
-              <li>Contact us via email or contact forms</li>
-              <li>Make a donation</li>
-              <li>Submit feedback or participate in surveys</li>
+              <li><T>Register for an account</T></li>
+              <li><T>Subscribe to our newsletter</T></li>
+              <li><T>Contact us via email or contact forms</T></li>
+              <li><T>Make a donation</T></li>
+              <li><T>Submit feedback or participate in surveys</T></li>
             </ul>
             <p>
-              This information may include your name, email address, organization, and any other information you
-              choose to provide.
+              <T>This information may include your name, email address, organization, and any other information you choose to provide.</T>
             </p>
 
-            <h3 style={subhead}>Automatically collected information</h3>
-            <p>When you visit our website, we automatically collect certain information about your device, including:</p>
+            <h3 style={subhead}><T>Automatically collected information</T></h3>
+            <p><T>When you visit our website, we automatically collect certain information about your device, including:</T></p>
             <ul style={ul}>
-              <li>IP address</li>
-              <li>Browser type and version</li>
-              <li>Operating system</li>
-              <li>Pages you visit and time spent on pages</li>
-              <li>Referring website addresses</li>
-              <li>Date and time of access</li>
+              <li><T>IP address</T></li>
+              <li><T>Browser type and version</T></li>
+              <li><T>Operating system</T></li>
+              <li><T>Pages you visit and time spent on pages</T></li>
+              <li><T>Referring website addresses</T></li>
+              <li><T>Date and time of access</T></li>
             </ul>
           </Block>
 
           <Block title="How we use your information">
-            <p>We use the information we collect to:</p>
+            <p><T>We use the information we collect to:</T></p>
             <ul style={ul}>
-              <li>Provide, maintain, and improve our services</li>
-              <li>Process your donations and send receipts</li>
-              <li>Send you newsletters and updates (with your consent)</li>
-              <li>Respond to your inquiries and provide customer support</li>
-              <li>Monitor and analyze usage patterns to improve user experience</li>
-              <li>Detect, prevent, and address technical issues</li>
-              <li>Comply with legal obligations</li>
+              <li><T>Provide, maintain, and improve our services</T></li>
+              <li><T>Process your donations and send receipts</T></li>
+              <li><T>Send you newsletters and updates (with your consent)</T></li>
+              <li><T>Respond to your inquiries and provide customer support</T></li>
+              <li><T>Monitor and analyze usage patterns to improve user experience</T></li>
+              <li><T>Detect, prevent, and address technical issues</T></li>
+              <li><T>Comply with legal obligations</T></li>
             </ul>
           </Block>
 
           <Block title="Data protection">
             <p>
-              We implement appropriate technical and organizational security measures to protect your personal
-              information against unauthorized access, alteration, disclosure, or destruction. However, no method
-              of transmission over the Internet or electronic storage is 100% secure, and we cannot guarantee
-              absolute security.
+              <T>We implement appropriate technical and organizational security measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction. However, no method of transmission over the Internet or electronic storage is 100% secure, and we cannot guarantee absolute security.</T>
             </p>
           </Block>
 
           <Block title="Data sharing and disclosure">
             <p>
-              We do not sell, trade, or rent your personal information to third parties. We may share your
-              information only in the following circumstances:
+              <T>We do not sell, trade, or rent your personal information to third parties. We may share your information only in the following circumstances:</T>
             </p>
             <ul style={ul}>
               <li>
-                With service providers who assist us in operating our website and conducting our business (under
-                strict confidentiality agreements)
+                <T>With service providers who assist us in operating our website and conducting our business (under strict confidentiality agreements)</T>
               </li>
-              <li>When required by law or to respond to legal process</li>
-              <li>To protect our rights, privacy, safety, or property</li>
-              <li>In connection with a merger, acquisition, or sale of assets (with notice to users)</li>
+              <li><T>When required by law or to respond to legal process</T></li>
+              <li><T>To protect our rights, privacy, safety, or property</T></li>
+              <li><T>In connection with a merger, acquisition, or sale of assets (with notice to users)</T></li>
             </ul>
           </Block>
 
           <Block title="Cookies and tracking technologies">
             <p>
-              We use cookies and similar tracking technologies to track activity on our website and store certain
-              information. You can instruct your browser to refuse all cookies or to indicate when a cookie is being
-              sent. However, if you do not accept cookies, you may not be able to use some portions of our website.
+              <T>We use cookies and similar tracking technologies to track activity on our website and store certain information. You can instruct your browser to refuse all cookies or to indicate when a cookie is being sent. However, if you do not accept cookies, you may not be able to use some portions of our website.</T>
             </p>
           </Block>
 
           <Block title="Your rights">
-            <p>Depending on your location, you may have the following rights regarding your personal information:</p>
+            <p><T>Depending on your location, you may have the following rights regarding your personal information:</T></p>
             <ul style={ul}>
               <li>
-                <b>Access:</b> Request access to your personal information
+                <b><T>Access:</T></b> <T>Request access to your personal information</T>
               </li>
               <li>
-                <b>Correction:</b> Request correction of inaccurate information
+                <b><T>Correction:</T></b> <T>Request correction of inaccurate information</T>
               </li>
               <li>
-                <b>Deletion:</b> Request deletion of your personal information
+                <b><T>Deletion:</T></b> <T>Request deletion of your personal information</T>
               </li>
               <li>
-                <b>Objection:</b> Object to processing of your personal information
+                <b><T>Objection:</T></b> <T>Object to processing of your personal information</T>
               </li>
               <li>
-                <b>Portability:</b> Request transfer of your personal information
+                <b><T>Portability:</T></b> <T>Request transfer of your personal information</T>
               </li>
               <li>
-                <b>Withdrawal:</b> Withdraw consent where processing is based on consent
+                <b><T>Withdrawal:</T></b> <T>Withdraw consent where processing is based on consent</T>
               </li>
             </ul>
           </Block>
 
           <Block title="Children's privacy">
             <p>
-              Our services are not directed to individuals under the age of 13. We do not knowingly collect
-              personal information from children under 13. If you become aware that a child has provided us with
-              personal information, please contact us, and we will take steps to delete such information.
+              <T>Our services are not directed to individuals under the age of 13. We do not knowingly collect personal information from children under 13. If you become aware that a child has provided us with personal information, please contact us, and we will take steps to delete such information.</T>
             </p>
           </Block>
 
           <Block title="Changes to this privacy policy">
             <p>
-              We may update this Privacy Policy from time to time. We will notify you of any changes by posting the
-              new Privacy Policy on this page and updating the "Last updated" date. You are advised to review this
-              Privacy Policy periodically for any changes.
+              <T>We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "Last updated" date. You are advised to review this Privacy Policy periodically for any changes.</T>
             </p>
           </Block>
 
@@ -258,14 +246,14 @@ export default function PrivacyPolicyScreen() {
                 fontWeight: 500,
               }}
             >
-              Contact us
+              <T>Contact us</T>
             </h2>
             <p style={{ fontSize: 13.5, color: "var(--ln-ink-2)", lineHeight: 1.6, margin: "0 0 12px" }}>
-              If you have any questions about this Privacy Policy, please contact us:
+              <T>If you have any questions about this Privacy Policy, please contact us:</T>
             </p>
             <div style={{ fontSize: 13.5, color: "var(--ln-ink-2)", display: "flex", flexDirection: "column", gap: 6 }}>
               <span>
-                <b>Email:</b>{" "}
+                <b><T>Email:</T></b>{" "}
                 <a
                   href="mailto:contact@theghqa.org"
                   style={{ color: "var(--ln-brand)", textDecoration: "underline" }}
@@ -274,7 +262,7 @@ export default function PrivacyPolicyScreen() {
                 </a>
               </span>
               <span>
-                <b>Website:</b>{" "}
+                <b><T>Website:</T></b>{" "}
                 <a
                   href="https://outbreaknow.org"
                   style={{ color: "var(--ln-brand)", textDecoration: "underline" }}
@@ -310,10 +298,10 @@ export default function PrivacyPolicyScreen() {
           <span>© {new Date().getFullYear()} EldoNova+ Technologies - New York, NY</span>
           <span>
             <Link to="/privacy" style={{ color: "var(--ln-ink-3)", textDecoration: "none", marginRight: 14 }}>
-              Privacy
+              <T>Privacy</T>
             </Link>
             <Link to="/partnership" style={{ color: "var(--ln-ink-3)", textDecoration: "none" }}>
-              Partnership
+              <T>Partnership</T>
             </Link>
           </span>
         </div>
@@ -354,7 +342,7 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
           borderBottom: "1px solid var(--ln-line)",
         }}
       >
-        {title}
+        <T>{title}</T>
       </h2>
       <div style={{ fontSize: 14, color: "var(--ln-ink-3)", lineHeight: 1.65 }}>{children}</div>
     </div>

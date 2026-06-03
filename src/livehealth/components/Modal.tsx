@@ -1,5 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 import { Icon } from "./Icon";
+import { useT } from "../lib/useT";
 
 interface ModalProps {
   open: boolean;
@@ -16,6 +17,7 @@ interface ModalProps {
 // bordered panel using the ln-* tokens so dialogs work in both dark and light
 // themes. Closes on Escape, click-outside, and the explicit close button.
 export function Modal({ open, onClose, title, eyebrow, width = 560, headerRight, children }: ModalProps) {
+  const tClose = useT("Close");
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -87,7 +89,7 @@ export function Modal({ open, onClose, title, eyebrow, width = 560, headerRight,
             {headerRight}
             <button
               onClick={onClose}
-              aria-label="Close"
+              aria-label={tClose}
               className="ln-btn"
               style={{ width: 28, height: 28, justifyContent: "center", padding: 0 }}
             >

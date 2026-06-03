@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { T } from "../../components/T";
 import { WorldMap } from "../../components/WorldMap";
 import { useLiveRegionRisk } from "../../data/useLiveRegionRisk";
 import { useLiveOutbreaks } from "../../data/useLiveOutbreaks";
@@ -49,7 +50,7 @@ export function HealthIndexTab({ isMobile, isTabletDown: _isTabletDown }: Props)
           }}
         >
           <div>
-            <span className="ln-eyebrow">Regional Risk</span>
+            <span className="ln-eyebrow"><T>Regional Risk</T></span>
             <h2
               className="ln-display"
               style={{
@@ -58,20 +59,20 @@ export function HealthIndexTab({ isMobile, isTabletDown: _isTabletDown }: Props)
                 letterSpacing: "-0.02em",
               }}
             >
-              Where the world is{" "}
-              <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}>under pressure.</span>
+              <T>Where the world is</T>{" "}
+              <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}><T>under pressure.</T></span>
             </h2>
           </div>
           <div style={{ display: "flex", gap: 16, alignItems: "baseline" }}>
             <div>
-              <div className="ln-eyebrow">Global preparedness</div>
+              <div className="ln-eyebrow"><T>Global preparedness</T></div>
               <div className="ln-num" style={{ fontSize: 30, color: ACCENT }}>
                 {avg.toFixed(1)}{" "}
                 <span style={{ fontSize: 12, color: "var(--ln-ink-3)" }}>/ 10</span>
               </div>
             </div>
             <div>
-              <div className="ln-eyebrow">Δ vs baseline</div>
+              <div className="ln-eyebrow">Δ <T>vs baseline</T></div>
               <div
                 className="ln-num"
                 style={{
@@ -93,7 +94,7 @@ export function HealthIndexTab({ isMobile, isTabletDown: _isTabletDown }: Props)
                 letterSpacing: "0.06em",
               }}
             >
-              FULL GHI →
+              <T>FULL GHI</T> →
             </a>
           </div>
         </div>
@@ -128,8 +129,8 @@ export function HealthIndexTab({ isMobile, isTabletDown: _isTabletDown }: Props)
           lineHeight: 1.55,
         }}
       >
-        Continent fills reflect outbreak severity in the active window; pulsing dots mark
-        high-severity events. For per-country GHI, sub-indices and the full ranking table, open{" "}
+        <T>Continent fills reflect outbreak severity in the active window; pulsing dots mark
+        high-severity events. For per-country GHI, sub-indices and the full ranking table, open</T>{" "}
         <a
           href="/global-health-index"
           style={{

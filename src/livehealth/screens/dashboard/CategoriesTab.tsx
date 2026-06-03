@@ -1,4 +1,6 @@
 import { useMemo } from "react";
+import { T } from "../../components/T";
+import { useT } from "../../lib/useT";
 import { PaneHead } from "../../components/PaneHead";
 import { useOutbreakCategoriesLive } from "../../data/useOutbreakCategoriesLive";
 import { useLiveOutbreaks } from "../../data/useLiveOutbreaks";
@@ -13,6 +15,10 @@ interface Props {
 export function CategoriesTab({ range, isMobile, isTabletDown }: Props) {
   const { categories, matchesCategory } = useOutbreakCategoriesLive();
   const { outbreaks } = useLiveOutbreaks(range, 600);
+  const tRecentEvents = useT("Recent events by category");
+  const tRosterLast = useT("Roster · last");
+  const tSeverityMatrix = useT("Severity matrix");
+  const tCategoriesBySeverity = useT("Categories × severity");
 
   // Augment each category with live counts and a severity bucket.
   const augmented = useMemo(() => {
@@ -36,7 +42,7 @@ export function CategoriesTab({ range, isMobile, isTabletDown }: Props) {
   return (
     <>
       <div style={{ padding: isMobile ? "16px 14px 12px" : "22px 22px 14px", borderBottom: "1px solid var(--ln-line)" }}>
-        <span className="ln-eyebrow">Outbreak categories</span>
+        <span className="ln-eyebrow"><T>Outbreak categories</T></span>
         <h2
           className="ln-display"
           style={{
@@ -45,8 +51,8 @@ export function CategoriesTab({ range, isMobile, isTabletDown }: Props) {
             letterSpacing: "-0.02em",
           }}
         >
-          What's{" "}
-          <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}>circulating, by family.</span>
+          <T>What's</T>{" "}
+          <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}><T>circulating, by family.</T></span>
         </h2>
       </div>
 
@@ -137,7 +143,7 @@ export function CategoriesTab({ range, isMobile, isTabletDown }: Props) {
             borderBottom: isTabletDown ? "1px solid var(--ln-line)" : "none",
           }}
         >
-          <PaneHead eyebrow="Recent events by category" title={`Roster · last ${range}`} />
+          <PaneHead eyebrow={tRecentEvents} title={`${tRosterLast} ${range}`} />
           <div style={{ padding: isMobile ? "8px 14px 16px" : "8px 22px 16px" }}>
             {augmented.slice(0, 6).map((c) => (
               <div key={c.id} style={{ padding: "12px 0", borderBottom: "1px solid var(--ln-line)" }}>
@@ -152,7 +158,7 @@ export function CategoriesTab({ range, isMobile, isTabletDown }: Props) {
                       color: "var(--ln-ink-3)",
                     }}
                   >
-                    {c.count} event{c.count === 1 ? "" : "s"}
+                    {c.count} {c.count === 1 ? <T>event</T> : <T>events</T>}
                   </span>
                 </div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -163,7 +169,7 @@ export function CategoriesTab({ range, isMobile, isTabletDown }: Props) {
                     </span>
                   ))}
                   {c.matched.length === 0 && (
-                    <span style={{ fontSize: 11, color: "var(--ln-ink-4)" }}>No active events</span>
+                    <span style={{ fontSize: 11, color: "var(--ln-ink-4)" }}><T>No active events</T></span>
                   )}
                 </div>
               </div>
@@ -171,7 +177,7 @@ export function CategoriesTab({ range, isMobile, isTabletDown }: Props) {
           </div>
         </div>
         <div>
-          <PaneHead eyebrow="Severity matrix" title="Categories × severity" />
+          <PaneHead eyebrow={tSeverityMatrix} title={tCategoriesBySeverity} />
           <div style={{ padding: isMobile ? "12px 14px" : "16px 22px" }}>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
               <thead>
@@ -187,7 +193,7 @@ export function CategoriesTab({ range, isMobile, isTabletDown }: Props) {
                       fontWeight: 400,
                     }}
                   >
-                    CATEGORY
+                    <T>CATEGORY</T>
                   </th>
                   <th
                     style={{
@@ -200,7 +206,7 @@ export function CategoriesTab({ range, isMobile, isTabletDown }: Props) {
                       fontWeight: 400,
                     }}
                   >
-                    LOW
+                    <T>LOW</T>
                   </th>
                   <th
                     style={{
@@ -213,7 +219,7 @@ export function CategoriesTab({ range, isMobile, isTabletDown }: Props) {
                       fontWeight: 400,
                     }}
                   >
-                    MED
+                    <T>MED</T>
                   </th>
                   <th
                     style={{
@@ -226,7 +232,7 @@ export function CategoriesTab({ range, isMobile, isTabletDown }: Props) {
                       fontWeight: 400,
                     }}
                   >
-                    HIGH
+                    <T>HIGH</T>
                   </th>
                 </tr>
               </thead>

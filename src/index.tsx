@@ -38,6 +38,7 @@ import { AdminNotificationPanel } from "./screens/Admin/AdminNotificationPanel";
 import { AdminFeedbackPanel } from "./screens/Admin/AdminFeedbackPanel";
 import { WeeklyReport } from "./screens/Dashboard/WeeklyReport";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { ResetPasswordScreen } from "./screens/ResetPassword";
 import { News } from "./screens/News";
 import { PageTracking } from "./components/PageTracking";
 import { initGA4 } from "./lib/analytics";
@@ -89,6 +90,9 @@ createRoot(document.getElementById("app") as HTMLElement).render(
                       element={<ProtectedRoute><UserAdvertisingDashboard /></ProtectedRoute>}
                     />
                   </Route>
+
+                  {/* Password reset — public so the recovery email link always lands */}
+                  <Route path="/reset-password" element={<ResetPasswordScreen />} />
 
                   {/* Themed Partnership + Privacy pages — public landing-adjacent surfaces */}
                   <Route path="/partnership" element={<PartnershipScreen />} />

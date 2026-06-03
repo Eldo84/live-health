@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal } from "./Modal";
+import { T } from "./T";
+import { useT } from "../lib/useT";
 import { Icon } from "./Icon";
 import { useAuth } from "../../contexts/AuthContext";
 import { supabase } from "../../lib/supabase";
@@ -29,6 +31,11 @@ export function DiseaseRecommendationsDialog({ open, onClose, diseaseName }: Pro
   const [regenerating, setRegenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [rec, setRec] = useState<DiseaseRec | null>(null);
+
+  const tEyebrow = useT("AI public-health recommendations");
+  const tWhatToDoAbout = useT("What to do about");
+  const tRecommendations = useT("Recommendations");
+  const tRegenerate = useT("Regenerate");
 
   const fetchRec = async (forceRegen = false) => {
     if (!diseaseName) return;
@@ -91,23 +98,23 @@ export function DiseaseRecommendationsDialog({ open, onClose, diseaseName }: Pro
     <Modal
       open={open}
       onClose={onClose}
-      eyebrow="AI public-health recommendations"
-      title={diseaseName ? `What to do about ${diseaseName}` : "Recommendations"}
+      eyebrow={tEyebrow}
+      title={diseaseName ? `${tWhatToDoAbout} ${diseaseName}` : tRecommendations}
       width={760}
       headerRight={
         <button
           className="ln-btn"
           onClick={() => fetchRec(true)}
           disabled={regenerating || loading}
-          title="Regenerate"
+          title={tRegenerate}
         >
-          <Icon.Refresh /> {regenerating ? "Working…" : "Regenerate"}
+          <Icon.Refresh /> {regenerating ? <T>Working…</T> : <T>Regenerate</T>}
         </button>
       }
     >
       {loading && !rec ? (
         <div style={{ padding: 40, textAlign: "center", color: "var(--ln-ink-3)" }}>
-          <Spinner /> Loading recommendations…
+          <Spinner /> <T>Loading recommendations…</T>
         </div>
       ) : error && !rec ? (
         <div
@@ -118,17 +125,17 @@ export function DiseaseRecommendationsDialog({ open, onClose, diseaseName }: Pro
             color: "var(--ln-ink)",
           }}
         >
-          <div style={{ fontSize: 13.5, fontWeight: 500 }}>Couldn't load recommendations</div>
+          <div style={{ fontSize: 13.5, fontWeight: 500 }}><T>Couldn't load recommendations</T></div>
           <p style={{ fontSize: 12.5, color: "var(--ln-ink-2)", margin: "6px 0 12px", lineHeight: 1.5 }}>
-            {error}
+            <T>{error}</T>
           </p>
           <button className="ln-btn" onClick={() => fetchRec(false)}>
-            <Icon.Refresh /> Retry
+            <Icon.Refresh /> <T>Retry</T>
           </button>
         </div>
       ) : !rec ? (
         <div style={{ padding: 24, fontSize: 13, color: "var(--ln-ink-3)" }}>
-          No recommendations stored yet for this disease.
+          <T>No recommendations stored yet for this disease.</T>
         </div>
       ) : (
         <>
@@ -141,7 +148,7 @@ export function DiseaseRecommendationsDialog({ open, onClose, diseaseName }: Pro
                 borderLeft: `2px solid ${color}`,
               }}
             >
-              <span className="ln-eyebrow">Summary</span>
+              <span className="ln-eyebrow"><T>Summary</T></span>
               <p style={{ fontSize: 14, color: "var(--ln-ink)", margin: "6px 0 0", lineHeight: 1.55 }}>
                 {rec.summary}
               </p>
@@ -176,10 +183,10 @@ export function DiseaseRecommendationsDialog({ open, onClose, diseaseName }: Pro
             }}
           >
             <span>
-              Model: <span style={{ color: "var(--ln-ink-3)" }}>DeepSeek Chat · cached</span>
+              <T>Model:</T> <span style={{ color: "var(--ln-ink-3)" }}>DeepSeek Chat · cached</span>
             </span>
             {rec.updated_at && (
-              <span>Updated {new Date(rec.updated_at).toLocaleString()}</span>
+              <span><T>Updated</T> {new Date(rec.updated_at).toLocaleString()}</span>
             )}
           </div>
         </>
@@ -192,11 +199,11 @@ function Column({ eyebrow, accent, items }: { eyebrow: string; accent: string; i
   return (
     <div>
       <span className="ln-eyebrow" style={{ color: accent }}>
-        {eyebrow}
+        <T>{eyebrow}</T>
       </span>
       <ul style={{ listStyle: "none", padding: 0, margin: "8px 0 0", display: "flex", flexDirection: "column", gap: 10 }}>
         {items.length === 0 ? (
-          <li style={{ fontSize: 12.5, color: "var(--ln-ink-3)" }}>None recorded.</li>
+          <li style={{ fontSize: 12.5, color: "var(--ln-ink-3)" }}><T>None recorded.</T></li>
         ) : (
           items.map((it, i) => (
             <li key={i} style={{ display: "grid", gridTemplateColumns: "16px 1fr", alignItems: "flex-start", gap: 8 }}>

@@ -6,6 +6,8 @@ import { LanguageSelector } from "./components/LanguageSelector";
 import { HeaderUser } from "./components/HeaderUser";
 import { ThemeProvider } from "./lib/useTheme";
 import { useBreakpoint } from "./lib/useBreakpoint";
+import { T } from "./components/T";
+import { useT } from "./lib/useT";
 import "./styles.css";
 
 const ACCENT = "#4ee0c4";
@@ -41,6 +43,7 @@ export function AdminShell() {
 function AdminHeader() {
   const bp = useBreakpoint();
   const isMobile = bp === "mobile";
+  const tBackToMap = useT("Back to map");
   return (
     <header
       style={{
@@ -72,12 +75,12 @@ function AdminHeader() {
             borderRadius: 4,
           }}
         >
-          ADMIN
+          <T>ADMIN</T>
         </span>
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-        <Link to="/map" className="ln-btn" title="Back to map">
-          <Icon.Map /> {!isMobile && "Map"}
+        <Link to="/map" className="ln-btn" title={tBackToMap}>
+          <Icon.Map /> {!isMobile && <T>Map</T>}
         </Link>
         <LanguageSelector />
         <ThemeToggle />
@@ -120,7 +123,7 @@ function AdminTabs() {
               whiteSpace: "nowrap",
             }}
           >
-            {t.label}
+            <T>{t.label}</T>
           </Link>
         );
       })}

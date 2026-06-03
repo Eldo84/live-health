@@ -7,7 +7,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Link } from "react-router-dom";
 import { trackNewsletterSignup } from "@/lib/analytics";
-import outbreakNowLogo from "@/assets/outbreaknow-logo.png";
 import { FaFacebook, FaInstagram, FaLinkedin } from "react-icons/fa";
 
 export const Footer = () => {
@@ -48,7 +47,7 @@ export const Footer = () => {
           {/* Logo and Description */}
           <div className="space-y-4 lg:col-span-2 min-w-0">
             <div className="flex items-start gap-3">
-              <img src={outbreakNowLogo} alt="OutbreakNow Logo" className="h-16 md:h-20 lg:h-24 w-auto flex-shrink-0" />
+              <img src="/brand/outbreaknow-full-light.svg" alt="OutbreakNow Logo" className="h-16 md:h-20 lg:h-24 w-auto flex-shrink-0" />
             </div>
             <p className="text-muted-foreground text-xs sm:text-sm leading-relaxed break-words" dangerouslySetInnerHTML={{ __html: t("footer.description") }} />
           </div>

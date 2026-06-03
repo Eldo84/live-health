@@ -7,6 +7,7 @@ import "./LiveMap.css";
 import { severityColor, timeAgo } from "../lib/utils";
 import { useHealthMinistry } from "../../lib/useHealthMinistry";
 import type { LiveOutbreak } from "../data/useLiveOutbreaks";
+import { T } from "./T";
 
 /** Basemap styles ported from the legacy InteractiveMap "Map Settings" control. */
 export type MapType = "dark" | "light" | "street" | "topographic" | "imagery";
@@ -342,8 +343,8 @@ export function LiveMap({
           </div>
           <div className="ln-tip-meta">
             <span style={{ color: severityColor(o.severity) }}>● {o.severityLabel}</span>
-            {o.cases > 0 ? ` · ${o.cases.toLocaleString()} cases` : ""}
-            {` · ${timeAgo(o.updated)} ago`}
+            {o.cases > 0 ? <> · {o.cases.toLocaleString()} <T>cases</T></> : ""}
+            {<> · {timeAgo(o.updated)} <T>ago</T></>}
           </div>
         </div>
       </Tooltip>
@@ -430,35 +431,35 @@ function OutbreakDetails({ outbreak: o, active }: { outbreak: LiveOutbreak; acti
         {o.disease}
       </div>
       <div className="ln-pop-row">
-        <strong>Location:</strong> {o.city ? `${o.city}, ` : ""}
+        <strong><T>Location:</T></strong> {o.city ? `${o.city}, ` : ""}
         {o.country}
       </div>
       {o.source && o.source !== "—" && (
         <div className="ln-pop-row">
-          <strong>Source:</strong> {o.source}
+          <strong><T>Source:</T></strong> {o.source}
         </div>
       )}
       <div className="ln-pop-row">
-        <strong>Date:</strong> {new Date(o.updated).toLocaleDateString()}
+        <strong><T>Date:</T></strong> {new Date(o.updated).toLocaleDateString()}
       </div>
       {(o.cases > 0 || o.deaths > 0) && (
         <div className="ln-pop-row">
-          {o.cases > 0 ? `${o.cases.toLocaleString()} cases` : ""}
-          {o.deaths > 0 ? `${o.cases > 0 ? " · " : ""}${o.deaths.toLocaleString()} deaths` : ""}
+          {o.cases > 0 ? <>{o.cases.toLocaleString()} <T>cases</T></> : ""}
+          {o.deaths > 0 ? <>{o.cases > 0 ? " · " : ""}{o.deaths.toLocaleString()} <T>deaths</T></> : ""}
         </div>
       )}
       {o.url && (
         <a href={o.url} target="_blank" rel="noopener noreferrer" className="ln-pop-link ln-pop-article">
-          Read article →
+          <T>Read article →</T>
         </a>
       )}
       {active && ministry && (
         <div className="ln-pop-ministry">
-          <div className="ln-pop-ministry-head">Health Ministry Contact</div>
+          <div className="ln-pop-ministry-head"><T>Health Ministry Contact</T></div>
           <div className="ln-pop-ministry-name">{ministry.ministry_name}</div>
           {ministry.phone_number && (
             <div className="ln-pop-row">
-              <strong>Phone:</strong>{" "}
+              <strong><T>Phone:</T></strong>{" "}
               <a href={`tel:${ministry.phone_number}`} className="ln-pop-link">
                 {ministry.phone_number}
               </a>
@@ -466,7 +467,7 @@ function OutbreakDetails({ outbreak: o, active }: { outbreak: LiveOutbreak; acti
           )}
           {ministry.email_address && (
             <div className="ln-pop-row">
-              <strong>Email:</strong>{" "}
+              <strong><T>Email:</T></strong>{" "}
               <a href={`mailto:${ministry.email_address}`} className="ln-pop-link">
                 {ministry.email_address}
               </a>
@@ -475,7 +476,7 @@ function OutbreakDetails({ outbreak: o, active }: { outbreak: LiveOutbreak; acti
         </div>
       )}
       {active && loading && !ministry && (
-        <div className="ln-pop-row ln-pop-muted">Loading contact…</div>
+        <div className="ln-pop-row ln-pop-muted"><T>Loading contact…</T></div>
       )}
     </div>
   );

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { User, Session, AuthError } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 import { trackLogin, trackSignup, trackLogout } from "../lib/analytics";
@@ -10,6 +11,8 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signUp: (email: string, password: string) => Promise<{ error: AuthError | null }>;
   signInWithGoogle: () => Promise<{ error: AuthError | null }>;
+  resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
+  updatePassword: (password: string) => Promise<{ error: AuthError | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -19,8 +22,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
+    // Belt-and-suspenders: detectSessionInUrl may consume + clear the recovery
+    // hash (and fire PASSWORD_RECOVERY) before our listener below subscribes, so
+    // also sniff the raw hash on mount and route to the reset form directly.
+    if (
+      /[#&](type=recovery|recovery_token)/.test(window.location.hash) &&
+      window.location.pathname !== "/reset-password"
+    ) {
+      navigate("/reset-password");
+    }
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -35,10 +49,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-      // No auto-redirect - let user stay where they are
+
+      // Password-reset links carry a recovery token in the URL hash. Supabase's
+      // detectSessionInUrl consumes it on whatever page the link happens to land
+      // on (often the Site URL, not /reset-password) and fires PASSWORD_RECOVERY
+      // exactly once. Without this, that just silently logs the user in. Route
+      // them to the reset form wherever they landed — this is the only reliable
+      // hook, especially for OAuth users who may already have a session.
+      if (event === "PASSWORD_RECOVERY" && window.location.pathname !== "/reset-password") {
+        navigate("/reset-password");
+      }
+      // Otherwise no auto-redirect - let the user stay where they are.
     });
 
     return () => subscription.unsubscribe();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -76,6 +101,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error };
   };
 
+  const resetPassword = async (email: string) => {
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    return { error };
+  };
+
+  const updatePassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    return { error };
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
     trackLogout();
@@ -88,6 +125,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     signIn,
     signUp,
     signInWithGoogle,
+    resetPassword,
+    updatePassword,
     signOut,
   };
 

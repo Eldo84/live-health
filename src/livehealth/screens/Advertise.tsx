@@ -18,6 +18,8 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthDialog } from "@/components/AuthDialog";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { T } from "../components/T";
+import { useT } from "../lib/useT";
 
 /**
  * Advertise with us — themed (LiveHealth+) ad submission screen.
@@ -58,6 +60,7 @@ export default function AdvertiseScreen() {
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const { t } = useLanguage();
+  const tAltPreview = useT("Preview");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -680,7 +683,7 @@ export default function AdvertiseScreen() {
               {t("advertise.success.submitAnother")}
             </button>
             <Link to="/advertising/dashboard" className="ln-btn is-primary">
-              My ads
+              <T>My ads</T>
             </Link>
           </div>
         </div>
@@ -695,16 +698,15 @@ export default function AdvertiseScreen() {
       <div style={{ display: "flex", marginBottom: 18 }}>
         <Link to="/map" className="ln-btn">
           <ArrowLeft className="w-4 h-4" />
-          Back
+          <T>Back</T>
         </Link>
       </div>
-      <span className="ln-eyebrow">Advertise with us</span>
+      <span className="ln-eyebrow"><T>Advertise with us</T></span>
       <h1 className="ln-display" style={{ fontSize: 34, margin: "6px 0 8px", letterSpacing: "-0.02em" }}>
-        Reach the people who watch outbreaks
+        <T>Reach the people who watch outbreaks</T>
       </h1>
       <p style={{ color: "var(--ln-ink-3)", fontSize: 14, margin: "0 0 28px", maxWidth: 560 }}>
-        Put your brand in front of public-health professionals, providers, researchers, and policy
-        makers. Submit your ad below — our team reviews every submission before it goes live.
+        <T>Put your brand in front of public-health professionals, providers, researchers, and policy makers. Submit your ad below — our team reviews every submission before it goes live.</T>
       </p>
 
       {/* Auth notice */}
@@ -955,7 +957,7 @@ export default function AdvertiseScreen() {
                   ) : (
                     <img
                       src={URL.createObjectURL(formData.adImage)}
-                      alt="Preview"
+                      alt={tAltPreview}
                       style={{ width: "100%", height: "100%", objectFit: "cover" }}
                     />
                   )}

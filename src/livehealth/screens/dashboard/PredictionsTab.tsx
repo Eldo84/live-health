@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Icon } from "../../components/Icon";
 import { useAIPredictions, type AIPrediction } from "../../data/useAIPredictions";
 import { useGroundedForecasts, type GroundedForecast } from "../../data/useGroundedForecasts";
+import { T } from "../../components/T";
+import { useT } from "../../lib/useT";
 
 const ACCENT = "#4ee0c4";
 
@@ -20,6 +22,13 @@ const RISK_TONE: Record<string, { chip: string; color: string; label: string }> 
 };
 
 export function PredictionsTab({ isMobile, isTabletDown }: Props) {
+  const tForecasts = useT("Forecasts");
+  const tAvgConfidence = useT("Avg confidence");
+  const tHighCritical = useT("High / critical");
+  const tGrounded = useT("Grounded");
+  const tGroundedReal = useT("Grounded (real numbers)");
+  const tAINarrative = useT("AI narrative");
+  const tAINarrativeDeepSeek = useT("AI narrative (DeepSeek)");
   const [source, setSource] = useState<Source>("grounded");
   const grounded = useGroundedForecasts(8);
   const ai = useAIPredictions();
@@ -48,36 +57,35 @@ export function PredictionsTab({ isMobile, isTabletDown }: Props) {
         >
           <div style={{ maxWidth: 660 }}>
             <span className="ln-eyebrow">
-              <Icon.Sparkles style={{ verticalAlign: -2, color: ACCENT }} /> AI Predictions ·{" "}
-              {source === "grounded" ? "grounded forecast" : "DeepSeek narrative"}
+              <Icon.Sparkles style={{ verticalAlign: -2, color: ACCENT }} /> <T>AI Predictions</T> ·{" "}
+              {source === "grounded" ? <T>grounded forecast</T> : <T>DeepSeek narrative</T>}
             </span>
             <h2
               className="ln-display"
               style={{ fontSize: isMobile ? 22 : 30, margin: "6px 0 8px", letterSpacing: "-0.02em" }}
             >
-              The forecast you can <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}>defend.</span>
+              <T>The forecast you can</T> <span style={{ fontStyle: "italic", color: "var(--ln-ink-3)" }}><T>defend.</T></span>
             </h2>
             <p style={{ fontSize: 13.5, color: "var(--ln-ink-2)", lineHeight: 1.55, margin: 0 }}>
               {source === "grounded" ? (
                 <>
-                  Every figure below is <b style={{ color: "var(--ln-ink)" }}>computed from real signals</b> —
-                  reported case counts, deaths, week-over-week signal momentum and severity over the last 30
-                  days{grounded.meta.signalsAnalyzed ? <> ({grounded.meta.signalsAnalyzed.toLocaleString()} analyzed)</> : null}.
-                  Projections extrapolate the observed growth rate; the working is shown on each card.
+                  <T>Every figure below is</T> <b style={{ color: "var(--ln-ink)" }}><T>computed from real signals</T></b> —{" "}
+                  <T>reported case counts, deaths, week-over-week signal momentum and severity over the last 30 days</T>{grounded.meta.signalsAnalyzed ? <> ({grounded.meta.signalsAnalyzed.toLocaleString()} <T>analyzed</T>)</> : null}.{" "}
+                  <T>Projections extrapolate the observed growth rate; the working is shown on each card.</T>
                 </>
               ) : (
                 <>
-                  Written by DeepSeek Chat from the top outbreaks by case volume. Reads well, but the specific
-                  numbers are <b style={{ color: "var(--ln-ink)" }}>model-estimated, not verified</b> against the
-                  database — use the grounded view for figures you need to defend.
+                  <T>Written by DeepSeek Chat from the top outbreaks by case volume. Reads well, but the specific numbers are</T>{" "}
+                  <b style={{ color: "var(--ln-ink)" }}><T>model-estimated, not verified</T></b>{" "}
+                  <T>against the database — use the grounded view for figures you need to defend.</T>
                 </>
               )}
             </p>
           </div>
           <div style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "flex-end" }}>
-            <Stat label="Forecasts" value={loading ? "…" : String(cards.length)} />
-            <Stat label="Avg confidence" value={loading ? "…" : `${avgConfidence}%`} />
-            <Stat label="High / critical" value={loading ? "…" : String(critical)} tone={critical > 0 ? "crit" : undefined} />
+            <Stat label={tForecasts} value={loading ? "…" : String(cards.length)} />
+            <Stat label={tAvgConfidence} value={loading ? "…" : `${avgConfidence}%`} />
+            <Stat label={tHighCritical} value={loading ? "…" : String(critical)} tone={critical > 0 ? "crit" : undefined} />
           </div>
         </div>
 
@@ -96,11 +104,11 @@ export function PredictionsTab({ isMobile, isTabletDown }: Props) {
               [
                 {
                   id: "grounded",
-                  label: isMobile ? "Grounded" : "Grounded (real numbers)",
+                  label: isMobile ? tGrounded : tGroundedReal,
                 },
                 {
                   id: "ai",
-                  label: isMobile ? "AI narrative" : "AI narrative (DeepSeek)",
+                  label: isMobile ? tAINarrative : tAINarrativeDeepSeek,
                 },
               ] as { id: Source; label: string }[]
             ).map((s, i) => (
@@ -124,7 +132,7 @@ export function PredictionsTab({ isMobile, isTabletDown }: Props) {
           </div>
           {source === "ai" && (
             <button className="ln-btn" onClick={ai.regenerate} disabled={ai.loading}>
-              <Icon.Refresh /> {ai.loading ? "Working…" : "Regenerate"}
+              <Icon.Refresh /> {ai.loading ? <T>Working…</T> : <T>Regenerate</T>}
             </button>
           )}
           {source === "grounded" && grounded.meta.generatedAt && !loading && (
@@ -137,9 +145,10 @@ export function PredictionsTab({ isMobile, isTabletDown }: Props) {
                 minWidth: 0,
               }}
             >
-              computed {new Date(grounded.meta.generatedAt).toLocaleTimeString()}
-              {!isMobile &&
-                ` · ${grounded.meta.pairsConsidered} disease–country pairs scanned`}
+              <T>computed</T> {new Date(grounded.meta.generatedAt).toLocaleTimeString()}
+              {!isMobile && (
+                <> · {grounded.meta.pairsConsidered} <T>disease–country pairs scanned</T></>
+              )}
             </span>
           )}
           {source === "ai" && ai.generatedAt && !loading && !error && (
@@ -152,7 +161,7 @@ export function PredictionsTab({ isMobile, isTabletDown }: Props) {
                 minWidth: 0,
               }}
             >
-              {ai.cached ? "cached" : "fresh"} · {ai.generatedAt.toLocaleString()}
+              {ai.cached ? <T>cached</T> : <T>fresh</T>} · {ai.generatedAt.toLocaleString()}
             </span>
           )}
         </div>
@@ -172,7 +181,7 @@ export function PredictionsTab({ isMobile, isTabletDown }: Props) {
             }}
           />
           <div style={{ fontSize: 13 }}>
-            {source === "grounded" ? "Computing forecasts from live signals…" : "Generating DeepSeek forecasts…"}
+            {source === "grounded" ? <T>Computing forecasts from live signals…</T> : <T>Generating DeepSeek forecasts…</T>}
           </div>
         </div>
       ) : error ? (
@@ -188,11 +197,11 @@ export function PredictionsTab({ isMobile, isTabletDown }: Props) {
           >
             <Icon.Sparkles style={{ color: "var(--ln-crit)", flex: "0 0 14px", marginTop: 2 }} />
             <div>
-              <div style={{ fontSize: 13.5, fontWeight: 500, color: "var(--ln-ink)" }}>Unable to generate forecasts</div>
+              <div style={{ fontSize: 13.5, fontWeight: 500, color: "var(--ln-ink)" }}><T>Unable to generate forecasts</T></div>
               <p style={{ fontSize: 12.5, color: "var(--ln-ink-2)", lineHeight: 1.5, margin: "6px 0 12px" }}>{error}</p>
               {source === "ai" && (
                 <button className="ln-btn" onClick={ai.refresh}>
-                  <Icon.Refresh /> Retry
+                  <Icon.Refresh /> <T>Retry</T>
                 </button>
               )}
             </div>
@@ -200,7 +209,7 @@ export function PredictionsTab({ isMobile, isTabletDown }: Props) {
         </div>
       ) : cards.length === 0 ? (
         <div style={{ padding: 32, fontSize: 13, color: "var(--ln-ink-3)" }}>
-          Not enough recent signal momentum to forecast right now.
+          <T>Not enough recent signal momentum to forecast right now.</T>
         </div>
       ) : (
         <>
@@ -226,22 +235,16 @@ export function PredictionsTab({ isMobile, isTabletDown }: Props) {
           </div>
 
           <div style={{ background: "var(--ln-surface)", borderBottom: "1px solid var(--ln-line)", padding: isMobile ? "16px 14px" : "20px 28px" }}>
-            <span className="ln-eyebrow">How this is computed</span>
+            <span className="ln-eyebrow"><T>How this is computed</T></span>
             <p style={{ fontSize: 12.5, color: "var(--ln-ink-3)", lineHeight: 1.6, marginTop: 8, maxWidth: 920 }}>
               {source === "grounded" ? (
                 <>
-                  <b style={{ color: "var(--ln-ink-2)" }}>Grounded forecast</b>: cases = Σ reported case counts
-                  (a lone background-stat outlier is dropped), deaths → CFR, and weekly growth from signal
-                  volume (this week vs last). Projection = cases × (1 + growth)<sup>weeks</sup>, shown as a
-                  −10% / +18% band. Horizon shortens as growth and severity rise. Nothing is invented — the card
-                  footer shows the exact inputs.
+                  <b style={{ color: "var(--ln-ink-2)" }}><T>Grounded forecast</T></b>: <T>cases = Σ reported case counts (a lone background-stat outlier is dropped), deaths → CFR, and weekly growth from signal volume (this week vs last). Projection = cases × (1 + growth)</T><sup>weeks</sup>, <T>shown as a −10% / +18% band. Horizon shortens as growth and severity rise. Nothing is invented — the card footer shows the exact inputs.</T>
                 </>
               ) : (
                 <>
-                  <b style={{ color: "var(--ln-ink-2)" }}>AI narrative</b>: DeepSeek Chat writes prose from the
-                  top outbreaks by case volume, cached 24h. It's good for readable framing, but figures may
-                  drift from the database (e.g. it can round or estimate). Switch to <b style={{ color: "var(--ln-ink-2)" }}>Grounded</b>{" "}
-                  for verifiable numbers.
+                  <b style={{ color: "var(--ln-ink-2)" }}><T>AI narrative</T></b>: <T>DeepSeek Chat writes prose from the top outbreaks by case volume, cached 24h. It's good for readable framing, but figures may drift from the database (e.g. it can round or estimate). Switch to</T> <b style={{ color: "var(--ln-ink-2)" }}><T>Grounded</T></b>{" "}
+                  <T>for verifiable numbers.</T>
                 </>
               )}
             </p>
@@ -285,7 +288,7 @@ function ForecastCard({
             <span style={{ width: 10, height: 10, borderRadius: 2, background: p.color, flex: "0 0 10px" }} />
             <span style={{ fontSize: 15, fontWeight: 500, color: "var(--ln-ink)" }}>{p.disease}</span>
             <span className={`ln-chip ${tone.chip}`} style={{ fontSize: 10 }}>
-              {tone.label}
+              <T>{tone.label}</T>
             </span>
           </div>
           <div
@@ -308,14 +311,14 @@ function ForecastCard({
             {p.confidence}%
           </div>
           <div className="ln-eyebrow" style={{ fontSize: 9, marginTop: 2 }}>
-            confidence
+            <T>confidence</T>
           </div>
         </div>
       </div>
 
       <div>
         <span className="ln-eyebrow" style={{ display: "inline-flex", alignItems: "center", gap: 5, color: tone.color }}>
-          {typeIcon(p.type)} {p.type}
+          {typeIcon(p.type)} <T>{p.type}</T>
         </span>
         <p style={{ fontSize: 14, color: "var(--ln-ink)", lineHeight: 1.55, margin: "8px 0 0" }}>{p.prediction}</p>
       </div>
@@ -358,12 +361,12 @@ function ForecastCard({
         }}
       >
         <span style={{ color: "var(--ln-ink-4)" }}>
-          Model:{" "}
+          <T>Model:</T>{" "}
           <span style={{ color: "var(--ln-ink-3)" }}>
             {grounded ? "OutbreakNow signal model" : "DeepSeek Chat"}
           </span>
         </span>
-        <span style={{ color: ACCENT }}>Target: {p.targetDate}</span>
+        <span style={{ color: ACCENT }}><T>Target:</T> {p.targetDate}</span>
       </div>
     </article>
   );
@@ -385,7 +388,7 @@ function Fact({ label, value, tone }: { label: string; value: string; tone?: "cr
         fontSize: 10.5,
       }}
     >
-      <span style={{ color: "var(--ln-ink-4)", letterSpacing: "0.04em" }}>{label}</span>
+      <span style={{ color: "var(--ln-ink-4)", letterSpacing: "0.04em" }}><T>{label}</T></span>
       <span style={{ color }}>{value}</span>
     </span>
   );

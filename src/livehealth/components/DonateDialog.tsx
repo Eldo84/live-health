@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { Modal, Field } from "./Modal";
+import { T } from "./T";
+import { useT } from "../lib/useT";
 import { Icon } from "./Icon";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -21,6 +23,14 @@ export function DonateDialog({ open, onClose }: Props) {
   const [email, setEmail] = useState("");
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const tEyebrow = useT("Support open surveillance");
+  const tTitle = useT("Help keep the map free for everyone");
+  const tAmountLabel = useT("Amount (USD)");
+  const tCustomPlaceholder = useT("Or enter a custom amount");
+  const tNameLabel = useT("Name (optional)");
+  const tEmailLabel = useT("Email (optional)");
+  const tEmailPlaceholder = useT("receipt + thank-you");
 
   useEffect(() => {
     if (!open) return;
@@ -84,16 +94,18 @@ export function DonateDialog({ open, onClose }: Props) {
     <Modal
       open={open}
       onClose={onClose}
-      eyebrow="Support open surveillance"
-      title="Help keep the map free for everyone"
+      eyebrow={tEyebrow}
+      title={tTitle}
       width={520}
     >
       <p style={{ fontSize: 12.5, color: "var(--ln-ink-3)", margin: "0 0 16px", lineHeight: 1.5 }}>
-        OutbreakNow is operated by EldoNova+ Technologies. Your donation funds the surveillance pipeline,
-        translations, and the open API — keeping the platform free for ministries, researchers, and the public.
+        <T>
+          OutbreakNow is operated by EldoNova+ Technologies. Your donation funds the surveillance pipeline,
+          translations, and the open API — keeping the platform free for ministries, researchers, and the public.
+        </T>
       </p>
 
-      <Field label="Amount (USD)">
+      <Field label={tAmountLabel}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6, marginBottom: 8 }}>
           {PRESETS.map((p) => {
             const active = !custom && amount === p;
@@ -117,7 +129,7 @@ export function DonateDialog({ open, onClose }: Props) {
           type="number"
           min={1}
           step={1}
-          placeholder="Or enter a custom amount"
+          placeholder={tCustomPlaceholder}
           value={custom}
           onChange={(e) => {
             setCustom(e.target.value);
@@ -129,21 +141,21 @@ export function DonateDialog({ open, onClose }: Props) {
 
       <label style={{ display: "flex", alignItems: "center", gap: 8, margin: "10px 0 14px", cursor: "pointer" }}>
         <input type="checkbox" checked={anon} onChange={(e) => setAnon(e.target.checked)} />
-        <span style={{ fontSize: 13, color: "var(--ln-ink-2)" }}>Give anonymously</span>
+        <span style={{ fontSize: 13, color: "var(--ln-ink-2)" }}><T>Give anonymously</T></span>
       </label>
 
       {!anon && (
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-          <Field label="Name (optional)">
+          <Field label={tNameLabel}>
             <input value={name} onChange={(e) => setName(e.target.value)} style={inputStyle} />
           </Field>
-          <Field label="Email (optional)">
+          <Field label={tEmailLabel}>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               style={inputStyle}
-              placeholder="receipt + thank-you"
+              placeholder={tEmailPlaceholder}
             />
           </Field>
         </div>
@@ -160,20 +172,27 @@ export function DonateDialog({ open, onClose }: Props) {
             marginBottom: 12,
           }}
         >
-          {error}
+          <T>{error}</T>
         </div>
       )}
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <span style={{ fontSize: 11, color: "var(--ln-ink-4)", fontFamily: "var(--ln-font-mono)" }}>
-          Secure checkout · Stripe · receipts emailed
+          <T>Secure checkout · Stripe · receipts emailed</T>
         </span>
         <div style={{ display: "flex", gap: 8 }}>
           <button type="button" onClick={onClose} className="ln-btn" disabled={processing}>
-            Cancel
+            <T>Cancel</T>
           </button>
           <button onClick={submit} disabled={processing || !isValid} className="ln-btn is-primary">
-            {processing ? "Redirecting…" : `Donate $${isValid ? effectiveAmount.toFixed(0) : "—"}`} <Icon.ArrowR />
+            {processing ? (
+              <T>Redirecting…</T>
+            ) : (
+              <>
+                <T>Donate</T> ${isValid ? effectiveAmount.toFixed(0) : "—"}
+              </>
+            )}{" "}
+            <Icon.ArrowR />
           </button>
         </div>
       </div>
