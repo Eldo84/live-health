@@ -1836,16 +1836,18 @@ export function SurveillanceMapScreen() {
   );
 }
 
-export function TopBar({ active }: { active: "map" | "dashboard" | "news" | "ghi" | "none" }) {
+export function TopBar({ active }: { active: "map" | "dashboard" | "news" | "ghi" | "zambia" | "none" }) {
   const tMap = useT("Surveillance Map");
   const tAnalytics = useT("Analytics");
   const tNews = useT("News");
   const tGHI = useT("Global Health Index");
+  const tZambia = useT("Zambia");
   const tabs = [
     { id: "map", label: tMap, icon: <Icon.Map />, to: "/map" },
     { id: "dashboard", label: tAnalytics, icon: <Icon.Chart />, to: "/dashboard" },
     { id: "news", label: tNews, icon: <Icon.News />, to: "/news" },
     { id: "ghi", label: tGHI, icon: <Icon.Globe />, to: "/global-health-index" },
+    { id: "zambia", label: tZambia, icon: <Icon.Pulse />, to: "/zambia" },
   ];
   return (
     <header
