@@ -17,6 +17,7 @@ import { DashboardScreen } from "./livehealth/screens/Dashboard";
 import { NewsScreen } from "./livehealth/screens/News";
 import { GlobalHealthIndexScreen } from "./livehealth/screens/GlobalHealthIndex";
 import { WeeklyReportScreen } from "./livehealth/screens/WeeklyReport";
+import { ZambiaDashboardScreen } from "./lusaka/screens/ZambiaDashboard";
 import AdvertiseScreen from "./livehealth/screens/Advertise";
 
 // Auxiliary pages kept from the existing app (still needed for payments, donations, admin, etc.)
@@ -65,6 +66,10 @@ createRoot(document.getElementById("app") as HTMLElement).render(
                   <Route element={<LiveHealthHost />}>
                     <Route path="/" element={<LandingRoute />} />
                     <Route path="/map" element={<MapScreen />} />
+                    {/* Lusaka, Zambia demo dashboard — public so the partner team can
+                        review the demo without an account. Reads hardcoded demo data
+                        via useZambiaData(); swap that hook for the real feed later. */}
+                    <Route path="/zambia" element={<ZambiaDashboardScreen />} />
                     {/* Advertise — public conversion page; form gates submit on auth itself */}
                     <Route path="/advertise" element={<AdvertiseScreen />} />
                     <Route
