@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { CircleMarker, GeoJSON, MapContainer, Marker, TileLayer, Tooltip, useMap } from "react-leaflet";
+import { CircleMarker, GeoJSON, MapContainer, Marker, Popup, TileLayer, Tooltip, useMap } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import L, { type LatLngBoundsExpression, type Layer, type PathOptions } from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -32,7 +32,7 @@ function choro(t: number): string {
 }
 
 type Level = "national" | "province" | "district";
-export type Basemap = "none" | "satellite";
+export type Basemap = "none" | "street" | "satellite";
 
 // SVG pie as a Leaflet divIcon — wedges per disease, white separators, count in
 // the center. Size scales with the place's case load. An optional name label is
@@ -166,6 +166,11 @@ export function GeoMap({
       return { color: "rgba(255,255,255,0.35)", weight: 1, fillColor: choro(t), fillOpacity: 0.66 };
     }
     const isActive = name === activeProvince;
+    // District zoom-in rides a real basemap (like the main app map), so the
+    // polygons are outline-only there to keep the tiles legible.
+    if (level === "district") {
+      return { color: isActive ? ACCENT : "rgba(255,255,255,0.18)", weight: isActive ? 2 : 0.6, fill: false };
+    }
     return {
       color: isActive ? ACCENT : "rgba(255,255,255,0.16)",
       weight: isActive ? 2.4 : 0.8,
@@ -219,6 +224,13 @@ export function GeoMap({
           />
         </>
       )}
+      {basemap === "street" && (
+        <TileLayer
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          subdomains={["a", "b", "c"]}
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        />
+      )}
 
       <GeoJSON key={geoKey} data={ZAMBIA_PROVINCES_GEOJSON as any} onEachFeature={onEachProvince} />
 
@@ -259,7 +271,9 @@ export function GeoMap({
         <MarkerClusterGroup
           chunkedLoading
           showCoverageOnHover={false}
-          maxClusterRadius={40}
+          spiderfyOnMaxZoom
+          disableClusteringAtZoom={15}
+          maxClusterRadius={45}
           iconCreateFunction={(cluster: any) =>
             L.divIcon({
               html: `<div class="zm-cluster">${cluster.getChildCount()}</div>`,
@@ -272,8 +286,8 @@ export function GeoMap({
             <CircleMarker
               key={m.id}
               center={[m.lat, m.lng]}
-              radius={5}
-              pathOptions={{ color: "rgba(0,0,0,0.5)", weight: 1, fillColor: m.color, fillOpacity: 0.95 }}
+              radius={6}
+              pathOptions={{ color: "#0a0f12", weight: 1, fillColor: m.color, fillOpacity: 0.95 }}
             >
               <Tooltip direction="top" offset={[0, -3]} opacity={1}>
                 <div style={{ fontSize: 12 }}>
@@ -282,6 +296,17 @@ export function GeoMap({
                   {m.age}y · {m.sex} · {m.date}
                 </div>
               </Tooltip>
+              <Popup>
+                <div style={{ fontSize: 12, minWidth: 120 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600 }}>
+                    <span style={{ width: 9, height: 9, borderRadius: 2, background: m.color, display: "inline-block" }} />
+                    {m.disease}
+                  </div>
+                  <div style={{ marginTop: 4 }}>{m.area}</div>
+                  <div style={{ opacity: 0.75 }}>{m.age} yrs · {m.sex === "F" ? "Female" : m.sex === "M" ? "Male" : "Other"}</div>
+                  <div style={{ opacity: 0.75 }}>{m.date}</div>
+                </div>
+              </Popup>
             </CircleMarker>
           ))}
         </MarkerClusterGroup>

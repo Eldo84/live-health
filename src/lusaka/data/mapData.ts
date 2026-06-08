@@ -23,6 +23,7 @@ export interface CaseMarker {
   lng: number;
   color: string;
   disease: string;
+  area: string;
   age: number;
   sex: string;
   date: string;
@@ -91,6 +92,7 @@ export function buildCaseMarkers(cases: LusakaCase[], districtId: string): CaseM
       lng: centroid.lng + jit(c.id, 7) * spread,
       color: DISEASE_BY_CODE[c.icd10]?.color ?? "#87929d",
       disease: c.disease,
+      area: c.neighborhood,
       age: c.age,
       sex: c.sex,
       date: c.timestamp.slice(0, 10),

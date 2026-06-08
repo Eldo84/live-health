@@ -22,7 +22,7 @@ export function ZambiaDashboardScreen() {
   const data = useZambiaData();
   const [scope, setScope] = useState<Scope>({ level: "national" });
   const [disease, setDisease] = useState<string | null>(null);
-  const [basemap, setBasemap] = useState<Basemap>("none");
+  const [satellite, setSatellite] = useState(false);
 
   const scopedCases = useMemo(
     () => (disease ? data.cases.filter((c) => c.icd10 === disease) : data.cases),
@@ -59,7 +59,11 @@ export function ZambiaDashboardScreen() {
   const predictions = useMemo(() => computeZambiaPredictions(view, pies), [view, pies]);
 
   const k = view.kpis;
-  const effectiveBasemap: Basemap = scope.level === "national" ? "none" : basemap;
+  // National = pure choropleth (no tiles, hides Africa). Drilled-in = a real
+  // basemap like the main app map: street by default at district zoom, with a
+  // satellite toggle.
+  const effectiveBasemap: Basemap =
+    scope.level === "national" ? "none" : satellite ? "satellite" : scope.level === "district" ? "street" : "none";
 
   // Drill helpers (kept in sync with the FilterBar).
   const drill = (p: PlaceCount) => {
@@ -85,26 +89,26 @@ export function ZambiaDashboardScreen() {
   const mapMode =
     scope.level === "national" ? "Provinces — choropleth + disease pies"
     : scope.level === "province" ? "Districts — disease pies"
-    : "Individual cases — color-coded";
+    : "Individual cases — pan, zoom & click for detail";
   const mapNode = (
     <div style={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "8px 12px", borderBottom: "1px solid var(--ln-line)", background: "var(--ln-topbar)" }}>
         <span className="ln-eyebrow">{mapMode}</span>
         <div style={{ display: "flex", border: "1px solid var(--ln-line-2)", borderRadius: 6, opacity: scope.level === "national" ? 0.4 : 1 }}>
-          {(["none", "satellite"] as Basemap[]).map((b, i) => (
+          {([false, true] as const).map((sat, i) => (
             <button
-              key={b}
+              key={String(sat)}
               disabled={scope.level === "national"}
-              onClick={() => setBasemap(b)}
+              onClick={() => setSatellite(sat)}
               style={{
                 padding: "5px 11px", fontSize: 11, fontFamily: "var(--ln-font-mono)",
-                background: effectiveBasemap === b ? "var(--ln-surface-3)" : "transparent",
-                color: effectiveBasemap === b ? "var(--ln-ink)" : "var(--ln-ink-3)",
+                background: satellite === sat ? "var(--ln-surface-3)" : "transparent",
+                color: satellite === sat ? "var(--ln-ink)" : "var(--ln-ink-3)",
                 border: "none", cursor: scope.level === "national" ? "default" : "pointer",
                 borderRight: i === 0 ? "1px solid var(--ln-line-2)" : "none",
               }}
             >
-              {b === "none" ? "Map" : "Satellite"}
+              {sat ? "Satellite" : "Map"}
             </button>
           ))}
         </div>
