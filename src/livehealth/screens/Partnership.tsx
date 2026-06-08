@@ -134,7 +134,8 @@ export default function PartnershipScreen() {
                 { l: "Surveillance", to: "/map" },
                 { l: "Analytics", to: "/dashboard" },
                 { l: "News", to: "/news" },
-                { l: "About", to: "/partnership" },
+                { l: "About", to: "/about" },
+                { l: "Become a partner", to: "/partnership" },
               ].map((it) => (
                 <Link
                   key={it.l}

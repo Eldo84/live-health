@@ -59,6 +59,7 @@ function LandingNav() {
   const tForecast = useT("Forecast");
   const tPricing = useT("Pricing");
   const tAbout = useT("About");
+  const tPartner = useT("Become a partner");
   const tSignIn = useT("Sign in");
   const tRequestAccess = useT("Request access");
   const tOpenMap = useT("Open map");
@@ -68,7 +69,8 @@ function LandingNav() {
     { l: tNews, to: "/news" },
     { l: tForecast, to: "/dashboard" },
     { l: tPricing, to: "/#access" },
-    { l: tAbout, to: "/partnership" },
+    { l: tAbout, to: "/about" },
+    { l: tPartner, to: "/partnership" },
   ];
   return (
     <header
@@ -1416,7 +1418,7 @@ function LandingFooter() {
     {
       h: useT("Company"),
       items: [
-        { l: useT("About"), to: "/partnership" },
+        { l: useT("About"), to: "/about" },
         { l: useT("Partners"), to: "/partnership" },
         { l: useT("Advertise"), to: "/advertise" },
         { l: useT("Donate"), onClick: () => setOpen(true) },
