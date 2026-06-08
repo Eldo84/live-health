@@ -149,14 +149,26 @@ export function computeScope(cases: LusakaCase[], alerts: LusakaAlert[], scope: 
   } else if (scope.level === "district" && scope.districtId) {
     const d = DISTRICT_BY_ID[scope.districtId];
     const p = d ? PROVINCE_BY_ID[d.provinceId] : undefined;
+    const locs = d ? LOCALITIES_BY_DISTRICT[d.id] ?? [] : [];
     scoped = cases.filter((c) => c.district === d?.name && c.province === p?.name);
     scopedAlerts = alerts.filter((a) => a.district === d?.name && a.province === p?.name);
     title = d?.name ?? "District";
     center = d ? [d.lat, d.lng] : center;
     zoom = 11;
     childLevel = "locality";
-    const locs = d ? LOCALITIES_BY_DISTRICT[d.id] ?? [] : [];
     childLabel = locs.some((l) => l.type === "neighborhood") ? "neighborhoods" : "wards / villages";
+
+    // Optional 4th tier: narrow to a single neighborhood.
+    if (scope.localityName) {
+      scoped = scoped.filter((c) => c.neighborhood === scope.localityName);
+      scopedAlerts = scopedAlerts.filter((a) => a.neighborhood === scope.localityName);
+      title = scope.localityName;
+      const loc = locs.find((l) => l.name === scope.localityName);
+      if (loc) {
+        center = [loc.lat, loc.lng];
+        zoom = 13;
+      }
+    }
   }
 
   // 2. Build the child places (with their case counts) for the current scope.

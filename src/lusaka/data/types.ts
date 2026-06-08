@@ -151,6 +151,8 @@ export interface Scope {
   level: "national" | "province" | "district";
   provinceId?: string;
   districtId?: string;
+  /** Optional 4th tier: filter a district view down to one neighborhood. */
+  localityName?: string;
 }
 
 export interface ScopeView {
