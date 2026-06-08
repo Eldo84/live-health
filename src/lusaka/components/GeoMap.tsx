@@ -35,8 +35,10 @@ type Level = "national" | "province" | "district";
 export type Basemap = "none" | "satellite";
 
 // SVG pie as a Leaflet divIcon — wedges per disease, white separators, count in
-// the center. Size scales with the place's case load.
-function pieIcon(slices: PieSlice[], size: number): L.DivIcon {
+// the center. Size scales with the place's case load. An optional name label is
+// baked in below the pie (so the marker carries exactly one Tooltip — the hover
+// breakdown — and the two never collide).
+function pieIcon(slices: PieSlice[], size: number, label?: string): L.DivIcon {
   const total = slices.reduce((s, x) => s + x.value, 0) || 1;
   const cx = size / 2;
   const r = size / 2 - 1;
@@ -62,11 +64,13 @@ function pieIcon(slices: PieSlice[], size: number): L.DivIcon {
     .join("");
   const hole = Math.round(size * 0.3);
   const fs = total >= 100 ? Math.round(size * 0.22) : Math.round(size * 0.26);
-  const html = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="overflow:visible">
+  const svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="overflow:visible;display:block">
     <g stroke="rgba(10,15,18,0.8)" stroke-width="1">${wedges}</g>
     <circle cx="${cx}" cy="${cx}" r="${hole}" fill="rgba(7,10,13,0.9)" stroke="rgba(255,255,255,0.18)"/>
     <text x="${cx}" y="${cx}" text-anchor="middle" dominant-baseline="central" fill="#fff" font-family="ui-monospace,monospace" font-weight="600" font-size="${fs}">${total}</text>
   </svg>`;
+  const labelHtml = label ? `<div class="zm-pie-name">${label}</div>` : "";
+  const html = `<div class="zm-pie-wrap">${svg}${labelHtml}</div>`;
   return L.divIcon({ html, className: "zm-pie", iconSize: [size, size], iconAnchor: [cx, cx] });
 }
 
@@ -83,6 +87,9 @@ function FitController({
 }) {
   const map = useMap();
   useEffect(() => {
+    // Make sure the map knows its real pixel size before framing, otherwise the
+    // first fit lands off-center (the split-screen panel mounts at 0 width).
+    map.invalidateSize();
     if (level === "national") {
       map.fitBounds(L.geoJSON(ZAMBIA_PROVINCES_GEOJSON as any).getBounds(), { padding: [16, 16] });
     } else if (level === "province" && activeProvince) {
@@ -227,14 +234,9 @@ export function GeoMap({
               <Marker
                 key={p.id}
                 position={pos}
-                icon={pieIcon(pies[p.name], size)}
+                icon={pieIcon(pies[p.name], size, showLabels ? p.name : undefined)}
                 eventHandlers={onSelectPlace ? { click: () => onSelectPlace(p) } : undefined}
               >
-                {showLabels && (
-                  <Tooltip permanent direction="bottom" offset={[0, size / 2 - 2]} opacity={1} className="zm-label zm-city-label">
-                    {p.name}
-                  </Tooltip>
-                )}
                 <Tooltip direction="top" offset={[0, -size / 2]} opacity={1}>
                   <div style={{ fontSize: 12 }}>
                     <strong>{p.name}</strong> · {p.cases.toLocaleString()} cases
