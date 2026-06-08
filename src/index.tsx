@@ -22,6 +22,7 @@ import AdvertiseScreen from "./livehealth/screens/Advertise";
 
 // Auxiliary pages kept from the existing app (still needed for payments, donations, admin, etc.)
 import PartnershipScreen from "./livehealth/screens/Partnership";
+import AboutScreen from "./livehealth/screens/About";
 import PrivacyPolicyScreen from "./livehealth/screens/PrivacyPolicy";
 import SettingsScreen from "./livehealth/screens/Settings";
 import {
@@ -99,7 +100,8 @@ createRoot(document.getElementById("app") as HTMLElement).render(
                   {/* Password reset — public so the recovery email link always lands */}
                   <Route path="/reset-password" element={<ResetPasswordScreen />} />
 
-                  {/* Themed Partnership + Privacy pages — public landing-adjacent surfaces */}
+                  {/* Themed About + Partnership + Privacy pages — public landing-adjacent surfaces */}
+                  <Route path="/about" element={<AboutScreen />} />
                   <Route path="/partnership" element={<PartnershipScreen />} />
                   <Route path="/privacy" element={<PrivacyPolicyScreen />} />
 
