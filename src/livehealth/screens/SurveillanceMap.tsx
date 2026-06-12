@@ -300,10 +300,9 @@ export function SurveillanceMapScreen() {
 
   return (
     <div
-      className="ln-app"
+      className={`ln-app ${isTabletDown ? "ln-shell-subnav" : "ln-shell-full"}`}
       style={{
         width: "100%",
-        height: isTabletDown ? "calc(100vh - 60px)" : "100vh",
         background: "var(--ln-bg)",
         color: "var(--ln-ink)",
         display: "grid",

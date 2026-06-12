@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 import "./styles.css";
 import { ThemeProvider, type Theme } from "./lib/useTheme";
 import { BottomNav, BOTTOM_NAV_HEIGHT } from "./components/BottomNav";
+import { InstallPrompt } from "./components/InstallPrompt";
 import { useBreakpoint } from "./lib/useBreakpoint";
 
 interface LiveHealthHostProps {
@@ -30,6 +31,7 @@ function LiveHealthShell() {
         <Outlet />
       </div>
       <BottomNav />
+      <InstallPrompt />
     </>
   );
 }

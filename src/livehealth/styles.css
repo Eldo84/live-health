@@ -227,3 +227,15 @@ html.ln-host, html.ln-host body { background: var(--ln-bg); color: var(--ln-ink)
 @media (max-width: 1100px) {
   .ln-app .ln-no-scroll-x { overflow-x: hidden; }
 }
+
+/* ── Viewport-height shells ──────────────────────────────────────────────
+   100dvh tracks the *visible* viewport on mobile Safari/Chrome; plain 100vh
+   includes the space behind the collapsing URL bar, which pushed the bottom
+   sheet + nav off-screen and squeezed the map strip. Fallback declared first
+   for browsers without dvh support. */
+.ln-shell-full { height: 100vh; }
+.ln-shell-subnav { height: calc(100vh - 60px); }
+@supports (height: 100dvh) {
+  .ln-shell-full { height: 100dvh; }
+  .ln-shell-subnav { height: calc(100dvh - 60px); }
+}

@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     
     <!-- Primary Meta Tags -->
     <title>OutbreakNow - Real-Time Global Health Surveillance & Disease Tracking</title>
@@ -31,7 +31,14 @@
     <meta name="distribution" content="global" />
     <meta name="rating" content="general" />
     <meta name="referrer" content="no-referrer-when-downgrade" />
-    
+
+    <!-- Warm up map tile + data connections so the map paints sooner -->
+    <link rel="preconnect" href="https://server.arcgisonline.com" crossorigin />
+    <link rel="preconnect" href="https://a.basemaps.cartocdn.com" crossorigin />
+    <link rel="dns-prefetch" href="https://b.basemaps.cartocdn.com" />
+    <link rel="dns-prefetch" href="https://c.basemaps.cartocdn.com" />
+    <link rel="dns-prefetch" href="https://d.basemaps.cartocdn.com" />
+
     <!-- Canonical URL -->
     <link rel="canonical" href="https://outbreaknow.org/" />
     
