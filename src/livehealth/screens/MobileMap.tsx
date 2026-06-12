@@ -34,6 +34,10 @@ export function MobileMapScreen() {
   const [chip, setChip] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<LiveOutbreak | null>(null);
+  // Immersive mode: hides header/chips/banner/sheet so the map gets the whole
+  // screen — the direct fix for "can't view the map" on small phones.
+  const [immersive, setImmersive] = useState(false);
+  const [aiBannerOpen, setAiBannerOpen] = useState(true);
 
   const { outbreaks, loading } = useLiveOutbreaks("7d", 300);
   const { alerts } = useLiveAlerts(20, "24h");
@@ -121,12 +125,15 @@ export function MobileMapScreen() {
     return list.slice(0, 25);
   }, [filtered, userLocation]);
 
+  // Peek shows just the handle + tabs (~120px) so the map keeps most of the
+  // screen by default; half/full are for actually reading the lists.
   const sheetHeight =
     sheetMode === "peek"
-      ? 220
+      ? 120
       : sheetMode === "half"
-      ? "clamp(220px, 50vh, 360px)"
-      : "clamp(360px, calc(100vh - 60px), 720px)";
+      ? "clamp(220px, 48%, 360px)"
+      : "calc(100% - 72px)";
+  const sheetCss = typeof sheetHeight === "number" ? `${sheetHeight}px` : sheetHeight;
 
   const topPrediction = useMemo(() => [...PREDICTIONS].sort((a, b) => b.risk - a.risk)[0], []);
   const featuredAd = ads[0];
@@ -136,10 +143,9 @@ export function MobileMapScreen() {
 
   return (
     <div
-      className="ln-app"
+      className="ln-app ln-shell-subnav"
       style={{
         width: "100%",
-        height: "calc(100vh - 60px)",
         background: "var(--ln-bg)",
         color: "var(--ln-ink)",
         overflow: "hidden",
@@ -172,251 +178,279 @@ export function MobileMapScreen() {
         />
       </div>
 
-      {/* Header — floats over the map */}
-      <header
+      {/* Top chrome — header, chips and AI strip stacked in one flow container
+          (no hardcoded offsets) and kept as slim as possible: every pixel of
+          chrome here is map the user can't see. */}
+      {!immersive && (
+      <div
         style={{
           position: "absolute",
           top: 0,
           left: 0,
           right: 0,
           zIndex: 600,
-          padding: "14px 16px 10px",
-          background: "color-mix(in oklab, var(--ln-topbar) 90%, transparent)",
-          backdropFilter: "blur(10px)",
-          borderBottom: "1px solid var(--ln-line)",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         <div
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 12,
+            background: "color-mix(in oklab, var(--ln-topbar) 88%, transparent)",
+            backdropFilter: "blur(10px)",
+            borderBottom: "1px solid var(--ln-line)",
           }}
         >
-          <Link to="/" style={{ display: "inline-flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
-            <div style={{ position: "relative", width: 14, height: 14 }}>
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  borderRadius: "50%",
-                  background: ACCENT,
-                  animation: "ln-pulse-soft 2.4s infinite ease-in-out",
-                }}
-              />
-              <div
-                style={{
-                  position: "absolute",
-                  inset: 0,
-                  borderRadius: "50%",
-                  background: ACCENT,
-                  opacity: 0.35,
-                  animation: "ln-pulse 2.4s infinite ease-out",
-                }}
-              />
-            </div>
-            <div
-              style={{
-                fontFamily: "var(--ln-font-mono)",
-                fontSize: 12,
-                letterSpacing: "0.16em",
-                fontWeight: 500,
-                color: "var(--ln-ink)",
-              }}
-            >
-              <span>OUTBREAK</span>
-              <span style={{ color: ACCENT }}>NOW</span>
-            </div>
-          </Link>
-          <div style={{ display: "flex", gap: 10, alignItems: "center", color: "var(--ln-ink-2)" }}>
-            <LanguageSelector />
-            <ThemeToggle />
-            <span style={{ position: "relative", display: "inline-block" }}>
-              <Icon.Bell />
-              {alerts.filter((a) => a.level === "critical" || a.level === "high").length > 0 && (
-                <span
+        <header style={{ padding: "8px 12px 0" }}>
+          {/* Row 1: brand · live counts · actions — the old separate LIVE row
+              is folded in here to save a full line of chrome. */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Link to="/" style={{ display: "inline-flex", alignItems: "center", gap: 7, textDecoration: "none" }}>
+              <div style={{ position: "relative", width: 12, height: 12 }}>
+                <div
                   style={{
                     position: "absolute",
-                    top: -4,
-                    right: -6,
-                    background: "var(--ln-crit)",
-                    color: "#fff",
-                    fontSize: 9,
-                    borderRadius: 999,
-                    padding: "0 4px",
-                    fontFamily: "var(--ln-font-mono)",
+                    inset: 0,
+                    borderRadius: "50%",
+                    background: ACCENT,
+                    animation: "ln-pulse-soft 2.4s infinite ease-in-out",
                   }}
-                >
-                  {alerts.filter((a) => a.level === "critical" || a.level === "high").length}
-                </span>
-              )}
-            </span>
-            <Link to="/dashboard" style={{ color: "inherit" }}>
-              <Icon.Menu />
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    borderRadius: "50%",
+                    background: ACCENT,
+                    opacity: 0.35,
+                    animation: "ln-pulse 2.4s infinite ease-out",
+                  }}
+                />
+              </div>
+              <div
+                style={{
+                  fontFamily: "var(--ln-font-mono)",
+                  fontSize: 11,
+                  letterSpacing: "0.14em",
+                  fontWeight: 500,
+                  color: "var(--ln-ink)",
+                }}
+              >
+                <span>OUTBREAK</span>
+                <span style={{ color: ACCENT }}>NOW</span>
+              </div>
             </Link>
-          </div>
-        </div>
-
-        <div style={{ position: "relative" }}>
-          <span
-            style={{
-              position: "absolute",
-              left: 12,
-              top: "50%",
-              transform: "translateY(-50%)",
-              color: "var(--ln-ink-4)",
-            }}
-          >
-            <Icon.Search />
-          </span>
-          <input
-            className="ln-input"
-            placeholder={tSearchPlaceholder}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            marginTop: 10,
-            fontFamily: "var(--ln-font-mono)",
-            fontSize: 10,
-            color: "var(--ln-ink-3)",
-            letterSpacing: "0.1em",
-          }}
-        >
-          <span
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: ACCENT,
-              boxShadow: `0 0 8px ${ACCENT}`,
-              animation: "ln-pulse-soft 1.4s infinite",
-            }}
-          />
-          <span style={{ color: ACCENT }}>{loading ? tLoading : tLive}</span>
-          <span style={{ color: "var(--ln-ink-4)" }}>·</span>
-          <span>
-            {filtered.length} {tEvents} · {new Set(filtered.map((o) => o.country)).size} {tCountries}
-          </span>
-        </div>
-      </header>
-
-      {/* Filter chips — float just below the header on top of the map */}
-      <div
-        className="ln-pane"
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          top: 132,
-          zIndex: 595,
-          display: "flex",
-          gap: 6,
-          padding: isNarrow ? "10px 12px" : "10px 14px",
-          overflowX: "auto",
-          WebkitOverflowScrolling: "touch",
-          borderBottom: "1px solid var(--ln-line)",
-          background: "color-mix(in oklab, var(--ln-topbar) 90%, transparent)",
-          backdropFilter: "blur(10px)",
-        }}
-      >
-        {chips.map((c) => (
-          <button
-            key={c.id}
-            onClick={() => setChip(c.id)}
-            className={`ln-chip ${chip === c.id ? "is-ok" : ""}`}
-            style={{
-              flex: "0 0 auto",
-              cursor: "pointer",
-              padding: isNarrow ? "5px 8px" : "5px 10px",
-              borderRadius: 999,
-            }}
-          >
             <span
+              title={`${filtered.length} ${tEvents} · ${new Set(filtered.map((o) => o.country)).size} ${tCountries}`}
               style={{
+                flex: 1,
+                minWidth: 0,
+                textAlign: "right",
+                fontFamily: "var(--ln-font-mono)",
+                fontSize: 9.5,
+                letterSpacing: "0.08em",
+                color: "var(--ln-ink-3)",
+                whiteSpace: "nowrap",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                maxWidth: isNarrow ? 90 : 120,
-                display: "inline-block",
               }}
-              title={c.label}
             >
-              {c.label}
+              <span style={{ color: ACCENT }}>{loading ? tLoading : tLive}</span>
+              {" · "}
+              {filtered.length} · {new Set(filtered.map((o) => o.country)).size}
             </span>
-            <span style={{ color: "var(--ln-ink-4)", marginLeft: 4 }}>{c.count}</span>
-          </button>
-        ))}
-      </div>
+            <div style={{ display: "flex", gap: 9, alignItems: "center", color: "var(--ln-ink-2)", flex: "0 0 auto" }}>
+              <LanguageSelector />
+              <ThemeToggle />
+              <span style={{ position: "relative", display: "inline-block" }}>
+                <Icon.Bell />
+                {alerts.filter((a) => a.level === "critical" || a.level === "high").length > 0 && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: -4,
+                      right: -6,
+                      background: "var(--ln-crit)",
+                      color: "#fff",
+                      fontSize: 9,
+                      borderRadius: 999,
+                      padding: "0 4px",
+                      fontFamily: "var(--ln-font-mono)",
+                    }}
+                  >
+                    {alerts.filter((a) => a.level === "critical" || a.level === "high").length}
+                  </span>
+                )}
+              </span>
+              <Link to="/dashboard" style={{ color: "inherit" }}>
+                <Icon.Menu />
+              </Link>
+            </div>
+          </div>
 
-      {/* AI signal banner — floats over the map, just below the chips */}
-      {topPrediction && (
+          {/* Row 2: compact search */}
+          <div style={{ position: "relative", marginTop: 7 }}>
+            <span
+              style={{
+                position: "absolute",
+                left: 10,
+                top: "50%",
+                transform: "translateY(-50%)",
+                color: "var(--ln-ink-4)",
+              }}
+            >
+              <Icon.Search />
+            </span>
+            <input
+              className="ln-input"
+              style={{ padding: "5px 10px 5px 30px", fontSize: 12.5 }}
+              placeholder={tSearchPlaceholder}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+        </header>
+
+        {/* Filter chips */}
+        <div
+          className="ln-pane"
+          style={{
+            display: "flex",
+            gap: 6,
+            padding: isNarrow ? "7px 12px 8px" : "7px 14px 8px",
+            overflowX: "auto",
+            WebkitOverflowScrolling: "touch",
+          }}
+        >
+          {chips.map((c) => (
+            <button
+              key={c.id}
+              onClick={() => setChip(c.id)}
+              className={`ln-chip ${chip === c.id ? "is-ok" : ""}`}
+              style={{
+                flex: "0 0 auto",
+                cursor: "pointer",
+                padding: isNarrow ? "4px 8px" : "4px 10px",
+                borderRadius: 999,
+              }}
+            >
+              <span
+                style={{
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                  maxWidth: isNarrow ? 90 : 120,
+                  display: "inline-block",
+                }}
+                title={c.label}
+              >
+                {c.label}
+              </span>
+              <span style={{ color: "var(--ln-ink-4)", marginLeft: 4 }}>{c.count}</span>
+            </button>
+          ))}
+        </div>
+        </div>
+
+        {/* AI signal strip — single compact translucent line below the chrome */}
+        {topPrediction && aiBannerOpen && (
         <div
           style={{
-            position: "absolute",
-            top: 192,
-            left: 12,
-            right: 12,
+            margin: "6px 10px 0",
             background: "var(--ln-overlay-bg)",
             backdropFilter: "blur(6px)",
             border: "1px solid var(--ln-line-2)",
-            padding: "10px 12px",
+            borderRadius: 8,
+            padding: "5px 8px",
             display: "flex",
-            flexDirection: isNarrow ? "column" : "row",
-            gap: isNarrow ? 6 : 10,
-            alignItems: isNarrow ? "flex-start" : "center",
-            zIndex: 500,
+            alignItems: "center",
+            gap: 7,
           }}
         >
-          <div
+          <Icon.Sparkles style={{ color: ACCENT, flex: "0 0 13px" }} />
+          <span
             style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              width: isNarrow ? "100%" : "auto",
-              justifyContent: "space-between",
+              fontFamily: "var(--ln-font-mono)",
+              fontSize: 9,
+              color: "var(--ln-ink-3)",
+              letterSpacing: "0.08em",
+              flex: "0 0 auto",
             }}
           >
-            <Icon.Sparkles style={{ color: ACCENT, flex: "0 0 14px" }} />
-            {isNarrow && <Icon.ArrowR style={{ color: "var(--ln-ink-3)" }} />}
-          </div>
-          <div style={{ flex: 1, minWidth: 0, width: isNarrow ? "100%" : undefined }}>
-            <div
-              style={{
-                fontFamily: "var(--ln-font-mono)",
-                fontSize: 9,
-                color: "var(--ln-ink-3)",
-                letterSpacing: "0.1em",
-              }}
-            >
-              {tAIForecast} · {topPrediction.horizon}
-            </div>
-            <div
-              style={{
-                fontSize: 12,
-                lineHeight: 1.3,
-                marginTop: 2,
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: isNarrow ? "normal" : "nowrap",
-                wordBreak: isNarrow ? "break-word" : undefined,
-              }}
-            >
-              {topPrediction.disease} surge · {topPrediction.region}
-            </div>
-          </div>
-          {!isNarrow && <Icon.ArrowR style={{ color: "var(--ln-ink-3)" }} />}
+            {tAIForecast} · {topPrediction.horizon}
+          </span>
+          <span
+            style={{
+              flex: 1,
+              minWidth: 0,
+              fontSize: 11.5,
+              lineHeight: 1.3,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {topPrediction.disease} surge · {topPrediction.region}
+          </span>
+          <button
+            onClick={() => setAiBannerOpen(false)}
+            aria-label="Dismiss forecast"
+            style={{
+              background: "none",
+              border: "none",
+              color: "var(--ln-ink-3)",
+              padding: 2,
+              cursor: "pointer",
+              flex: "0 0 auto",
+            }}
+          >
+            <Icon.X />
+          </button>
         </div>
+        )}
+      </div>
+      )}
+
+      {/* Fullscreen-map toggle — floats above the sheet (or bottom-right when
+          immersive). Hidden while the sheet is fully expanded since the map
+          isn't visible behind it. */}
+      {(immersive || sheetMode !== "full") && (
+        <button
+          onClick={() => setImmersive(!immersive)}
+          aria-label={immersive ? "Exit full map" : "Full map"}
+          style={{
+            position: "absolute",
+            right: 12,
+            bottom: immersive ? 16 : `calc(${sheetCss} + 14px)`,
+            zIndex: 710,
+            width: 42,
+            height: 42,
+            borderRadius: "50%",
+            border: "1px solid var(--ln-line-3)",
+            background: "var(--ln-overlay-bg)",
+            backdropFilter: "blur(8px)",
+            color: "var(--ln-ink)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "pointer",
+            boxShadow: "0 6px 18px rgba(0,0,0,0.4)",
+            transition: "bottom .3s cubic-bezier(.2,.7,.3,1)",
+          }}
+        >
+          {immersive ? (
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth={1.5}>
+              <path d="M6 2v4H2M10 14v-4h4M14 6h-4V2M2 10h4v4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          ) : (
+            <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth={1.5}>
+              <path d="M2 6V2h4M14 10v4h-4M10 2h4v4M6 14H2v-4" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
+        </button>
       )}
 
       {/* Pull-up sheet */}
+      {!immersive && (
       <div
         style={{
           position: "absolute",
@@ -561,6 +595,7 @@ export function MobileMapScreen() {
         </div>
 
       </div>
+      )}
 
       {/* Selected outbreak quick-view modal */}
       {selected && (

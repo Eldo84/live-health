@@ -74,11 +74,13 @@ export function BottomNav() {
         zIndex: 750,
         display: "flex",
         justifyContent: "space-around",
-        padding: "8px 0 12px",
+        // Safe-area inset keeps the tabs clear of the iPhone home indicator
+        // (and gesture bars on Android) when installed as a PWA.
+        padding: "8px 0 calc(12px + env(safe-area-inset-bottom, 0px))",
         background: "color-mix(in oklab, var(--ln-bg) 92%, transparent)",
         backdropFilter: "blur(12px)",
         borderTop: "1px solid var(--ln-line)",
-        height: BOTTOM_NAV_HEIGHT,
+        height: `calc(${BOTTOM_NAV_HEIGHT}px + env(safe-area-inset-bottom, 0px))`,
         boxSizing: "border-box",
       }}
     >
