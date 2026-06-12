@@ -1,51 +1,96 @@
-import { StrictMode } from "react";
+import { StrictMode, Suspense, lazy, type ComponentType } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
-import { AppLayout } from "./layouts/AppLayout";
 import { FullscreenProvider } from "./contexts/FullscreenContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { LanguageProvider } from "./contexts/LanguageContext";
 import { SidebarProvider } from "./contexts/SidebarContext";
 
-// New LiveHealth+ redesign
+// New LiveHealth+ redesign — the host shell stays eager (it's the chrome every
+// screen needs); the screens themselves are lazy so each route only downloads
+// its own chunk. Before this split the whole app shipped as one ~2MB bundle,
+// which is why the map took so long to appear on slow connections.
 import { LiveHealthHost } from "./livehealth/LiveHealthHost";
-import { AdminShell } from "./livehealth/AdminShell";
-import { LandingRoute } from "./livehealth/screens/LandingRoute";
-import { MapScreen } from "./livehealth/screens/Map";
-import { DashboardScreen } from "./livehealth/screens/Dashboard";
-import { NewsScreen } from "./livehealth/screens/News";
-import { GlobalHealthIndexScreen } from "./livehealth/screens/GlobalHealthIndex";
-import { WeeklyReportScreen } from "./livehealth/screens/WeeklyReport";
-import { ZambiaDashboardScreen } from "./lusaka/screens/ZambiaDashboard";
-import AdvertiseScreen from "./livehealth/screens/Advertise";
-
-// Auxiliary pages kept from the existing app (still needed for payments, donations, admin, etc.)
-import PartnershipScreen from "./livehealth/screens/Partnership";
-import AboutScreen from "./livehealth/screens/About";
-import PrivacyPolicyScreen from "./livehealth/screens/PrivacyPolicy";
-import SettingsScreen from "./livehealth/screens/Settings";
-import {
-  PaymentPage,
-  PaymentSuccess,
-  PaymentCancelled,
-  UserAdvertisingDashboard,
-  AdminAdvertisingPanel,
-} from "./screens/Advertising";
-import { DonationSuccess } from "./screens/Donate/DonationSuccess";
-import { DonationCancelled } from "./screens/Donate/DonationCancelled";
-import { AdminDashboard } from "./screens/Admin/AdminDashboard";
-import { AdminAlertReviewPanel } from "./screens/Admin/AdminAlertReviewPanel";
-import { AdminNotificationPanel } from "./screens/Admin/AdminNotificationPanel";
-import { AdminFeedbackPanel } from "./screens/Admin/AdminFeedbackPanel";
-import { WeeklyReport } from "./screens/Dashboard/WeeklyReport";
+import { initInstallCapture } from "./livehealth/lib/installPrompt";
 import { ProtectedRoute } from "./components/ProtectedRoute";
-import { ResetPasswordScreen } from "./screens/ResetPassword";
-import { News } from "./screens/News";
 import { PageTracking } from "./components/PageTracking";
 import { initGA4 } from "./lib/analytics";
 
+// Route-level code splitting. `from` adapts named exports to React.lazy's
+// default-export contract.
+const from = <T extends ComponentType<any>>(loader: () => Promise<T>) =>
+  lazy(() => loader().then((C) => ({ default: C })));
+
+const LandingRoute = from(() => import("./livehealth/screens/LandingRoute").then((m) => m.LandingRoute));
+const MapScreen = from(() => import("./livehealth/screens/Map").then((m) => m.MapScreen));
+const DashboardScreen = from(() => import("./livehealth/screens/Dashboard").then((m) => m.DashboardScreen));
+const NewsScreen = from(() => import("./livehealth/screens/News").then((m) => m.NewsScreen));
+const GlobalHealthIndexScreen = from(() =>
+  import("./livehealth/screens/GlobalHealthIndex").then((m) => m.GlobalHealthIndexScreen)
+);
+const WeeklyReportScreen = from(() => import("./livehealth/screens/WeeklyReport").then((m) => m.WeeklyReportScreen));
+const ZambiaDashboardScreen = from(() => import("./lusaka/screens/ZambiaDashboard").then((m) => m.ZambiaDashboardScreen));
+const AdminShell = from(() => import("./livehealth/AdminShell").then((m) => m.AdminShell));
+const AdvertiseScreen = lazy(() => import("./livehealth/screens/Advertise"));
+
+// Auxiliary pages kept from the existing app (still needed for payments, donations, admin, etc.)
+const PartnershipScreen = lazy(() => import("./livehealth/screens/Partnership"));
+const AboutScreen = lazy(() => import("./livehealth/screens/About"));
+const PrivacyPolicyScreen = lazy(() => import("./livehealth/screens/PrivacyPolicy"));
+const SettingsScreen = lazy(() => import("./livehealth/screens/Settings"));
+const PaymentPage = from(() => import("./screens/Advertising").then((m) => m.PaymentPage));
+const PaymentSuccess = from(() => import("./screens/Advertising").then((m) => m.PaymentSuccess));
+const PaymentCancelled = from(() => import("./screens/Advertising").then((m) => m.PaymentCancelled));
+const UserAdvertisingDashboard = from(() =>
+  import("./screens/Advertising").then((m) => m.UserAdvertisingDashboard)
+);
+const AdminAdvertisingPanel = from(() => import("./screens/Advertising").then((m) => m.AdminAdvertisingPanel));
+const DonationSuccess = from(() => import("./screens/Donate/DonationSuccess").then((m) => m.DonationSuccess));
+const DonationCancelled = from(() => import("./screens/Donate/DonationCancelled").then((m) => m.DonationCancelled));
+const AdminDashboard = from(() => import("./screens/Admin/AdminDashboard").then((m) => m.AdminDashboard));
+const AdminAlertReviewPanel = from(() =>
+  import("./screens/Admin/AdminAlertReviewPanel").then((m) => m.AdminAlertReviewPanel)
+);
+const AdminNotificationPanel = from(() =>
+  import("./screens/Admin/AdminNotificationPanel").then((m) => m.AdminNotificationPanel)
+);
+const AdminFeedbackPanel = from(() => import("./screens/Admin/AdminFeedbackPanel").then((m) => m.AdminFeedbackPanel));
+const WeeklyReport = from(() => import("./screens/Dashboard/WeeklyReport").then((m) => m.WeeklyReport));
+const ResetPasswordScreen = from(() => import("./screens/ResetPassword").then((m) => m.ResetPasswordScreen));
+const News = from(() => import("./screens/News").then((m) => m.News));
+const AppLayout = from(() => import("./layouts/AppLayout").then((m) => m.AppLayout));
+
 initGA4();
+// Capture beforeinstallprompt as early as possible (it can fire before React
+// mounts) and register the installability service worker.
+initInstallCapture();
+
+// Branded full-screen fallback shown while a route chunk downloads — matches
+// the app's dark surface so there's no white flash before the map appears.
+function RouteLoader() {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "#0c1418",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 14,
+        color: "#7da8a0",
+        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+        fontSize: 12,
+        letterSpacing: "0.08em",
+      }}
+    >
+      <img src="/icon-192.png" alt="" width={56} height={56} style={{ borderRadius: 12 }} />
+      <span>LOADING OUTBREAKNOW…</span>
+    </div>
+  );
+}
 
 createRoot(document.getElementById("app") as HTMLElement).render(
   <StrictMode>
@@ -56,6 +101,7 @@ createRoot(document.getElementById("app") as HTMLElement).render(
           <AuthProvider>
             <SidebarProvider>
               <FullscreenProvider>
+                <Suspense fallback={<RouteLoader />}>
                 <Routes>
                   {/*
                    * Auth model: landing surfaces (landing page, map, partnership,
@@ -144,6 +190,7 @@ createRoot(document.getElementById("app") as HTMLElement).render(
                     <Route path="notifications" element={<AdminNotificationPanel />} />
                   </Route>
                 </Routes>
+                </Suspense>
               </FullscreenProvider>
             </SidebarProvider>
           </AuthProvider>
