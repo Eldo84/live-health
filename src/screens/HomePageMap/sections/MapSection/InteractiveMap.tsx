@@ -786,14 +786,20 @@ const MapControls = ({ mapType, onMapTypeChange, isOpen, onOpenChange, isFullscr
 };
 
 const MapTileLayer = ({ mapType }: { mapType: MapType }) => {
-  const tileConfigs: Record<MapType, { url: string; attribution: string; labels?: string }> = {
+  // Esri canvas tiles (keyless) — CARTO now requires an API key.
+  const esri = 'https://server.arcgisonline.com/ArcGIS/rest/services';
+  const tileConfigs: Record<MapType, { url: string; attribution: string; labels?: string; maxNativeZoom?: number }> = {
     dark: {
-      url: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      url: `${esri}/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`,
+      labels: `${esri}/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}`,
+      attribution: '&copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors',
+      maxNativeZoom: 16,
     },
     light: {
-      url: 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      url: `${esri}/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}`,
+      labels: `${esri}/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}`,
+      attribution: '&copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors',
+      maxNativeZoom: 16,
     },
     street: {
       url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
@@ -806,7 +812,7 @@ const MapTileLayer = ({ mapType }: { mapType: MapType }) => {
     imagery: {
       url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
       attribution: '&copy; Esri',
-      labels: 'https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png',
+      labels: `${esri}/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}`,
     },
   };
 
@@ -814,9 +820,17 @@ const MapTileLayer = ({ mapType }: { mapType: MapType }) => {
 
   return (
     <>
-      <TileLayer url={config.url} attribution={config.attribution} />
+      <TileLayer key={mapType} url={config.url} attribution={config.attribution} maxNativeZoom={config.maxNativeZoom} />
       {config.labels && (
-        <TileLayer url={config.labels} attribution='&copy; OpenStreetMap' />
+        <TileLayer key={`${mapType}-labels`} url={config.labels} maxNativeZoom={config.maxNativeZoom} />
+      )}
+      {/* Canvas styles have no labels below zoom 3 — show continent/ocean names there. */}
+      {(mapType === 'dark' || mapType === 'light') && (
+        <TileLayer
+          key={`${mapType}-world-labels`}
+          url={`${esri}/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}`}
+          maxZoom={2}
+        />
       )}
     </>
   );

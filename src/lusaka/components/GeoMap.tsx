@@ -218,9 +218,8 @@ export function GeoMap({
             attribution="&copy; Esri"
           />
           <TileLayer
-            url="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png"
-            subdomains={["a", "b", "c", "d"]}
-            opacity={0.6}
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}"
+            opacity={0.85}
           />
         </>
       )}

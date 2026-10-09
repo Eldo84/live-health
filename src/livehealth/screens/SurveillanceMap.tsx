@@ -1075,7 +1075,7 @@ export function SurveillanceMapScreen() {
                   pointerEvents: "none",
                 }}
               >
-                CARTO · WGS-84
+                ESRI · WGS-84
               </span>
               <span
                 style={{

@@ -44,28 +44,45 @@ interface LiveMapProps {
   clusterCategoryFor?: (o: LiveOutbreak) => ClusterCategory | undefined;
 }
 
-const CARTO_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="https://carto.com/attributions">CARTO</a>';
+// Keyless Esri tiles. CARTO's basemaps.cartocdn.com now serves an
+// "API KEY REQUIRED" watermark tile without a key, so it's no longer used.
+const ESRI = "https://server.arcgisonline.com/ArcGIS/rest/services";
+const ESRI_CANVAS_ATTRIBUTION = "&copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors";
+
+// Continent + ocean names. The Esri canvas styles carry no labels at all until
+// zoom 3, so this fills the fully-zoomed-out world view on dark/light.
+const ESRI_PLACES = `${ESRI}/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}`;
+const WORLD_LABELS_MAX_ZOOM = 2;
 
 // Tile configs for each basemap. `labels` is an optional overlay layer drawn on
-// top of label-free base tiles so place names stay crisp on dark/light/imagery.
+// top of the base tiles so place names stay crisp on dark/light/imagery.
+// `worldLabels` adds ESRI_PLACES at zoom <= WORLD_LABELS_MAX_ZOOM only.
 const TILE_CONFIGS: Record<
   MapType,
-  { url: string; attribution: string; subdomains: string[]; labels?: string; labelsOpacity?: number }
+  {
+    url: string;
+    attribution: string;
+    subdomains: string[];
+    labels?: string;
+    labelsOpacity?: number;
+    worldLabels?: boolean;
+  }
 > = {
   dark: {
-    url: "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png",
-    labels: "https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png",
-    labelsOpacity: 0.6,
-    attribution: CARTO_ATTRIBUTION,
-    subdomains: ["a", "b", "c", "d"],
+    url: `${ESRI}/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}`,
+    labels: `${ESRI}/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}`,
+    labelsOpacity: 0.8,
+    worldLabels: true,
+    attribution: ESRI_CANVAS_ATTRIBUTION,
+    subdomains: [],
   },
   light: {
-    url: "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png",
-    labels: "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png",
-    labelsOpacity: 0.7,
-    attribution: CARTO_ATTRIBUTION,
-    subdomains: ["a", "b", "c", "d"],
+    url: `${ESRI}/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}`,
+    labels: `${ESRI}/Canvas/World_Light_Gray_Reference/MapServer/tile/{z}/{y}/{x}`,
+    labelsOpacity: 0.8,
+    worldLabels: true,
+    attribution: ESRI_CANVAS_ATTRIBUTION,
+    subdomains: [],
   },
   street: {
     url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
@@ -78,9 +95,9 @@ const TILE_CONFIGS: Record<
     subdomains: [],
   },
   imagery: {
-    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-    labels: "https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png",
-    labelsOpacity: 0.6,
+    url: `${ESRI}/World_Imagery/MapServer/tile/{z}/{y}/{x}`,
+    labels: ESRI_PLACES,
+    labelsOpacity: 0.85,
     attribution: "&copy; Esri",
     subdomains: [],
   },
@@ -384,8 +401,15 @@ export function LiveMap({
         <TileLayer
           key={`${mapType}-labels`}
           url={tiles.labels}
-          subdomains={["a", "b", "c", "d"]}
           opacity={tiles.labelsOpacity ?? 0.6}
+        />
+      )}
+      {tiles.worldLabels && (
+        <TileLayer
+          key={`${mapType}-world-labels`}
+          url={ESRI_PLACES}
+          maxZoom={WORLD_LABELS_MAX_ZOOM}
+          opacity={0.85}
         />
       )}
       <MapTouches onMap={handleMap} />
